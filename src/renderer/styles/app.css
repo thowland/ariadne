@@ -1792,3 +1792,14 @@ input.inp.full {
   flex: 1;
   min-width: 220px;
 }
+
+.error-detail {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  max-width: 480px;
+  overflow-wrap: anywhere;
+}

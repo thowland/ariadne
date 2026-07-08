@@ -8,6 +8,7 @@ import { registerIpc } from './ipc';
 import { BackupService } from './services/backup-service';
 import { BlobService } from './services/blob-service';
 import { ConfigService } from './services/config-service';
+import { LoggerService } from './services/logger-service';
 import { StorageService } from './services/storage-service';
 
 // E2E runs isolate Electron's per-user state (and with it the default data
@@ -18,16 +19,32 @@ if (testUserData) {
 }
 
 let storage: StorageService | null = null;
+let logger: LoggerService | null = null;
+let mainWindow: BrowserWindow | null = null;
+
+// Single-user desktop app: a second launch focuses the existing window.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+app.on('second-instance', () => {
+  if (mainWindow !== null) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
 
 // Must run before app ready.
 protocol.registerSchemesAsPrivileged([
   { scheme: BLOB_PROTOCOL, privileges: { stream: true, supportFetchAPI: true } },
 ]);
 
-function createWindow(): void {
+function createWindow(config: ConfigService): void {
+  const bounds = config.load().windowBounds;
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: bounds?.width ?? 1440,
+    height: bounds?.height ?? 900,
+    x: bounds?.x,
+    y: bounds?.y,
     show: false,
     autoHideMenuBar: true,
     title: 'Ariadne',
@@ -40,8 +57,16 @@ function createWindow(): void {
     },
   });
 
+  mainWindow = win;
   win.on('ready-to-show', () => {
     win.show();
+  });
+
+  win.on('close', () => {
+    config.save({ ...config.load(), windowBounds: win.getBounds() });
+  });
+  win.on('closed', () => {
+    mainWindow = null;
   });
 
   // The renderer never opens windows; external links go through the OS browser.
@@ -59,8 +84,14 @@ function createWindow(): void {
   }
 }
 
+process.on('uncaughtException', (err) => {
+  logger?.error(`uncaughtException: ${err.stack ?? err.message}`);
+});
+
 void app.whenReady().then(() => {
   const config = new ConfigService(app.getPath('userData'));
+  logger = new LoggerService(app.getPath('userData'));
+  logger.info(`Ariadne starting (v${app.getVersion()})`);
   const dataDir = config.resolveDataDir();
   const backups = new BackupService(dataDir);
   const blobs = new BlobService(dataDir);
@@ -76,10 +107,10 @@ void app.whenReady().then(() => {
     return net.fetch(pathToFileURL(path).toString());
   });
 
-  createWindow();
+  createWindow(config);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(config);
   });
 });
 

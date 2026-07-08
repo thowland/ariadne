@@ -15,6 +15,16 @@ attachments. No accounts, no cloud, no database.
   `Throughline.dc.html` (annotated prototype source — the behavior oracle),
   `Ariadne.html` (runnable prototype; open in a browser)
 
+## Installing
+
+Build the desktop packages with `npm run package` (Linux AppImage + deb land in
+`release/`; macOS/Windows targets are configured in package.json). Or run from
+source with `npm run dev`.
+
+Your data lives in the app's data folder (shown in Settings → Data, changeable
+to any directory, e.g. a synced one) as plain JSON plus a `blobs/` folder of
+attachments; `backups/` holds rotating snapshots.
+
 ## Development
 
 Requires Node ≥ 18.18.
