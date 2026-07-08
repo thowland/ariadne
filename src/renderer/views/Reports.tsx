@@ -118,7 +118,7 @@ function PortfolioReport({
           {rows.map((r) => (
             <tr
               key={r.project.id}
-              className="trow"
+              className="portfolio-row"
               onClick={() => {
                 openProject(r.project.id);
               }}

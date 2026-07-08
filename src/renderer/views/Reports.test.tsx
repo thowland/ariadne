@@ -46,7 +46,13 @@ describe('Reports', () => {
     render(<Reports />);
     await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
     const table = screen.getByTestId('portfolio-table');
+    // Real table semantics: 6 column headers, and one cell per column in
+    // every row so values line up under their headers (regression: a flex
+    // display on <tr> once collapsed the cells into the name).
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
     const row = within(table).getByText('Q3 Platform Migration').closest('tr');
+    expect(within(row as HTMLElement).getAllByRole('cell')).toHaveLength(6);
+    expect(row).not.toHaveClass('trow');
     expect(row).toHaveTextContent('Work');
     expect(row).toHaveTextContent('5');
     expect(row).toHaveTextContent('1d overdue');

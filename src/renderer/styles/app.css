@@ -1879,3 +1879,15 @@ input.inp.full {
   margin-left: 9px;
   font-size: 12px;
 }
+
+/* Portfolio rows are real table rows — .trow's display:flex would collapse
+   the cells, so they get their own hover treatment. */
+.portfolio-row {
+  cursor: pointer;
+}
+.portfolio-row td {
+  transition: background 0.1s;
+}
+.portfolio-row:hover td {
+  background: #faf9f6;
+}
