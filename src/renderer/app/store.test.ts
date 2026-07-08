@@ -122,7 +122,7 @@ describe('ui slice', () => {
     expect(useStore.getState().q).toBe('');
   });
 
-  it('openProject / openTask navigate to the project view', async () => {
+  it('openProject navigates; openTask opens the editor modal', async () => {
     installApiMock();
     await useStore.getState().load();
 
@@ -130,8 +130,21 @@ describe('ui slice', () => {
     expect(useStore.getState().view).toBe('project');
     expect(useStore.getState().activeProjectId).toBe('p3');
 
-    useStore.getState().openTask('t1'); // t1 lives in p1
-    expect(useStore.getState().activeProjectId).toBe('p1');
+    useStore.getState().openTask('t1');
+    expect(useStore.getState().modal).toEqual({ type: 'task', id: 't1' });
+    useStore.getState().closeModal();
+    expect(useStore.getState().modal).toBeNull();
+
+    useStore.getState().openTask('ghost'); // unknown ids are ignored
+    expect(useStore.getState().modal).toBeNull();
+  });
+
+  it('askConfirm resolves through resolveConfirm', async () => {
+    const promise = useStore.getState().askConfirm('Delete?');
+    expect(useStore.getState().confirmState?.message).toBe('Delete?');
+    useStore.getState().resolveConfirm(true);
+    await expect(promise).resolves.toBe(true);
+    expect(useStore.getState().confirmState).toBeNull();
   });
 
   it('showToast auto-clears after ~2.6s', () => {
@@ -164,6 +177,9 @@ describe('ui slice', () => {
     useStore.getState().newTaskGlobal();
     const tasks = useStore.getState().workspace?.tasks ?? [];
     expect(tasks[tasks.length - 1]?.projectId).toBe('p4');
+    // The new task opens in the editor modal (prototype behavior).
+    expect(useStore.getState().modal?.id).toBe(tasks[tasks.length - 1]?.id);
+    useStore.getState().closeModal();
 
     useStore.setState({ activeProjectId: null });
     useStore.getState().newTaskGlobal();

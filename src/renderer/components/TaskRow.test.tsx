@@ -58,11 +58,10 @@ describe('TaskRow', () => {
     expect(useStore.getState().view).toBe('home');
   });
 
-  it('opens the task (project stub navigation) on row click', async () => {
+  it('opens the task editor modal on row click', async () => {
     render(<TaskRow task={task('t3')} />);
     await userEvent.click(screen.getByText('Migrate auth service'));
-    expect(useStore.getState().view).toBe('project');
-    expect(useStore.getState().activeProjectId).toBe('p1');
+    expect(useStore.getState().modal).toEqual({ type: 'task', id: 't3' });
   });
 
   it('renders "Untitled task" for empty titles', () => {

@@ -32,6 +32,8 @@ export function setupTestApp(
     q: '',
     scope: 'all',
     toast: null,
+    modal: null,
+    confirmState: null,
   });
   return api;
 }

@@ -13,6 +13,14 @@ export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCt
 
 export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'settings';
 
+/** File viewer joins in Sprint 5. */
+export type ModalState = { type: 'task'; id: string } | null;
+
+export interface ConfirmState {
+  message: string;
+  resolve: (confirmed: boolean) => void;
+}
+
 export interface AriadneStore {
   // ----- data slice -----
   workspace: Workspace | null;
@@ -38,17 +46,23 @@ export interface AriadneStore {
   q: string;
   scope: Scope;
   toast: string | null;
+  modal: ModalState;
+  confirmState: ConfirmState | null;
 
   go: (view: ViewName) => void;
   openProject: (id: string) => void;
-  /** Sprint 2 stub: navigates to the task's project. Sprint 3 opens the modal. */
+  /** Opens the task editor modal over the current view. */
   openTask: (id: string) => void;
+  closeModal: () => void;
   setQuery: (q: string) => void;
   setScope: (scope: Scope) => void;
   showToast: (message: string) => void;
+  /** In-app confirm dialog; resolves true when the user confirms. */
+  askConfirm: (message: string) => Promise<boolean>;
+  resolveConfirm: (confirmed: boolean) => void;
   /** Sidebar "+" — create a project and jump to it. */
   newProject: () => void;
-  /** Top bar "+ New task" — create in the active (or first) project. */
+  /** Top bar "+ New task" — create in the active (or first) project and edit it. */
   newTaskGlobal: () => void;
 }
 
@@ -99,6 +113,8 @@ export const useStore = create<AriadneStore>((set, get) => ({
   q: '',
   scope: 'all',
   toast: null,
+  modal: null,
+  confirmState: null,
 
   go: (view) => {
     set({ view, q: '' });
@@ -109,8 +125,13 @@ export const useStore = create<AriadneStore>((set, get) => ({
   },
 
   openTask: (id) => {
-    const t = get().workspace?.tasks.find((x) => x.id === id);
-    if (t !== undefined) get().openProject(t.projectId);
+    if (get().workspace?.tasks.some((x) => x.id === id) === true) {
+      set({ modal: { type: 'task', id } });
+    }
+  },
+
+  closeModal: () => {
+    set({ modal: null });
   },
 
   setQuery: (q) => {
@@ -119,6 +140,17 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   setScope: (scope) => {
     set({ scope });
+  },
+
+  askConfirm: (message) =>
+    new Promise<boolean>((resolve) => {
+      set({ confirmState: { message, resolve } });
+    }),
+
+  resolveConfirm: (confirmed) => {
+    const pending = get().confirmState;
+    set({ confirmState: null });
+    pending?.resolve(confirmed);
   },
 
   showToast: (message) => {
@@ -147,9 +179,6 @@ export const useStore = create<AriadneStore>((set, get) => ({
       return;
     }
     const result = get().apply((ws, ctx) => createTask(ws, ctx, pid, {}));
-    if (result !== null) {
-      get().openProject(pid);
-      get().showToast('Task created');
-    }
+    if (result !== null) get().openTask(result.id);
   },
 }));

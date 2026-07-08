@@ -38,8 +38,7 @@ describe('App shell', () => {
 
     const sidebar = screen.getByRole('navigation', { name: 'Projects' });
     await userEvent.click(within(sidebar).getByRole('button', { name: /Refinish boat table/ }));
-    expect(screen.getByRole('heading', { name: 'Refinish boat table' })).toBeInTheDocument();
-    expect(screen.getByText(/Full project workspace/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Project name')).toHaveValue('Refinish boat table');
   });
 
   it('shows search results while a query is present and restores the view after', async () => {
@@ -54,14 +53,24 @@ describe('App shell', () => {
     expect(screen.getByTestId('home-headline')).toBeInTheDocument();
   });
 
-  it('creates a task from the top bar and lands on the project (with toast)', async () => {
+  it('creates a task from the top bar and opens the editor modal', async () => {
     render(<App />);
     await screen.findByTestId('home-headline');
 
     await userEvent.click(screen.getByRole('button', { name: '+ New task' }));
-    // First seeded project is the migration project.
-    expect(screen.getByRole('heading', { name: 'Q3 Platform Migration' })).toBeInTheDocument();
-    expect(screen.getByText('Task created')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Edit task' });
+    // Defaults visible; targeted the first seeded project.
+    expect(within(dialog).getByLabelText('Project')).toHaveValue('p1');
+    expect(within(dialog).getByPlaceholderText('Task title')).toHaveValue('');
+  });
+
+  it('Escape closes the editor modal', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    await userEvent.click(screen.getByRole('button', { name: '+ New task' }));
+    expect(screen.getByRole('dialog', { name: 'Edit task' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Edit task' })).not.toBeInTheDocument();
   });
 
   it('creates a project from the sidebar +', async () => {
@@ -69,6 +78,6 @@ describe('App shell', () => {
     await screen.findByTestId('home-headline');
 
     await userEvent.click(screen.getByTitle('New project'));
-    expect(screen.getByRole('heading', { name: 'Untitled project' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Project name')).toHaveValue('Untitled project');
   });
 });

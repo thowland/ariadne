@@ -3,9 +3,11 @@ import { useEffect } from 'react';
 import { useStore } from './app/store';
 import { Sidebar } from './chrome/Sidebar';
 import { TopBar } from './chrome/TopBar';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { Logo } from './components/Logo';
+import { ModalHost } from './modals/TaskModal';
 import { CommandCenter } from './views/CommandCenter';
-import { ProjectStub } from './views/ProjectStub';
+import { ProjectDetail } from './views/ProjectDetail';
 import { SearchResults } from './views/SearchResults';
 
 function StubView({ name, sprint }: { name: string; sprint: number }): React.JSX.Element {
@@ -25,7 +27,7 @@ function ViewBody(): React.JSX.Element {
     case 'home':
       return <CommandCenter />;
     case 'project':
-      return <ProjectStub />;
+      return <ProjectDetail />;
     case 'calendar':
       return <StubView name="Calendar" sprint={4} />;
     case 'reports':
@@ -41,6 +43,20 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Escape closes the confirm dialog first, then any open modal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      const s = useStore.getState();
+      if (s.confirmState !== null) s.resolveConfirm(false);
+      else if (s.modal !== null) s.closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
   // `today` rolls over while the app sits open: refresh on focus and once a
   // minute (cheap; state only changes at midnight).
@@ -78,6 +94,8 @@ export function App(): React.JSX.Element {
           <ViewBody />
         </div>
       </main>
+      <ModalHost />
+      <ConfirmDialog />
       {toast !== null && <div className="toast">{toast}</div>}
     </div>
   );
