@@ -43,11 +43,12 @@ describe('weeklyStatus', () => {
       'Provision new k8s cluster',
       'Write migration runbook',
     ]);
-    // Blockers: waiting cutover, blocked auth/billing, overdue auth.
-    expect(p1?.blockers.map((t) => t.title).sort()).toEqual([
+    // At risk: overdue auth, plus cutover which directly depends on it.
+    // Billing depends only on the (not overdue) cluster task; Waiting status
+    // alone is not a risk.
+    expect(p1?.atRisk.map((t) => t.title).sort()).toEqual([
       'Cutover & DNS switch',
       'Migrate auth service',
-      'Migrate billing service',
     ]);
   });
 
@@ -67,7 +68,7 @@ describe('weeklyStatus', () => {
     expect(text).toContain('WEEKLY STATUS — Wednesday, July 8, 2026');
     expect(text).toContain('## Q3 Platform Migration');
     expect(text).toContain('Done this week: —');
-    expect(text).toContain('Blockers: ');
+    expect(text).toContain('At risk: Migrate auth service; Cutover & DNS switch');
   });
 });
 
@@ -120,14 +121,26 @@ describe('retrospective', () => {
 describe('atRiskReport', () => {
   const rows = atRiskReport(ws, 'all', TODAY);
 
-  it('flags overdue, blocked, and near-due critical/high with reasons', () => {
+  it('flags overdue tasks and direct dependents of overdue tasks, nothing else', () => {
     const reasons = new Map(rows.map((r) => [r.task.title, r.reason]));
+    // Overdue in the seed.
     expect(reasons.get('Migrate auth service')).toBe('1d overdue');
     expect(reasons.get('Sand to 220 grit')).toBe('2d overdue');
     expect(reasons.get('Gather 1099s and receipts')).toBe('3d overdue');
-    expect(reasons.get('Cutover & DNS switch')).toBe('Blocked by dependency');
-    // High priority due tomorrow, not blocked: categorize expenses is blocked by x1 → blocked reason wins.
-    expect(reasons.get('Categorize expenses')).toBe('Blocked by dependency');
+    // Direct dependents of an overdue task, naming the culprit.
+    expect(reasons.get('Cutover & DNS switch')).toBe('Waiting on overdue: Migrate auth service');
+    expect(reasons.get('Categorize expenses')).toBe(
+      'Waiting on overdue: Gather 1099s and receipts',
+    );
+    expect(reasons.get('Apply first coat of spar varnish')).toBe(
+      'Waiting on overdue: Sand to 220 grit',
+    );
+    // Ordinary dependencies, Waiting status, and near-due priorities are NOT risks.
+    expect(reasons.has('Migrate billing service')).toBe(false); // depends on non-overdue cluster
+    expect(reasons.has('Meet with accountant')).toBe(false); // Critical, due +4d, dep not overdue
+    expect(reasons.has('Second coat + light sand')).toBe(false); // transitive only
+    expect(reasons.has('Eng scoping & estimates')).toBe(false); // Waiting, no deps
+    expect(rows).toHaveLength(6);
   });
 
   it('sorts by due date and never includes closed tasks', () => {

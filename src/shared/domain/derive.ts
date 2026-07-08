@@ -50,6 +50,20 @@ export function isBlocked(t: Task, byId: Map<string, Task>): boolean {
 }
 
 /**
+ * The first *direct* dependency that is itself overdue (open + past due), or
+ * null. Deliberately not transitive: at-risk should flag the immediate
+ * knock-on of a slipped task, not entire downstream chains.
+ */
+export function overdueDependency(t: Task, byId: Map<string, Task>, today: IsoDate): Task | null {
+  if (!isOpen(t)) return null;
+  for (const id of t.dependsOn) {
+    const dep = byId.get(id);
+    if (dep !== undefined && isOverdue(dep, today)) return dep;
+  }
+  return null;
+}
+
+/**
  * "High priority · later": Critical/High priority with no due pressure inside
  * the week (no due date, or due more than 7 days out; overdue is excluded
  * because those tasks already surface in the Overdue section).

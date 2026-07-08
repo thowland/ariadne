@@ -84,7 +84,7 @@ function WeeklyReport({ blocks }: { blocks: WeeklyBlock[] }): React.JSX.Element 
           <div className="weekly-cols">
             {col('DONE THIS WEEK', b.done, '#2f8552', '—')}
             {col('PLANNED NEXT', b.planned, '#4f5bd5', '—')}
-            {col('BLOCKERS / AT RISK', b.blockers, '#c23b2b', 'None')}
+            {col('AT RISK', b.atRisk, '#c23b2b', 'None')}
           </div>
         </div>
       ))}

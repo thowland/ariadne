@@ -1,4 +1,6 @@
 import { isOpen, isOverdue } from '@shared/domain/derive';
+import { moveProject } from '@shared/domain/mutate';
+import { useState } from 'react';
 
 import { useStore } from '../app/store';
 import type { ViewName } from '../app/store';
@@ -13,7 +15,10 @@ const NAV: readonly (readonly [ViewName, string])[] = [
 ];
 
 export function Sidebar(): React.JSX.Element {
-  const { workspace, today, view, activeProjectId, q, go, openProject, newProject } = useStore();
+  const { workspace, today, view, activeProjectId, q, go, openProject, newProject, apply } =
+    useStore();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const tasks = workspace?.tasks ?? [];
   const searching = q.trim() !== '';
   const overdueTotal = tasks.filter((t) => isOverdue(t, today)).length;
@@ -47,7 +52,7 @@ export function Sidebar(): React.JSX.Element {
         </button>
       </div>
       <nav className="nav-list" aria-label="Projects">
-        {(workspace?.projects ?? []).map((p) => {
+        {(workspace?.projects ?? []).map((p, index) => {
           const projectTasks = tasks.filter((t) => t.projectId === p.id);
           const open = projectTasks.filter(isOpen).length;
           const overdue = projectTasks.filter((t) => isOverdue(t, today)).length;
@@ -55,7 +60,36 @@ export function Sidebar(): React.JSX.Element {
           return (
             <button
               key={p.id}
-              className={`navitem ${active ? 'active' : ''}`}
+              className={`navitem ${active ? 'active' : ''} ${dragOverId === p.id && dragId !== p.id ? 'drag-over' : ''}`}
+              draggable
+              aria-label={`${p.name} (drag to reorder)`}
+              onDragStart={(e) => {
+                setDragId(p.id);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', p.id);
+              }}
+              onDragOver={(e) => {
+                if (dragId !== null) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDragOverId(p.id);
+                }
+              }}
+              onDragLeave={() => {
+                setDragOverId((current) => (current === p.id ? null : current));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId !== null && dragId !== p.id) {
+                  apply((ws) => moveProject(ws, dragId, index));
+                }
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setDragOverId(null);
+              }}
               onClick={() => {
                 openProject(p.id);
               }}

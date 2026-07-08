@@ -72,11 +72,14 @@ describe('Reports', () => {
     expect(screen.getByTestId('retro-headline')).toHaveTextContent('1');
   });
 
-  it('renders the at-risk report with reasons', async () => {
+  it('renders the at-risk report: overdue plus direct dependents only', async () => {
     render(<Reports />);
     await userEvent.click(screen.getByRole('tab', { name: 'At-risk' }));
     expect(screen.getByText('1d overdue')).toBeInTheDocument();
-    expect(screen.getAllByText('Blocked by dependency').length).toBeGreaterThan(0);
+    expect(screen.getByText('Waiting on overdue: Migrate auth service')).toBeInTheDocument();
+    // Ordinary dependencies are not risks anymore.
+    expect(screen.queryByText('Blocked by dependency')).not.toBeInTheDocument();
+    expect(screen.queryByText('Migrate billing service')).not.toBeInTheDocument();
   });
 
   it('copies the current report to the clipboard', async () => {

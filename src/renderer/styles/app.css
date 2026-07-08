@@ -2002,3 +2002,23 @@ input.inp.full {
   color: var(--faint);
   margin-top: 6px;
 }
+
+/* ============ Sidebar drag & drop ============ */
+
+.navitem[draggable='true'] {
+  cursor: grab;
+}
+.navitem.drag-over {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* ============ Weekly report: roomier stacked sections ============ */
+
+.weekly-cols {
+  flex-direction: column;
+  gap: 16px;
+}
+.weekly-col {
+  flex: none;
+  width: 100%;
+}

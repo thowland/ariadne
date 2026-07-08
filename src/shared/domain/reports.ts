@@ -1,7 +1,7 @@
 import type { IsoDate, Project, Task, Workspace } from '../types';
 
 import { dayDiff, fmtLong, fmtShort } from './dates';
-import { indexTasks, isBlocked, isOpen, isOverdue, relativeDueLabel } from './derive';
+import { indexTasks, isOpen, isOverdue, overdueDependency, relativeDueLabel } from './derive';
 import { byDue } from './sort';
 
 /**
@@ -32,8 +32,8 @@ export interface WeeklyBlock {
   done: Task[];
   /** Open and due within the next 7 days (incl. today). */
   planned: Task[];
-  /** Open and Waiting, dependency-blocked, or overdue. */
-  blockers: Task[];
+  /** At risk: overdue, or directly dependent on an overdue task. */
+  atRisk: Task[];
 }
 
 export function weeklyStatus(ws: Workspace, filter: ReportFilter, today: IsoDate): WeeklyBlock[] {
@@ -54,12 +54,12 @@ export function weeklyStatus(ws: Workspace, filter: ReportFilter, today: IsoDate
           dayDiff(t.dueDate, today) >= 0 &&
           dayDiff(t.dueDate, today) <= 7,
       );
-      const blockers = tasks.filter(
-        (t) => isOpen(t) && (t.status === 'Waiting' || isBlocked(t, byId) || isOverdue(t, today)),
+      const atRisk = tasks.filter(
+        (t) => isOpen(t) && (isOverdue(t, today) || overdueDependency(t, byId, today) !== null),
       );
-      return { project, done, planned, blockers };
+      return { project, done, planned, atRisk };
     })
-    .filter((b) => b.done.length > 0 || b.planned.length > 0 || b.blockers.length > 0);
+    .filter((b) => b.done.length > 0 || b.planned.length > 0 || b.atRisk.length > 0);
 }
 
 export function weeklyStatusText(blocks: readonly WeeklyBlock[], today: IsoDate): string {
@@ -68,7 +68,7 @@ export function weeklyStatusText(blocks: readonly WeeklyBlock[], today: IsoDate)
     out += `## ${b.project.name}\n`;
     out += `Done this week: ${b.done.map((t) => t.title).join('; ') || '—'}\n`;
     out += `Planned next: ${b.planned.map((t) => t.title).join('; ') || '—'}\n`;
-    out += `Blockers: ${b.blockers.map((t) => t.title).join('; ') || 'None'}\n\n`;
+    out += `At risk: ${b.atRisk.map((t) => t.title).join('; ') || 'None'}\n\n`;
   }
   return out;
 }
@@ -177,6 +177,10 @@ export interface RiskRow {
   color: string;
 }
 
+/**
+ * At risk = overdue, or directly dependent on an overdue task (which names
+ * the culprit). Ordinary open dependencies are how plans work, not a risk.
+ */
 export function atRiskReport(ws: Workspace, filter: ReportFilter, today: IsoDate): RiskRow[] {
   const byId = indexTasks(ws.tasks);
   const rows: RiskRow[] = [];
@@ -190,18 +194,15 @@ export function atRiskReport(ws: Workspace, filter: ReportFilter, today: IsoDate
           reason: relativeDueLabel(task.dueDate, today).text,
           color: '#d94c3a',
         });
-      } else if (isBlocked(task, byId)) {
-        rows.push({ task, project, reason: 'Blocked by dependency', color: '#a8710f' });
-      } else if (
-        (task.priority === 'Critical' || task.priority === 'High') &&
-        task.dueDate !== null &&
-        dayDiff(task.dueDate, today) <= 3
-      ) {
+        continue;
+      }
+      const culprit = overdueDependency(task, byId, today);
+      if (culprit !== null) {
         rows.push({
           task,
           project,
-          reason: `${task.priority} · due ${relativeDueLabel(task.dueDate, today).text}`,
-          color: '#c23b2b',
+          reason: `Waiting on overdue: ${culprit.title || 'Untitled task'}`,
+          color: '#a8710f',
         });
       }
     }

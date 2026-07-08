@@ -105,6 +105,19 @@ export function deleteProject(ws: Workspace, id: string): DeleteFilesResult {
   };
 }
 
+/** Reorder the sidebar/portfolio: move a project to `toIndex` (clamped). */
+export function moveProject(ws: Workspace, id: string, toIndex: number): MutationResult {
+  const fromIndex = ws.projects.findIndex((p) => p.id === id);
+  if (fromIndex < 0) return unchanged(ws);
+  const target = Math.min(ws.projects.length - 1, Math.max(0, Math.round(toIndex)));
+  if (target === fromIndex) return unchanged(ws);
+  const projects = [...ws.projects];
+  const [moved] = projects.splice(fromIndex, 1);
+  if (moved === undefined) return unchanged(ws);
+  projects.splice(target, 0, moved);
+  return { workspace: { ...ws, projects }, changed: ['projects'] };
+}
+
 // ---------- tasks ----------
 
 export function createTask(

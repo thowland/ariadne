@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -60,5 +60,50 @@ describe('TopBar', () => {
     useStore.setState({ q: 'varnish' });
     render(<TopBar />);
     expect(screen.getByText('Search results')).toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — drag to reorder projects', () => {
+  function projectOrder() {
+    return (useStore.getState().workspace?.projects ?? []).map((p) => p.id);
+  }
+
+  it('dropping a project on another reorders and persists', () => {
+    render(<Sidebar />);
+    const source = screen.getByRole('button', { name: /Home network upgrade/ });
+    const target = screen.getByRole('button', { name: /Q3 Platform Migration/ });
+
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: () => undefined,
+      getData: () => 'p6',
+    };
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragOver(target, { dataTransfer });
+    expect(target).toHaveClass('drag-over');
+    fireEvent.drop(target, { dataTransfer });
+
+    expect(projectOrder()).toEqual(['p6', 'p1', 'p2', 'p3', 'p4', 'p5']);
+    expect(window.ariadne.saveCollections).toHaveBeenCalledWith({
+      projects: useStore.getState().workspace?.projects,
+    });
+  });
+
+  it('dropping on itself and dragend clean up without changes', () => {
+    render(<Sidebar />);
+    const source = screen.getByRole('button', { name: /2025 Taxes/ });
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: () => undefined };
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragOver(source, { dataTransfer });
+    expect(source).not.toHaveClass('drag-over');
+    fireEvent.drop(source, { dataTransfer });
+    expect(projectOrder()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragEnd(source, { dataTransfer });
+    const other = screen.getByRole('button', { name: /Refinish boat table/ });
+    fireEvent.drop(other, { dataTransfer }); // no active drag → no move
+    expect(projectOrder()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
   });
 });

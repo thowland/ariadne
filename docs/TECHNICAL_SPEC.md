@@ -13,18 +13,19 @@ ambiguous, the prototype source wins.
 
 Confirmed decisions that diverge from or refine the prototype:
 
-| #   | Decision                                                                                                                                                                                                                                                                                                             |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | **No login/auth.** The prototype's login gate, credentials storage, and Account settings section are removed entirely. The app opens directly into the Command Center.                                                                                                                                               |
-| D2  | **Stack:** Electron + React 18 + TypeScript + Vite (via `electron-vite`).                                                                                                                                                                                                                                            |
-| D3  | **Persistence:** human-readable JSON documents on the local filesystem plus a `blobs/` directory of real binary files. No database.                                                                                                                                                                                  |
-| D4  | **Data directory:** defaults to Electron `userData`, but user-configurable in Settings (e.g. point at a Dropbox-synced folder).                                                                                                                                                                                      |
-| D5  | **Todoist:** real **one-way import** (Todoist → Ariadne) via the Todoist REST API from the main process, scheduled as a late sprint. No push-back to Todoist in v1.                                                                                                                                                  |
-| D6  | **Real dates.** The prototype pins "today" to `2026-07-08` for demo stability; production uses the real current date through an injectable clock (tests may pin it).                                                                                                                                                 |
-| D7  | **No file-size cap on uploads.** The prototype's 3.5 MB limit existed only because of localStorage; blobs are ordinary files on disk. (A sanity warning above 100 MB is acceptable.)                                                                                                                                 |
-| D8  | **Deleting a project cascades to its files and blobs.** (Prototype leaked file records; treated as a prototype bug.)                                                                                                                                                                                                 |
-| D9  | Legacy `project.docs[]` no longer exists in the domain model; it is accepted **on import only** and migrated into `FileEntry` records of `kind: "ref"` (matching the prototype's own migration).                                                                                                                     |
-| D10 | **Todoist token is stored plaintext in settings.json** (not safeStorage-encrypted as §9 originally suggested). Rationale: the file lives inside the user's own data directory on a single-user machine, and encrypting it would make settings.json non-portable across machines and break export/import round-trips. |
+| #   | Decision                                                                                                                                                                                                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **No login/auth.** The prototype's login gate, credentials storage, and Account settings section are removed entirely. The app opens directly into the Command Center.                                                                                                                                                 |
+| D2  | **Stack:** Electron + React 18 + TypeScript + Vite (via `electron-vite`).                                                                                                                                                                                                                                              |
+| D3  | **Persistence:** human-readable JSON documents on the local filesystem plus a `blobs/` directory of real binary files. No database.                                                                                                                                                                                    |
+| D4  | **Data directory:** defaults to Electron `userData`, but user-configurable in Settings (e.g. point at a Dropbox-synced folder).                                                                                                                                                                                        |
+| D5  | **Todoist:** real **one-way import** (Todoist → Ariadne) via the Todoist REST API from the main process, scheduled as a late sprint. No push-back to Todoist in v1.                                                                                                                                                    |
+| D6  | **Real dates.** The prototype pins "today" to `2026-07-08` for demo stability; production uses the real current date through an injectable clock (tests may pin it).                                                                                                                                                   |
+| D7  | **No file-size cap on uploads.** The prototype's 3.5 MB limit existed only because of localStorage; blobs are ordinary files on disk. (A sanity warning above 100 MB is acceptable.)                                                                                                                                   |
+| D8  | **Deleting a project cascades to its files and blobs.** (Prototype leaked file records; treated as a prototype bug.)                                                                                                                                                                                                   |
+| D9  | Legacy `project.docs[]` no longer exists in the domain model; it is accepted **on import only** and migrated into `FileEntry` records of `kind: "ref"` (matching the prototype's own migration).                                                                                                                       |
+| D10 | **Todoist token is stored plaintext in settings.json** (not safeStorage-encrypted as §9 originally suggested). Rationale: the file lives inside the user's own data directory on a single-user machine, and encrypting it would make settings.json non-portable across machines and break export/import round-trips.   |
+| D11 | **At-risk redefined** (v1.4): a task is at risk iff it is overdue, or _directly_ depends on an overdue open task (culprit named). The prototype's Waiting/any-open-dependency/near-due-Critical rules flagged normal plan structure as risk and are dropped — in both the At-risk report and the weekly status column. |
 
 Non-goals for v1: multi-user, cloud sync, mobile, two-way Todoist sync, embedded office
 document editing, hardened security boundaries.
@@ -380,13 +381,13 @@ plain-text serializer for Copy report (clipboard via `navigator.clipboard`). Fil
 `all | work | home | tag:<tag>` applied to projects.
 
 - **Weekly status** — per project (omit empty): _Done this week_ (`completedAt` within the
-  last 7 days), _Planned next_ (open, due in 0–7 days), _Blockers / at risk_ (open ∧
-  (Waiting ∨ blocked ∨ overdue)).
+  last 7 days), _Planned next_ (open, due in 0–7 days), _At risk_ (per D11: overdue or
+  directly dependent on an overdue task), laid out as stacked full-width sections.
 - **Portfolio roll-up** — table per project: open, done, overdue counts, next due.
 - **Retrospective** — tasks with `completedAt ∈ [from, to]` in filtered projects, grouped
   by project, newest first; headline count.
-- **At-risk** — open tasks with a reason, sorted byDue: overdue (red) → blocked by
-  dependency → Critical/High due within ≤ 3 days.
+- **At-risk** — per D11: overdue tasks (red, relative label) and direct dependents of an
+  overdue task (amber, "Waiting on overdue: <culprit>"), sorted byDue.
 
 ## 8. Cross-cutting Concerns
 

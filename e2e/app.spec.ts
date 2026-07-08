@@ -229,7 +229,7 @@ test('reports render and settings can reset/clear the workspace', async () => {
   await win.getByRole('tab', { name: 'Portfolio roll-up' }).click();
   await expect(win.getByTestId('portfolio-table')).toContainText('Q3 Platform Migration');
   await win.getByRole('tab', { name: 'At-risk' }).click();
-  await expect(win.getByText('Blocked by dependency').first()).toBeVisible();
+  await expect(win.getByText('Waiting on overdue: Migrate auth service')).toBeVisible();
 
   // Settings: clear all (confirmed) empties the app…
   await win.getByRole('button', { name: 'Settings' }).click();

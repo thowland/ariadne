@@ -13,6 +13,7 @@ import {
   deleteFile,
   deleteProject,
   deleteTask,
+  moveProject,
   registerUploadedFile,
   replaceWorkspace,
   updateFile,
@@ -356,5 +357,36 @@ describe('structural sharing', () => {
     expect(r.workspace.files).toBe(w.files);
     expect(r.workspace.settings).toBe(w.settings);
     expect(r.workspace.tasks).not.toBe(w.tasks);
+  });
+});
+
+describe('moveProject', () => {
+  const three = ws({
+    projects: [project({ id: 'a' }), project({ id: 'b' }), project({ id: 'c' })],
+  });
+
+  it('moves a project to the target index (both directions)', () => {
+    expect(moveProject(three, 'c', 0).workspace.projects.map((p) => p.id)).toEqual(['c', 'a', 'b']);
+    expect(moveProject(three, 'a', 2).workspace.projects.map((p) => p.id)).toEqual(['b', 'c', 'a']);
+    expect(moveProject(three, 'c', 0).changed).toEqual(['projects']);
+  });
+
+  it('clamps out-of-range targets', () => {
+    expect(moveProject(three, 'a', 99).workspace.projects.map((p) => p.id)).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+    expect(moveProject(three, 'c', -5).workspace.projects.map((p) => p.id)).toEqual([
+      'c',
+      'a',
+      'b',
+    ]);
+  });
+
+  it('is a no-op for same position or unknown ids', () => {
+    expect(moveProject(three, 'b', 1).changed).toEqual([]);
+    expect(moveProject(three, 'ghost', 0).changed).toEqual([]);
+    expect(moveProject(three, 'b', 1).workspace).toBe(three);
   });
 });

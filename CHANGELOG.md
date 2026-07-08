@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 — 2026-07-08
+
+- **Sidebar**: reorder projects by dragging and dropping them; the order
+  persists and drives the portfolio and reports everywhere.
+- **At-risk redefined**: a task is at risk only if it is overdue, or directly
+  depends on an overdue task (shown as "Waiting on overdue: <task>"). Having
+  a dependency is how plans work — it no longer counts as risk. Applies to
+  both the At-risk report and the weekly status "At risk" section.
+- **Weekly status layout**: the cramped three-column layout is now stacked
+  full-width sections (Done this week / Planned next / At risk).
+
 ## 1.3.0 — 2026-07-08
 
 - **Push to Todoist** (Settings → Integrations): open tasks due within the

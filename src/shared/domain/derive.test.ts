@@ -13,6 +13,7 @@ import {
   isOpen,
   isOverdue,
   nextDueTask,
+  overdueDependency,
   projectProgress,
   projectsInScope,
   relativeDueLabel,
@@ -223,5 +224,33 @@ describe('allProjectTags', () => {
   it('collects distinct tags sorted', () => {
     const ps = [project({ tags: ['infra', 'q3'] }), project({ tags: ['q3', 'aaa'] })];
     expect(allProjectTags(ps)).toEqual(['aaa', 'infra', 'q3']);
+  });
+});
+
+describe('overdueDependency', () => {
+  it('returns the first directly-overdue open dependency', () => {
+    const late = task({ id: 'late', dueDate: '2026-07-01' });
+    const fine = task({ id: 'fine', dueDate: '2026-07-20' });
+    const t = task({ dependsOn: ['fine', 'late'] });
+    expect(overdueDependency(t, indexTasks([late, fine, t]), TODAY)?.id).toBe('late');
+  });
+
+  it('is not transitive and ignores closed/undated/missing deps', () => {
+    const late = task({ id: 'late', dueDate: '2026-07-01' });
+    const middle = task({ id: 'middle', dependsOn: ['late'] });
+    const end = task({ id: 'end', dependsOn: ['middle'] });
+    const byId = indexTasks([late, middle, end]);
+    expect(overdueDependency(middle, byId, TODAY)?.id).toBe('late');
+    expect(overdueDependency(end, byId, TODAY)).toBeNull(); // one hop only
+
+    const doneLate = task({ id: 'dl', dueDate: '2026-07-01', status: 'Done', completedAt: TODAY });
+    const t = task({ dependsOn: ['dl', 'ghost'] });
+    expect(overdueDependency(t, indexTasks([doneLate, t]), TODAY)).toBeNull();
+  });
+
+  it('closed tasks are never at risk themselves', () => {
+    const late = task({ id: 'late', dueDate: '2026-07-01' });
+    const t = task({ dependsOn: ['late'], status: 'Dropped' });
+    expect(overdueDependency(t, indexTasks([late, t]), TODAY)).toBeNull();
   });
 });
