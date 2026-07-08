@@ -1,7 +1,11 @@
 import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
 import { deleteTag, renameTag, tagUsage } from '@shared/domain/tags';
-import { mergeTodoistImport } from '@shared/domain/todoist';
+import {
+  collectTodoistPushCandidates,
+  markTasksPushed,
+  mergeTodoistImport,
+} from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
 import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
@@ -79,6 +83,39 @@ export function Settings(): React.JSX.Element {
       }
       showToast('All data cleared');
     });
+  };
+
+  const pushDays = workspace?.settings.todoistPushDays ?? 7;
+  const pushCandidates =
+    workspace !== null ? collectTodoistPushCandidates(workspace, today, pushDays) : [];
+
+  const setPushDays = (value: string): void => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(60, Math.max(1, Math.round(n)));
+    apply((ws2) => updateSettings(ws2, { todoistPushDays: clamped }));
+  };
+
+  const runTodoistPush = (): void => {
+    const token = workspace?.settings.todoistToken ?? '';
+    if (pushCandidates.length === 0) {
+      showToast(`Nothing to push — no unsent tasks due in the next ${pushDays} days`);
+      return;
+    }
+    void getApi()
+      .todoistPush(token, pushCandidates)
+      .then((res) => {
+        if (!res.ok) {
+          showToast(res.error);
+          return;
+        }
+        if (res.pushed.length > 0) apply((ws2) => markTasksPushed(ws2, res.pushed));
+        showToast(
+          res.failed > 0
+            ? `Pushed ${res.pushed.length} of ${res.pushed.length + res.failed} tasks to Todoist`
+            : `Pushed ${res.pushed.length} task${res.pushed.length === 1 ? '' : 's'} to Todoist`,
+        );
+      });
   };
 
   const runTodoistImport = (): void => {
@@ -367,6 +404,32 @@ export function Settings(): React.JSX.Element {
               </div>
               <button className="btn primary" onClick={runTodoistImport}>
                 Import now
+              </button>
+            </div>
+            <div className="push-row">
+              <div>
+                <div className="field-label">PUSH UPCOMING TASKS</div>
+                <span className="settings-copy">
+                  tasks due in the next{' '}
+                  <input
+                    type="number"
+                    className="inp push-days-input"
+                    min={1}
+                    max={60}
+                    value={pushDays}
+                    aria-label="Push window in days"
+                    onChange={(e) => {
+                      setPushDays(e.target.value);
+                    }}
+                  />{' '}
+                  days → Todoist #Home / #Work with an @project-name label
+                </span>
+                <div className="push-preview" data-testid="push-preview">
+                  {pushCandidates.length} task{pushCandidates.length === 1 ? '' : 's'} ready to push
+                </div>
+              </div>
+              <button className="btn ghost" onClick={runTodoistPush}>
+                Push to Todoist
               </button>
             </div>
             {workspace?.settings.lastTodoistImportAt !== null &&

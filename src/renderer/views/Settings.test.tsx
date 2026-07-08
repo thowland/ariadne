@@ -305,3 +305,74 @@ describe('Settings — Tags', () => {
     });
   });
 });
+
+describe('Settings — Todoist push', () => {
+  it('previews the candidate count for the configured window', () => {
+    renderSettings();
+    // Seed, today ±7d: several unsent dated open tasks exist.
+    expect(screen.getByTestId('push-preview')).not.toHaveTextContent('0 tasks');
+    expect(screen.getByLabelText('Push window in days')).toHaveValue(7);
+  });
+
+  it('clamps the day window and persists it', () => {
+    renderSettings();
+    const input = screen.getByLabelText('Push window in days');
+    fireEvent.change(input, { target: { value: '90' } });
+    expect(ws().settings.todoistPushDays).toBe(60);
+    fireEvent.change(input, { target: { value: '3' } });
+    expect(ws().settings.todoistPushDays).toBe(3);
+  });
+
+  it('pushes candidates, marks them, and toasts the count', async () => {
+    vi.mocked(window.ariadne.todoistPush).mockImplementation((_token, items) =>
+      Promise.resolve({
+        ok: true,
+        pushed: items.map((i) => ({ taskId: i.taskId, todoistId: `td-${i.taskId}` })),
+        failed: 0,
+      }),
+    );
+    renderSettings();
+    const before = Number(/^(\d+)/.exec(screen.getByTestId('push-preview').textContent)?.[1]);
+    expect(before).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe(`Pushed ${before} tasks to Todoist`);
+    });
+    // All candidates now carry markers → preview drops to zero.
+    expect(screen.getByTestId('push-preview')).toHaveTextContent('0 tasks ready to push');
+    const marked = ws().tasks.filter((t) => t.notes.includes('todoist:td-'));
+    expect(marked).toHaveLength(before);
+  });
+
+  it('reports partial failures and surfaces push errors', async () => {
+    vi.mocked(window.ariadne.todoistPush).mockResolvedValue({
+      ok: true,
+      pushed: [{ taskId: 't6', todoistId: 'x1' }],
+      failed: 2,
+    });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Pushed 1 of 3 tasks to Todoist');
+    });
+
+    vi.mocked(window.ariadne.todoistPush).mockResolvedValue({
+      ok: false,
+      error: 'Todoist rejected the token — check it in Settings',
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toMatch(/rejected the token/);
+    });
+  });
+
+  it('declines to push when nothing is in the window', async () => {
+    const w0 = ws();
+    loadTestWorkspace({ ...w0, tasks: w0.tasks.map((t) => ({ ...t, dueDate: null })) });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
+    expect(useStore.getState().toast).toMatch(/Nothing to push/);
+    expect(window.ariadne.todoistPush).not.toHaveBeenCalled();
+  });
+});

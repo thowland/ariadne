@@ -1,5 +1,6 @@
 import type { Task, Workspace } from '../types';
 
+import { dayDiff } from './dates';
 import type { MutationCtx, MutationResult } from './mutate';
 
 /**
@@ -120,4 +121,86 @@ export function mergeTodoistImport(
     updated,
     projectCreated,
   };
+}
+
+// ---------- Push (Ariadne → Todoist) ----------
+
+/** Ariadne priority → Todoist priority number (4 = urgent/p1). */
+export const PRIORITY_TO_TODOIST: Record<Task['priority'], number> = {
+  Critical: 4,
+  High: 3,
+  Medium: 2,
+  Low: 1,
+};
+
+/** Todoist labels cannot contain spaces; keep the name readable. */
+export function todoistLabelFor(projectName: string): string {
+  return projectName
+    .trim()
+    .replace(/[^\w-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+export interface TodoistPushCandidate {
+  taskId: string;
+  content: string;
+  description: string;
+  dueDate: string;
+  /** Todoist priority number, 4 = urgent. */
+  priority: number;
+  /** Todoist project to file under: the Ariadne category (#Home / #Work). */
+  targetProject: 'Home' | 'Work';
+  /** Todoist labels: @<project-name-slug> plus @ariadne. */
+  labels: string[];
+}
+
+/**
+ * Open tasks due within the next `days` days (today inclusive) that have not
+ * been pushed or imported before (no todoist:<id> marker) and don't live in
+ * the Todoist Inbox (those came *from* Todoist).
+ */
+export function collectTodoistPushCandidates(
+  ws: Workspace,
+  today: string,
+  days: number,
+): TodoistPushCandidate[] {
+  const projectsById = new Map(ws.projects.map((p) => [p.id, p]));
+  const candidates: TodoistPushCandidate[] = [];
+  for (const task of ws.tasks) {
+    if (task.status === 'Done' || task.status === 'Dropped') continue;
+    if (task.projectId === TODOIST_INBOX_ID) continue;
+    if (task.dueDate === null) continue;
+    if (todoistMarkerOf(task) !== null) continue;
+    const distance = dayDiff(task.dueDate, today);
+    if (distance < 0 || distance > days) continue;
+    const project = projectsById.get(task.projectId);
+    if (project === undefined) continue;
+    candidates.push({
+      taskId: task.id,
+      content: task.title || 'Untitled task',
+      description: task.notes,
+      dueDate: task.dueDate,
+      priority: PRIORITY_TO_TODOIST[task.priority],
+      targetProject: project.category === 'home' ? 'Home' : 'Work',
+      labels: [todoistLabelFor(project.name), 'ariadne'],
+    });
+  }
+  return candidates.sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+}
+
+/** Record the created Todoist ids so the tasks are never pushed twice. */
+export function markTasksPushed(
+  ws: Workspace,
+  pushed: readonly { taskId: string; todoistId: string }[],
+): MutationResult {
+  const byTask = new Map(pushed.map((p) => [p.taskId, p.todoistId]));
+  if (byTask.size === 0) return { workspace: ws, changed: [] };
+  const tasks = ws.tasks.map((t) => {
+    const todoistId = byTask.get(t.id);
+    if (todoistId === undefined || todoistMarkerOf(t) !== null) return t;
+    return { ...t, notes: notesWithMarker(t.notes, todoistId) };
+  });
+  if (tasks.every((t, i) => t === ws.tasks[i])) return { workspace: ws, changed: [] };
+  return { workspace: { ...ws, tasks }, changed: ['tasks'] };
 }

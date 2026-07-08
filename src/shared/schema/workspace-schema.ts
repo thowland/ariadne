@@ -77,6 +77,12 @@ export const settingsSchema = z.object({
       z.number().int().min(1).max(100),
     )
     .catch(10),
+  todoistPushDays: z
+    .preprocess(
+      (v) => (typeof v === 'number' ? Math.min(60, Math.max(1, Math.round(v))) : v),
+      z.number().int().min(1).max(60),
+    )
+    .catch(7),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

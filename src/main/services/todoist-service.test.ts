@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TodoistService } from './todoist-service';
+import { TodoistPushService, TodoistService } from './todoist-service';
 
 /** Task shapes recorded from the Todoist unified API v1 /tasks endpoint. */
 const TASK_FIXTURE = [
@@ -204,5 +204,128 @@ describe('TodoistService', () => {
       ok: false,
       error: 'Unexpected response from Todoist',
     });
+  });
+});
+
+describe('TodoistPushService', () => {
+  const CANDIDATE = {
+    taskId: 't6',
+    content: 'Write migration runbook',
+    description: 'Step by step',
+    dueDate: '2026-07-08',
+    priority: 2,
+    targetProject: 'Work' as const,
+    labels: ['Q3-Platform-Migration', 'ariadne'],
+  };
+
+  function pushService(fetchImpl: ReturnType<typeof vi.fn>): TodoistPushService {
+    let n = 0;
+    return new TodoistPushService(
+      new TodoistService(fetchImpl, instantSleep),
+      fetchImpl,
+      () => `req-${String(++n)}`,
+    );
+  }
+
+  it('reuses an existing Todoist project and creates the task with labels', async () => {
+    const fetchImpl = vi
+      .fn()
+      // GET /projects
+      .mockResolvedValueOnce(
+        page({ results: [{ id: 'proj-work', name: 'Work' }], next_cursor: null }),
+      )
+      // POST /tasks
+      .mockResolvedValueOnce(page({ id: 'new-task-1' }));
+    const result = await pushService(fetchImpl).pushTasks('tok', [CANDIDATE]);
+    expect(result).toEqual({
+      ok: true,
+      pushed: [{ taskId: 't6', todoistId: 'new-task-1' }],
+      failed: 0,
+    });
+
+    const [url, init] = fetchImpl.mock.calls[1] as [
+      string,
+      { method: string; headers: Record<string, string>; body: string },
+    ];
+    expect(url).toBe('https://api.todoist.com/api/v1/tasks');
+    expect(init.method).toBe('POST');
+    expect(init.headers['X-Request-Id']).toBe('req-1');
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init.body)).toEqual({
+      content: 'Write migration runbook',
+      description: 'Step by step',
+      project_id: 'proj-work',
+      due_date: '2026-07-08',
+      priority: 2,
+      labels: ['Q3-Platform-Migration', 'ariadne'],
+    });
+  });
+
+  it('creates the #Home/#Work project when missing (case-insensitive match)', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(page({ results: [{ id: 'p9', name: 'work' }], next_cursor: null }))
+      // POST /projects for Home
+      .mockResolvedValueOnce(page({ id: 'proj-home', name: 'Home' }))
+      .mockResolvedValueOnce(page({ id: 'task-a' }))
+      .mockResolvedValueOnce(page({ id: 'task-b' }));
+    const result = await pushService(fetchImpl).pushTasks('tok', [
+      CANDIDATE,
+      { ...CANDIDATE, taskId: 't9', targetProject: 'Home' as const },
+    ]);
+    expect(result.ok && result.pushed).toHaveLength(2);
+    const projectCreate = fetchImpl.mock.calls[1] as [string, { body: string }];
+    expect(projectCreate[0]).toBe('https://api.todoist.com/api/v1/projects');
+    expect(JSON.parse(projectCreate[1].body)).toEqual({ name: 'Home' });
+    // 'Work' matched the existing lowercase project — only Home was created.
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  it('counts per-task failures but aborts on auth errors', async () => {
+    const failing = vi
+      .fn()
+      .mockResolvedValueOnce(page({ results: [{ id: 'w', name: 'Work' }], next_cursor: null }))
+      .mockResolvedValueOnce(page({ error: 'bad request' }, 400))
+      .mockResolvedValueOnce(page({ id: 'ok-task' }));
+    const result = await pushService(failing).pushTasks('tok', [
+      CANDIDATE,
+      { ...CANDIDATE, taskId: 't7' },
+    ]);
+    expect(result).toMatchObject({ ok: true, failed: 1 });
+    expect(result.ok && result.pushed).toEqual([{ taskId: 't7', todoistId: 'ok-task' }]);
+
+    const auth = vi
+      .fn()
+      .mockResolvedValueOnce(page({ results: [{ id: 'w', name: 'Work' }], next_cursor: null }))
+      .mockResolvedValue(page({}, 401));
+    const rejected = await pushService(auth).pushTasks('tok', [CANDIDATE]);
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('rejected the token') as string,
+    });
+  });
+
+  it('retries transient task-create failures with the same X-Request-Id', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(page({ results: [{ id: 'w', name: 'Work' }], next_cursor: null }))
+      .mockResolvedValueOnce(page({ error: 'blip' }, 503))
+      .mockResolvedValueOnce(page({ id: 'recovered' }));
+    const result = await pushService(fetchImpl).pushTasks('tok', [CANDIDATE]);
+    expect(result.ok && result.pushed[0]?.todoistId).toBe('recovered');
+    const first = fetchImpl.mock.calls[1] as [string, { headers: Record<string, string> }];
+    const second = fetchImpl.mock.calls[2] as [string, { headers: Record<string, string> }];
+    expect(first[1].headers['X-Request-Id']).toBe(second[1].headers['X-Request-Id']);
+  });
+
+  it('short-circuits empty pushes and missing tokens', async () => {
+    const fetchImpl = vi.fn();
+    expect(await pushService(fetchImpl).pushTasks('tok', [])).toEqual({
+      ok: true,
+      pushed: [],
+      failed: 0,
+    });
+    expect(await pushService(fetchImpl).pushTasks('  ', [CANDIDATE])).toMatchObject({ ok: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

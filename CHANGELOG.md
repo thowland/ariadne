@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — 2026-07-08
+
+- **Push to Todoist** (Settings → Integrations): open tasks due within the
+  next N days (configurable, 1–60, default 7) push into a Todoist **#Home**
+  or **#Work** project (created if missing) with an `@project-name` label
+  plus `@ariadne`, carrying due date, priority, and notes. Pushed tasks are
+  marked so re-pushing never duplicates; a live preview shows how many tasks
+  are ready. Pushes are idempotent even across retries (X-Request-Id).
+
 ## 1.2.0 — 2026-07-08
 
 - **Tag autocomplete**: typing in any tag field (projects and tasks) suggests

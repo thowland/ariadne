@@ -405,7 +405,7 @@ plain-text serializer for Copy report (clipboard via `navigator.clipboard`). Fil
 - **Packaging:** `electron-builder` for Linux (AppImage/deb) + macOS/Windows targets;
   app id `com.wdogsystems.ariadne`; spiral SVG logo rendered to icon sizes.
 
-## 9. Todoist Integration (one-way import)
+## 9. Todoist Integration (import + push)
 
 `TodoistService` (main process, no CORS constraints) calls the Todoist REST API v2
 (`GET /rest/v2/tasks`, `Authorization: Bearer <token>`). Import behavior:
@@ -418,7 +418,15 @@ plain-text serializer for Copy report (clipboard via `navigator.clipboard`). Fil
 3. Dedupe on the recorded Todoist id (fallback: same title in Todoist Inbox); re-import
    updates dueDate/priority of previously imported, still-open tasks; never deletes.
 4. Result summary → toast (`Imported N tasks from Todoist`). Network/auth failures →
-   typed error → toast with the reason. Token stored via `safeStorage` when available.
+   typed error → toast with the reason. Token stored per decision D10.
+
+**Push (Ariadne → Todoist), the primary direction:** open, dated, not-yet-pushed tasks due
+within the next N days (user setting, 1–60, default 7; Todoist Inbox excluded) are created
+in a Todoist project named after the Ariadne category (**#Home** / **#Work**, found or
+created by name) with labels `@<project-name-slug>` and `@ariadne`, mapped priority, due
+date, and notes as the description. Each create carries an `X-Request-Id` so retries are
+idempotent; created ids are recorded as `todoist:<id>` note markers so tasks are never
+pushed twice (and the importer already dedupes on the same marker).
 
 ## 10. Testing Strategy & Quality Gates
 

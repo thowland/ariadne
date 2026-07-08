@@ -1976,3 +1976,29 @@ input.inp.full {
 .tag-delete:hover {
   color: var(--danger-text);
 }
+
+/* ============ Todoist push ============ */
+
+.push-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border2);
+  padding-top: 14px;
+}
+.push-days-input {
+  width: 58px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12.5px;
+  background: var(--surface);
+  text-align: center;
+}
+.push-preview {
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 6px;
+}

@@ -19,6 +19,7 @@ export const IPC = {
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
   todoistFetch: 'todoist:fetch',
+  todoistPush: 'todoist:push',
   backupRun: 'backup:run',
   backupDirChoose: 'backupDir:choose',
 } as const;
@@ -77,6 +78,10 @@ export interface DataDirChooseResponse {
   relaunching: boolean;
 }
 
+export type TodoistPushResponse =
+  | { ok: true; pushed: { taskId: string; todoistId: string }[]; failed: number }
+  | { ok: false; error: string };
+
 export type TodoistFetchResponse =
   { ok: true; items: import('./domain/todoist').TodoistItem[] } | { ok: false; error: string };
 
@@ -93,6 +98,10 @@ export interface AriadneApi {
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
   todoistFetch(token: string): Promise<TodoistFetchResponse>;
+  todoistPush(
+    token: string,
+    items: import('./domain/todoist').TodoistPushCandidate[],
+  ): Promise<TodoistPushResponse>;
   runBackupNow(): Promise<{ ok: boolean; path?: string; error?: string }>;
   chooseBackupDir(): Promise<{ path: string | null }>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */

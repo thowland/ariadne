@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import type { MutationCtx } from './mutate';
 import { seedWorkspace } from './seed';
 import type { TodoistItem } from './todoist';
-import { mergeTodoistImport, TODOIST_INBOX_ID, todoistMarkerOf } from './todoist';
+import {
+  collectTodoistPushCandidates,
+  markTasksPushed,
+  mergeTodoistImport,
+  TODOIST_INBOX_ID,
+  todoistLabelFor,
+  todoistMarkerOf,
+} from './todoist';
 
 const TODAY = '2026-07-08';
 
@@ -101,5 +108,94 @@ describe('mergeTodoistImport', () => {
     const r = mergeTodoistImport(first.workspace, ctx(), [item({ todoistId: '9002' })]);
     expect(r.projectCreated).toBe(false);
     expect(r.changed).toEqual(['tasks']);
+  });
+});
+
+describe('todoistLabelFor', () => {
+  it('slugs project names into valid Todoist labels', () => {
+    expect(todoistLabelFor('Q3 Platform Migration')).toBe('Q3-Platform-Migration');
+    expect(todoistLabelFor('Hiring: Senior Engineer')).toBe('Hiring-Senior-Engineer');
+    expect(todoistLabelFor('  spaced  out  ')).toBe('spaced-out');
+    expect(todoistLabelFor('x'.repeat(80))).toHaveLength(60);
+  });
+});
+
+describe('collectTodoistPushCandidates', () => {
+  it('selects open dated tasks in the window with category project and labels', () => {
+    const ws = seedWorkspace(TODAY);
+    const candidates = collectTodoistPushCandidates(ws, TODAY, 2);
+    // Due 0..2d in seed: runbook(0), wireframes(0), cluster(+2), cat6(+2),
+    // categorize(+1), screen candidates(+1). Sorted by due date.
+    expect(candidates).toHaveLength(6);
+    expect((candidates[0]?.dueDate ?? '') <= (candidates[5]?.dueDate ?? '')).toBe(true);
+
+    const runbook = candidates.find((c) => c.content === 'Write migration runbook');
+    expect(runbook).toMatchObject({
+      targetProject: 'Work',
+      priority: 2, // Medium
+      labels: ['Q3-Platform-Migration', 'ariadne'],
+      dueDate: TODAY,
+    });
+    const cat6 = candidates.find((c) => c.content === 'Run cat6 to office');
+    expect(cat6).toMatchObject({
+      targetProject: 'Home',
+      labels: ['Home-network-upgrade', 'ariadne'],
+    });
+  });
+
+  it('excludes overdue, far-future, closed, undated, inbox, and already-marked tasks', () => {
+    const ws = seedWorkspace(TODAY);
+    // Mark the runbook as already pushed; move one task to the inbox.
+    const imported = mergeTodoistImport(ws, ctx(), [item()]); // inbox task, due +1d
+    const marked = markTasksPushed(imported.workspace, [
+      { taskId: 't6', todoistId: 'existing' }, // runbook
+    ]);
+    const candidates = collectTodoistPushCandidates(marked.workspace, TODAY, 2);
+    const titles = candidates.map((c) => c.content);
+    expect(titles).not.toContain('Write migration runbook'); // marked
+    expect(titles).not.toContain('Call plumber'); // inbox import
+    expect(titles).not.toContain('Migrate auth service'); // overdue (-1d)
+    expect(titles).not.toContain('Migrate billing service'); // +9d, outside window
+    // Critical maps to Todoist 4.
+    const cats = collectTodoistPushCandidates(marked.workspace, TODAY, 4);
+    const accountant = cats.find((c) => c.content === 'Meet with accountant');
+    expect(accountant?.priority).toBe(4);
+  });
+
+  it('titles empty tasks "Untitled task"', () => {
+    const ws = seedWorkspace(TODAY);
+    ws.tasks = [
+      {
+        ...ws.tasks[0]!,
+        id: 'x',
+        title: '',
+        status: 'Todo',
+        completedAt: null,
+        dueDate: TODAY,
+        notes: '',
+      },
+    ];
+    const candidates = collectTodoistPushCandidates(ws, TODAY, 1);
+    expect(candidates[0]?.content).toBe('Untitled task');
+  });
+});
+
+describe('markTasksPushed', () => {
+  it('appends markers, preserving notes, and never double-marks', () => {
+    const ws = seedWorkspace(TODAY);
+    const r = markTasksPushed(ws, [{ taskId: 't6', todoistId: '555' }]);
+    expect(r.changed).toEqual(['tasks']);
+    const runbook = r.workspace.tasks.find((t) => t.id === 't6');
+    expect(todoistMarkerOf(runbook!)).toBe('555');
+
+    const again = markTasksPushed(r.workspace, [{ taskId: 't6', todoistId: '999' }]);
+    expect(again.changed).toEqual([]);
+    expect(todoistMarkerOf(again.workspace.tasks.find((t) => t.id === 't6')!)).toBe('555');
+  });
+
+  it('is a no-op for empty or unknown ids', () => {
+    const ws = seedWorkspace(TODAY);
+    expect(markTasksPushed(ws, []).changed).toEqual([]);
+    expect(markTasksPushed(ws, [{ taskId: 'ghost', todoistId: '1' }]).changed).toEqual([]);
   });
 });

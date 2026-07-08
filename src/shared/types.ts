@@ -110,6 +110,8 @@ export interface Settings {
   backupDir: string | null;
   /** Daily backup folders to keep (1–100). */
   backupKeep: number;
+  /** Push-to-Todoist window: tasks due within the next N days (1–60). */
+  todoistPushDays: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -117,6 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lastTodoistImportAt: null,
   backupDir: null,
   backupKeep: BACKUP_KEEP_DEFAULT,
+  todoistPushDays: 7,
 };
 
 /** The full in-memory domain state. */
