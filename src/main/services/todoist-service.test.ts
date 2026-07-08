@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { TodoistService } from './todoist-service';
 
-/** Shape recorded from the Todoist REST v2 /tasks endpoint. */
-const API_FIXTURE = [
+/** Task shapes recorded from the Todoist unified API v1 /tasks endpoint. */
+const TASK_FIXTURE = [
   {
     id: '7654321',
     content: 'Call plumber about kitchen sink',
@@ -27,6 +27,9 @@ const API_FIXTURE = [
   { id: '7654324', content: '', priority: 2 }, // junk: no title
   'not-an-object',
 ];
+
+/** v1 responses are cursor-paginated: { results, next_cursor }. */
+const API_FIXTURE = { results: TASK_FIXTURE, next_cursor: null };
 
 function serviceWith(status: number, body: unknown): TodoistService {
   return new TodoistService(
@@ -68,16 +71,58 @@ describe('TodoistService', () => {
     ]);
   });
 
-  it('sends the bearer token', async () => {
+  it('sends the bearer token to the unified v1 endpoint', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve({ results: [], next_cursor: null }),
     });
     await new TodoistService(fetchImpl).fetchActiveTasks('  abc123  ');
-    expect(fetchImpl).toHaveBeenCalledWith('https://api.todoist.com/rest/v2/tasks', {
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.todoist.com/api/v1/tasks?limit=200', {
       headers: { Authorization: 'Bearer abc123' },
     });
+  });
+
+  it('follows next_cursor across pages', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            results: [{ id: 'a1', content: 'Page one task', priority: 1 }],
+            next_cursor: 'CURSOR/2==',
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            results: [{ id: 'b2', content: 'Page two task', priority: 1 }],
+            next_cursor: null,
+          }),
+      });
+    const result = await new TodoistService(fetchImpl).fetchActiveTasks('t');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.items.map((i) => i.todoistId)).toEqual(['a1', 'b2']);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      'https://api.todoist.com/api/v1/tasks?limit=200&cursor=CURSOR%2F2%3D%3D',
+      { headers: { Authorization: 'Bearer t' } },
+    );
+  });
+
+  it('still accepts a bare-array response (legacy shape)', async () => {
+    const result = await serviceWith(200, [
+      { id: 'x', content: 'Legacy', priority: 2 },
+    ]).fetchActiveTasks('t');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({ todoistId: 'x', priority: 'Medium' });
   });
 
   it('rejects an empty token without a network call', async () => {
@@ -95,6 +140,11 @@ describe('TodoistService', () => {
     expect(await serviceWith(500, {}).fetchActiveTasks('t')).toMatchObject({
       ok: false,
       error: 'Todoist error (HTTP 500)',
+    });
+    // A retired API version (what REST v2 now returns) gets a clear message.
+    expect(await serviceWith(410, {}).fetchActiveTasks('t')).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('retired this API version') as string,
     });
     const offline = new TodoistService(vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
     expect(await offline.fetchActiveTasks('t')).toMatchObject({
