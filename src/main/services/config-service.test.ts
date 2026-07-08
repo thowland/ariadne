@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -52,5 +52,46 @@ describe('ConfigService', () => {
 
     writeFileSync(join(dir, 'config.json'), JSON.stringify(null), 'utf8');
     expect(new ConfigService(dir).load().dataDir).toBe(join(dir, 'data'));
+  });
+});
+
+describe('ConfigService.changeDataDir', () => {
+  function seedDataDir(base: string): string {
+    const dataDir = join(base, 'data');
+    mkdirSync(join(dataDir, 'blobs'), { recursive: true });
+    writeFileSync(join(dataDir, 'projects.json'), '[{"id":"p1"}]', 'utf8');
+    writeFileSync(join(dataDir, 'tasks.json'), '[]', 'utf8');
+    writeFileSync(join(dataDir, 'blobs', 'b1.pdf'), 'bytes', 'utf8');
+    return dataDir;
+  }
+
+  it('migrates documents and blobs into an empty target', () => {
+    const svc = new ConfigService(dir);
+    const dataDir = seedDataDir(dir);
+    const target = join(dir, 'synced');
+
+    expect(svc.changeDataDir(dataDir, target)).toBe('migrated');
+    expect(readFileSync(join(target, 'projects.json'), 'utf8')).toBe('[{"id":"p1"}]');
+    expect(readFileSync(join(target, 'blobs', 'b1.pdf'), 'utf8')).toBe('bytes');
+    expect(svc.load().dataDir).toBe(target);
+  });
+
+  it('loads in place when the target already holds a workspace', () => {
+    const svc = new ConfigService(dir);
+    const dataDir = seedDataDir(dir);
+    const target = join(dir, 'other');
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, 'projects.json'), '[{"id":"other"}]', 'utf8');
+
+    expect(svc.changeDataDir(dataDir, target)).toBe('loaded');
+    // Existing workspace untouched.
+    expect(readFileSync(join(target, 'projects.json'), 'utf8')).toBe('[{"id":"other"}]');
+    expect(svc.load().dataDir).toBe(target);
+  });
+
+  it('is a no-op for the same directory', () => {
+    const svc = new ConfigService(dir);
+    const dataDir = seedDataDir(dir);
+    expect(svc.changeDataDir(dataDir, dataDir)).toBe('unchanged');
   });
 });

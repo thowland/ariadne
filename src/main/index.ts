@@ -66,7 +66,7 @@ void app.whenReady().then(() => {
   const blobs = new BlobService(dataDir);
   storage = new StorageService(dataDir, backups);
   storage.init();
-  registerIpc(storage, blobs, dataDir);
+  registerIpc(storage, blobs, config, dataDir);
 
   // Serve stored blobs to the renderer (img/object/fetch) without IPC copies.
   protocol.handle(BLOB_PROTOCOL, (request) => {

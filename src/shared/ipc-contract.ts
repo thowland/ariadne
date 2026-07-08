@@ -14,6 +14,10 @@ export const IPC = {
   blobSave: 'blob:save',
   blobDelete: 'blob:delete',
   fileDownload: 'file:download',
+  exportRun: 'export:run',
+  importFromFile: 'import:fromFile',
+  importFromText: 'import:fromText',
+  dataDirChoose: 'dataDir:choose',
 } as const;
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
@@ -53,6 +57,23 @@ export interface DownloadResponse {
   error?: string;
 }
 
+export interface ExportRunResponse {
+  savedPath: string | null;
+  error?: string;
+}
+
+export type ImportResponse =
+  | { ok: true; workspace: Workspace; warnings: string[] }
+  | { ok: false; error: string; cancelled?: boolean };
+
+export interface DataDirChooseResponse {
+  /** 'unchanged' also covers a cancelled dialog. */
+  mode: 'loaded' | 'migrated' | 'unchanged';
+  path: string;
+  /** True when the app will relaunch to apply the change. */
+  relaunching: boolean;
+}
+
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
   saveCollections(payload: WorkspaceSavePayload): Promise<void>;
@@ -61,6 +82,10 @@ export interface AriadneApi {
   saveBlob(fileId: string, ext: string, bytes: ArrayBuffer): Promise<{ size: number }>;
   deleteBlobs(fileIds: string[]): Promise<void>;
   downloadFile(request: DownloadRequest): Promise<DownloadResponse>;
+  exportWorkspace(): Promise<ExportRunResponse>;
+  importFromFile(): Promise<ImportResponse>;
+  importFromText(text: string): Promise<ImportResponse>;
+  chooseDataDir(): Promise<DataDirChooseResponse>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
 }

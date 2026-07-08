@@ -9,17 +9,9 @@ import { ModalHost } from './modals/TaskModal';
 import { Calendar } from './views/Calendar';
 import { CommandCenter } from './views/CommandCenter';
 import { ProjectDetail } from './views/ProjectDetail';
+import { Reports } from './views/Reports';
 import { SearchResults } from './views/SearchResults';
-
-function StubView({ name, sprint }: { name: string; sprint: number }): React.JSX.Element {
-  return (
-    <div className="view-wrap fadein">
-      <div className="stub-view">
-        {name} arrives in Sprint {sprint}.
-      </div>
-    </div>
-  );
-}
+import { Settings } from './views/Settings';
 
 function ViewBody(): React.JSX.Element {
   const { view, q } = useStore();
@@ -32,9 +24,9 @@ function ViewBody(): React.JSX.Element {
     case 'calendar':
       return <Calendar />;
     case 'reports':
-      return <StubView name="Reports" sprint={6} />;
+      return <Reports />;
     case 'settings':
-      return <StubView name="Settings" sprint={6} />;
+      return <Settings />;
   }
 }
 

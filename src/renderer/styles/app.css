@@ -1541,3 +1541,241 @@ input.inp.full {
   max-width: 360px;
   line-height: 1.5;
 }
+
+/* ============ Reports ============ */
+
+.report-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.retro-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.retro-range-inputs .inp {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: var(--surface);
+}
+.range-arrow {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.report-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.report-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.report-project-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.report-project-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.weekly-cols {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.weekly-col {
+  flex: 1;
+  min-width: 0;
+}
+.weekly-col-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-bottom: 5px;
+}
+.weekly-empty {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.report-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+.report-line-title {
+  flex: 1;
+}
+.report-line-title.muted {
+  color: var(--muted);
+}
+.report-line-due {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.portfolio-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--faint);
+  padding: 0 12px 8px;
+}
+.portfolio-table th.num {
+  text-align: center;
+}
+.portfolio-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border2);
+}
+.portfolio-table td.num {
+  text-align: center;
+}
+.portfolio-table td.muted {
+  color: var(--muted);
+}
+.portfolio-table tr.trow {
+  cursor: pointer;
+}
+.portfolio-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.overdue-count {
+  color: var(--danger-dot);
+}
+.portfolio-next {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.retro-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.retro-count {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+.retro-range {
+  color: var(--muted);
+  font-size: 14px;
+}
+.retro-line .retro-date {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+}
+
+.risk-row {
+  padding: 9px 6px;
+}
+.risk-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.risk-reason {
+  font-size: 12px;
+  font-weight: 700;
+}
+.risk-clear {
+  color: var(--ok-text);
+  font-weight: 600;
+}
+
+/* ============ Settings ============ */
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.settings-section {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-copy {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.data-dir-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  justify-content: space-between;
+}
+.data-dir-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: inline-block;
+  word-break: break-all;
+}
+.settings-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.import-area {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  resize: vertical;
+  margin: 6px 0 9px;
+  background: var(--surface);
+}
+.legend-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.legend-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--faint);
+  width: 70px;
+}
+.legend-prio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}

@@ -8,15 +8,25 @@ import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-co
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
 import { COLLECTION_NAMES } from '@shared/types';
 import { dialog, ipcMain, shell } from 'electron';
+import { app } from 'electron';
 
 import type { BlobService } from './services/blob-service';
+import type { ConfigService } from './services/config-service';
+import { ImportExportService } from './services/import-export-service';
 import type { StorageService } from './services/storage-service';
 
 /**
  * Thin glue: ipcMain.handle registrations → services. No logic beyond
  * routing; excluded from unit coverage and exercised by the E2E suite.
  */
-export function registerIpc(storage: StorageService, blobs: BlobService, dataDir: string): void {
+export function registerIpc(
+  storage: StorageService,
+  blobs: BlobService,
+  config: ConfigService,
+  dataDir: string,
+): void {
+  const importExport = new ImportExportService(storage, blobs);
+
   ipcMain.handle(IPC.workspaceLoad, async (): Promise<WorkspaceLoadResponse> => {
     const loaded = await storage.loadWorkspace();
     if (loaded.workspace !== null) {
@@ -52,6 +62,50 @@ export function registerIpc(storage: StorageService, blobs: BlobService, dataDir
   ipcMain.handle(IPC.blobDelete, (_event, payload: { fileIds: string[] }) =>
     blobs.deleteMany(payload.fileIds),
   );
+
+  ipcMain.handle(IPC.exportRun, async () => {
+    const today = todayIso(process.env.ARIADNE_FAKE_TODAY);
+    const picked = await dialog.showSaveDialog({ defaultPath: `ariadne-export-${today}.json` });
+    if (picked.canceled || picked.filePath === '') return { savedPath: null };
+    const result = await importExport.exportTo(picked.filePath);
+    return result.ok
+      ? { savedPath: picked.filePath }
+      : { savedPath: null, error: result.error ?? 'Export failed' };
+  });
+
+  ipcMain.handle(IPC.importFromFile, async () => {
+    const picked = await dialog.showOpenDialog({
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    const path = picked.filePaths[0];
+    if (picked.canceled || path === undefined) {
+      return { ok: false, error: 'Import cancelled', cancelled: true };
+    }
+    return importExport.importFromFile(path);
+  });
+
+  ipcMain.handle(IPC.importFromText, (_event, text: string) => importExport.importFromText(text));
+
+  ipcMain.handle(IPC.dataDirChoose, async () => {
+    const picked = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: dataDir,
+    });
+    const target = picked.filePaths[0];
+    if (picked.canceled || target === undefined) {
+      return { mode: 'unchanged', path: dataDir, relaunching: false };
+    }
+    await storage.flushAll();
+    const mode = config.changeDataDir(dataDir, target);
+    if (mode === 'unchanged') return { mode, path: dataDir, relaunching: false };
+    // The new directory takes effect on relaunch (all services re-bind).
+    setTimeout(() => {
+      app.relaunch();
+      app.quit();
+    }, 400);
+    return { mode, path: target, relaunching: true };
+  });
 
   ipcMain.handle(
     IPC.fileDownload,

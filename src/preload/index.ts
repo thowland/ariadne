@@ -16,6 +16,10 @@ const api: AriadneApi = {
     ipcRenderer.invoke(IPC.blobSave, { fileId, ext, bytes: new Uint8Array(bytes) }),
   deleteBlobs: (fileIds: string[]) => ipcRenderer.invoke(IPC.blobDelete, { fileIds }),
   downloadFile: (request: DownloadRequest) => ipcRenderer.invoke(IPC.fileDownload, request),
+  exportWorkspace: () => ipcRenderer.invoke(IPC.exportRun),
+  importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
+  importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
+  chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
 

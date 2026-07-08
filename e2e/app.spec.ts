@@ -212,3 +212,41 @@ test('document library: markdown editing, CSV upload/preview, persistence', asyn
   await expect(win.getByTestId('csv-table').getByText('rope')).toBeVisible();
   await second.close();
 });
+
+test('reports render and settings can reset/clear the workspace', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Reports: weekly blocks, scope isolation, portfolio table, at-risk.
+  await win.getByRole('button', { name: 'Reports' }).click();
+  await expect(win.getByTestId('weekly-p1')).toBeVisible();
+  await win.getByLabel('Report scope').selectOption('home');
+  await expect(win.getByTestId('weekly-p1')).toHaveCount(0);
+  await expect(win.getByTestId('weekly-p3')).toBeVisible();
+  await win.getByLabel('Report scope').selectOption('all');
+  await win.getByRole('tab', { name: 'Portfolio roll-up' }).click();
+  await expect(win.getByTestId('portfolio-table')).toContainText('Q3 Platform Migration');
+  await win.getByRole('tab', { name: 'At-risk' }).click();
+  await expect(win.getByText('Blocked by dependency').first()).toBeVisible();
+
+  // Settings: clear all (confirmed) empties the app…
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await expect(win.getByTestId('data-dir')).toContainText('/');
+  await win.getByRole('button', { name: 'Clear all' }).click();
+  await win.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await win.getByRole('button', { name: 'Command Center' }).click();
+  await expect(win.getByText('You are all caught up. 🎉')).toBeVisible();
+
+  // …and reset-to-sample restores the seed, surviving a restart.
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByRole('button', { name: 'Reset to sample data' }).click();
+  await win.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await app.close();
+
+  const second = await launch(userData);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toHaveText('5 tasks need your attention today');
+  await second.close();
+});

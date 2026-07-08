@@ -20,6 +20,14 @@ export function setupTestApp(
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
     deleteBlobs: vi.fn().mockResolvedValue(undefined),
     downloadFile: vi.fn().mockResolvedValue({ savedPath: null }),
+    exportWorkspace: vi.fn().mockResolvedValue({ savedPath: null }),
+    importFromFile: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Import cancelled', cancelled: true }),
+    importFromText: vi.fn().mockResolvedValue({ ok: false, error: 'Invalid JSON — import failed' }),
+    chooseDataDir: vi
+      .fn()
+      .mockResolvedValue({ mode: 'unchanged', path: '/tmp/data', relaunching: false }),
     fakeToday: TEST_TODAY,
     ...overrides,
   };

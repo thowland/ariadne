@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import type { AppConfig } from '@shared/types';
@@ -44,5 +52,32 @@ export class ConfigService {
     const config = this.load();
     if (!existsSync(this.configPath)) this.save(config);
     return config.dataDir;
+  }
+
+  /**
+   * Point the app at `target`. If the folder already holds a workspace it is
+   * loaded in place; otherwise the current workspace documents and blobs are
+   * migrated (copied) into it. Takes effect on next launch.
+   */
+  changeDataDir(currentDataDir: string, target: string): 'loaded' | 'migrated' | 'unchanged' {
+    if (target === currentDataDir) return 'unchanged';
+    mkdirSync(target, { recursive: true });
+    const targetHasWorkspace = existsSync(join(target, 'projects.json'));
+    if (!targetHasWorkspace) {
+      for (const doc of [
+        'workspace.json',
+        'projects.json',
+        'tasks.json',
+        'files.json',
+        'settings.json',
+      ]) {
+        const source = join(currentDataDir, doc);
+        if (existsSync(source)) copyFileSync(source, join(target, doc));
+      }
+      const blobsDir = join(currentDataDir, 'blobs');
+      if (existsSync(blobsDir)) cpSync(blobsDir, join(target, 'blobs'), { recursive: true });
+    }
+    this.save({ ...this.load(), dataDir: target });
+    return targetHasWorkspace ? 'loaded' : 'migrated';
   }
 }

@@ -1,0 +1,218 @@
+import type { IsoDate, Project, Task, Workspace } from '../types';
+
+import { dayDiff, fmtLong, fmtShort } from './dates';
+import { indexTasks, isBlocked, isOpen, isOverdue, relativeDueLabel } from './derive';
+import { byDue } from './sort';
+
+/**
+ * The four report builders + plain-text serializers (prototype viewReports /
+ * copyReport). Reports are scoped by a project filter so a work report can
+ * never leak home projects, and vice versa.
+ */
+
+export type ReportFilter = 'all' | 'work' | 'home' | `tag:${string}`;
+
+export function filterProjects(projects: readonly Project[], filter: ReportFilter): Project[] {
+  return projects.filter((p) => {
+    if (filter === 'all') return true;
+    if (filter === 'work' || filter === 'home') return p.category === filter;
+    return p.tags.includes(filter.slice(4));
+  });
+}
+
+function tasksFor(ws: Workspace, projectId: string): Task[] {
+  return ws.tasks.filter((t) => t.projectId === projectId);
+}
+
+// ---------- Weekly status ----------
+
+export interface WeeklyBlock {
+  project: Project;
+  /** Completed within the last 7 days. */
+  done: Task[];
+  /** Open and due within the next 7 days (incl. today). */
+  planned: Task[];
+  /** Open and Waiting, dependency-blocked, or overdue. */
+  blockers: Task[];
+}
+
+export function weeklyStatus(ws: Workspace, filter: ReportFilter, today: IsoDate): WeeklyBlock[] {
+  const byId = indexTasks(ws.tasks);
+  return filterProjects(ws.projects, filter)
+    .map((project) => {
+      const tasks = tasksFor(ws, project.id);
+      const done = tasks.filter(
+        (t) =>
+          t.completedAt !== null &&
+          dayDiff(today, t.completedAt) >= 0 &&
+          dayDiff(today, t.completedAt) <= 7,
+      );
+      const planned = tasks.filter(
+        (t) =>
+          isOpen(t) &&
+          t.dueDate !== null &&
+          dayDiff(t.dueDate, today) >= 0 &&
+          dayDiff(t.dueDate, today) <= 7,
+      );
+      const blockers = tasks.filter(
+        (t) => isOpen(t) && (t.status === 'Waiting' || isBlocked(t, byId) || isOverdue(t, today)),
+      );
+      return { project, done, planned, blockers };
+    })
+    .filter((b) => b.done.length > 0 || b.planned.length > 0 || b.blockers.length > 0);
+}
+
+export function weeklyStatusText(blocks: readonly WeeklyBlock[], today: IsoDate): string {
+  let out = `WEEKLY STATUS — ${fmtLong(today)}\n\n`;
+  for (const b of blocks) {
+    out += `## ${b.project.name}\n`;
+    out += `Done this week: ${b.done.map((t) => t.title).join('; ') || '—'}\n`;
+    out += `Planned next: ${b.planned.map((t) => t.title).join('; ') || '—'}\n`;
+    out += `Blockers: ${b.blockers.map((t) => t.title).join('; ') || 'None'}\n\n`;
+  }
+  return out;
+}
+
+// ---------- Portfolio roll-up ----------
+
+export interface PortfolioRow {
+  project: Project;
+  open: number;
+  done: number;
+  overdue: number;
+  next: Task | null;
+}
+
+export function portfolioRollup(
+  ws: Workspace,
+  filter: ReportFilter,
+  today: IsoDate,
+): PortfolioRow[] {
+  return filterProjects(ws.projects, filter).map((project) => {
+    const tasks = tasksFor(ws, project.id);
+    const open = tasks.filter(isOpen);
+    const next = open.filter((t) => t.dueDate !== null).sort(byDue)[0] ?? null;
+    return {
+      project,
+      open: open.length,
+      done: tasks.filter((t) => t.status === 'Done').length,
+      overdue: open.filter((t) => isOverdue(t, today)).length,
+      next,
+    };
+  });
+}
+
+export function portfolioText(rows: readonly PortfolioRow[], today: IsoDate): string {
+  let out = `PORTFOLIO ROLL-UP — ${fmtLong(today)}\n\n`;
+  for (const r of rows) {
+    out += `- ${r.project.name} [${r.project.category}]: ${r.open} open, ${r.done} done`;
+    if (r.overdue > 0) out += `, ${r.overdue} overdue`;
+    out += '\n';
+  }
+  return out;
+}
+
+// ---------- Retrospective ----------
+
+export interface RetroGroup {
+  project: Project;
+  tasks: Task[];
+}
+
+export interface RetroResult {
+  total: number;
+  groups: RetroGroup[];
+}
+
+export function retrospective(
+  ws: Workspace,
+  filter: ReportFilter,
+  from: IsoDate,
+  to: IsoDate,
+): RetroResult {
+  const projects = filterProjects(ws.projects, filter);
+  const ids = new Set(projects.map((p) => p.id));
+  const done = ws.tasks
+    .filter(
+      (t) =>
+        t.completedAt !== null &&
+        ids.has(t.projectId) &&
+        t.completedAt >= from &&
+        t.completedAt <= to,
+    )
+    .sort((a, b) => ((a.completedAt ?? '') < (b.completedAt ?? '') ? 1 : -1));
+
+  const groups: RetroGroup[] = [];
+  const byProject = new Map<string, RetroGroup>();
+  for (const t of done) {
+    let group = byProject.get(t.projectId);
+    if (group === undefined) {
+      const project = projects.find((p) => p.id === t.projectId);
+      if (project === undefined) continue;
+      group = { project, tasks: [] };
+      byProject.set(t.projectId, group);
+      groups.push(group);
+    }
+    group.tasks.push(t);
+  }
+  return { total: done.length, groups };
+}
+
+export function retrospectiveText(result: RetroResult, from: IsoDate, to: IsoDate): string {
+  let out = `RETROSPECTIVE — ${fmtShort(from)} to ${fmtShort(to)}\n${result.total} tasks completed.\n\n`;
+  for (const g of result.groups) {
+    for (const t of g.tasks) {
+      out += `- [${fmtShort(t.completedAt)}] ${g.project.name}: ${t.title}\n`;
+    }
+  }
+  return out;
+}
+
+// ---------- At-risk ----------
+
+export interface RiskRow {
+  task: Task;
+  project: Project;
+  reason: string;
+  color: string;
+}
+
+export function atRiskReport(ws: Workspace, filter: ReportFilter, today: IsoDate): RiskRow[] {
+  const byId = indexTasks(ws.tasks);
+  const rows: RiskRow[] = [];
+  for (const project of filterProjects(ws.projects, filter)) {
+    for (const task of tasksFor(ws, project.id)) {
+      if (!isOpen(task)) continue;
+      if (isOverdue(task, today)) {
+        rows.push({
+          task,
+          project,
+          reason: relativeDueLabel(task.dueDate, today).text,
+          color: '#d94c3a',
+        });
+      } else if (isBlocked(task, byId)) {
+        rows.push({ task, project, reason: 'Blocked by dependency', color: '#a8710f' });
+      } else if (
+        (task.priority === 'Critical' || task.priority === 'High') &&
+        task.dueDate !== null &&
+        dayDiff(task.dueDate, today) <= 3
+      ) {
+        rows.push({
+          task,
+          project,
+          reason: `${task.priority} · due ${relativeDueLabel(task.dueDate, today).text}`,
+          color: '#c23b2b',
+        });
+      }
+    }
+  }
+  return rows.sort((a, b) => byDue(a.task, b.task));
+}
+
+export function atRiskText(rows: readonly RiskRow[], today: IsoDate): string {
+  let out = `AT-RISK — ${fmtLong(today)}\n\n`;
+  for (const r of rows) {
+    out += `- ${r.project.name}: ${r.task.title} (${r.reason})\n`;
+  }
+  return out;
+}
