@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#f6f6f4;color:#1b1b18;font-family:'Public Sans',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  *{box-sizing:border-box}
+  a{color:#4f5bd5;text-decoration:none}
+  a:hover{text-decoration:underline}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,textarea,select{font-family:inherit}
+  ::selection{background:#dfe2fb}
+  h1,h2,h3,p{margin:0}
+  .scr::-webkit-scrollbar{width:10px;height:10px}
+  .scr::-webkit-scrollbar-thumb{background:rgba(20,20,15,.16);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+  .scr::-webkit-scrollbar-thumb:hover{background:rgba(20,20,15,.28);border:3px solid transparent;background-clip:padding-box}
+  .scr::-webkit-scrollbar-track{background:transparent}
+  .navitem{transition:background .12s}
+  .navitem:hover{background:rgba(20,20,15,.055)!important}
+  .btn{transition:background .12s,border-color .12s,box-shadow .12s,filter .12s}
+  .btn.ghost:hover{background:#f1f1ee!important}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn.subtle:hover{background:rgba(20,20,15,.06)!important}
+  .btn.danger:hover{background:#f7ddd7!important}
+  .card{transition:box-shadow .15s,border-color .15s,transform .15s}
+  .card.clk{cursor:pointer}
+  .card.clk:hover{box-shadow:0 8px 24px -12px rgba(20,20,15,.22)!important;border-color:rgba(20,20,15,.18)!important;transform:translateY(-1px)}
+  .trow{transition:background .1s}
+  .trow:hover{background:#faf9f6!important}
+  .inp{transition:border-color .12s,box-shadow .12s}
+  .inp:focus{outline:none;border-color:#4f5bd5!important;box-shadow:0 0 0 3px #eef0fc!important}
+  .lnk:hover{text-decoration:underline;cursor:pointer}
+  @keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @keyframes overlayin{from{opacity:0}to{opacity:1}}
+  @keyframes modalin{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+  @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .fadein{animation:fadein .2s ease}
+</style>
+</helmet>
+
+<sc-if value="{{ notAuthed }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(130% 120% at 50% -10%, #fcfcfb 0%, #eeeeeb 100%)">
+    <div class="fadein" style="width:100%;max-width:378px">
+      <div style="display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:24px">
+        <span style="width:32px;height:32px;border-radius:9px;background:#4f5bd5;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 32 32" fill="none"><path d="M16.00 3.40 L17.24 3.52 L18.46 3.75 L19.64 4.11 L20.77 4.58 L21.85 5.15 L22.86 5.83 L23.80 6.60 L24.65 7.46 L25.41 8.39 L26.07 9.38 L26.63 10.44 L27.07 11.53 L27.41 12.67 L27.63 13.82 L27.73 14.98 L27.72 16.15 L27.59 17.30 L27.35 18.43 L27.01 19.52 L26.55 20.57 L26.00 21.56 L25.36 22.49 L24.63 23.35 L23.82 24.13 L22.95 24.82 L22.01 25.41 L21.03 25.91 L20.01 26.31 L18.95 26.60 L17.88 26.79 L16.80 26.87 L15.73 26.84 L14.67 26.70 L13.63 26.46 L12.62 26.13 L11.66 25.69 L10.75 25.17 L9.90 24.56 L9.12 23.87 L8.42 23.12 L7.80 22.30 L7.26 21.43 L6.82 20.52 L6.47 19.57 L6.21 18.59 L6.06 17.61 L6.00 16.61 L6.05 15.62 L6.19 14.65 L6.42 13.70 L6.75 12.78 L7.16 11.91 L7.66 11.08 L8.23 10.32 L8.87 9.61 L9.57 8.98 L10.33 8.42 L11.13 7.95 L11.98 7.55 L12.85 7.25 L13.74 7.03 L14.65 6.91 L15.56 6.88 L16.46 6.93 L17.34 7.08 L18.20 7.30 L19.03 7.62 L19.82 8.01 L20.57 8.47 L21.25 9.00 L21.88 9.60 L22.44 10.25 L22.94 10.94 L23.36 11.68 L23.70 12.45 L23.96 13.25 L24.14 14.06 L24.23 14.88 L24.25 15.70 L24.18 16.51 L24.04 17.31 L23.82 18.09 L23.52 18.83 L23.16 19.53 L22.72 20.19 L22.23 20.80 L21.69 21.36 L21.10 21.85 L20.46 22.28 L19.79 22.65 L19.09 22.94 L18.37 23.16 L17.64 23.30 L16.91 23.37 L16.17 23.37 L15.45 23.30 L14.74 23.15 L14.05 22.94 L13.40 22.66 L12.78 22.33 L12.20 21.93 L11.66 21.48 L11.18 20.99 L10.75 20.45 L10.39 19.88 L10.08 19.28 L9.83 18.66 L9.65 18.02 L9.54 17.37 L9.49 16.72 L9.51 16.07 L9.58 15.43 L9.73 14.81 L9.93 14.21 L10.18 13.64 L10.49 13.11 L10.85 12.61 L11.26 12.15 L11.70 11.74 L12.18 11.38 L12.68 11.07 L13.21 10.81 L13.76 10.61 L14.32 10.47 L14.88 10.39 L15.45 10.36 L16.01 10.39 L16.56 10.47 L17.09 10.60 L17.60 10.79 L18.09 11.03 L18.54 11.30 L18.96 11.62 L19.35 11.98 L19.69 12.37 L19.99 12.79 L20.24 13.23 L20.44 13.68 L20.60 14.15 L20.71 14.63 L20.76 15.11 L20.77 15.59 L20.73 16.07 L20.65 16.53 L20.52 16.97 L20.35 17.40 L20.14 17.80 L19.89 18.17 L19.62 18.52 L19.31 18.83 L18.97 19.10 L18.62 19.33 L18.25 19.53 L17.86 19.69 L17.47 19.80 L17.07 19.87 L16.68 19.91 L16.28 19.90 L15.90 19.85 L15.52 19.77 L15.17 19.65 L14.83 19.50 L14.51 19.32 L14.22 19.10 L13.95 18.87 L13.71 18.61 L13.51 18.33 L13.33 18.04 L13.19 17.74 L13.08 17.43 L13.01 17.12 L12.96 16.80 L12.95 16.49 L12.98 16.18 L13.03 15.88 L13.11 15.60 L13.22 15.33 L13.35 15.07 L13.50 14.84 L13.68 14.63 L13.87 14.44 L14.07 14.27 L14.29 14.13 L14.52 14.01 L14.75 13.92 L14.98 13.86 L15.22 13.82 L15.45 13.81 L15.68 13.82 L15.90 13.85 L16.11 13.91 L16.31 13.98 L16.49 14.08 L16.66 14.19 L16.81 14.31 L16.95 14.45 L17.06 14.59 L17.16 14.74 L17.24 14.90 L17.29 15.06" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span style="font-size:21px;font-weight:700;letter-spacing:-.4px">Ariadne</span>
+      </div>
+      <div style="background:#fff;border:1px solid rgba(20,20,15,.09);border-radius:16px;padding:30px 28px;box-shadow:0 18px 50px -22px rgba(20,20,15,.32)">
+        <h1 style="font-size:20px;font-weight:700;margin-bottom:5px">Welcome back</h1>
+        <p style="font-size:13.5px;color:#73736c;margin-bottom:22px">Sign in to your project workspace.</p>
+        <label style="display:block;font-size:12px;font-weight:600;color:#57574f;margin-bottom:6px">Username</label>
+        <input class="inp" value="{{ loginUser }}" onInput="{{ onLoginUser }}" onKeyDown="{{ onLoginKey }}" placeholder="admin" style="width:100%;padding:10px 12px;border:1px solid rgba(20,20,15,.14);border-radius:9px;font-size:14px;background:#fff;margin-bottom:14px"/>
+        <label style="display:block;font-size:12px;font-weight:600;color:#57574f;margin-bottom:6px">Password</label>
+        <input class="inp" type="password" value="{{ loginPass }}" onInput="{{ onLoginPass }}" onKeyDown="{{ onLoginKey }}" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1px solid rgba(20,20,15,.14);border-radius:9px;font-size:14px;background:#fff;margin-bottom:16px"/>
+        <sc-if value="{{ loginError }}" hint-placeholder-val="">
+          <div style="font-size:12.5px;color:#c23b2b;background:#fbeae7;border-radius:8px;padding:8px 11px;margin-bottom:14px">{{ loginError }}</div>
+        </sc-if>
+        <button class="btn primary" onClick="{{ onLoginSubmit }}" style="width:100%;padding:11px;border-radius:9px;background:#4f5bd5;color:#fff;font-size:14px;font-weight:600">Sign in</button>
+        <p style="font-size:12px;color:#9a9a92;text-align:center;margin-top:14px">Demo credentials — <b style="color:#73736c">admin</b> / <b style="color:#73736c">admin</b></p>
+      </div>
+      <p style="font-size:12px;color:#9a9a92;text-align:center;margin-top:16px">Runs locally · your data stays in this browser</p>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;min-height:100vh;max-height:100vh">
+    <aside class="scr" style="width:250px;flex:none;background:#fbfbfa;border-right:1px solid rgba(20,20,15,.08);display:flex;flex-direction:column;height:100vh;overflow:auto;padding:15px 12px">
+      <div style="display:flex;align-items:center;gap:9px;padding:6px 8px 16px">
+        <span style="width:24px;height:24px;border-radius:7px;background:#4f5bd5;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 32 32" fill="none"><path d="M16.00 3.40 L17.24 3.52 L18.46 3.75 L19.64 4.11 L20.77 4.58 L21.85 5.15 L22.86 5.83 L23.80 6.60 L24.65 7.46 L25.41 8.39 L26.07 9.38 L26.63 10.44 L27.07 11.53 L27.41 12.67 L27.63 13.82 L27.73 14.98 L27.72 16.15 L27.59 17.30 L27.35 18.43 L27.01 19.52 L26.55 20.57 L26.00 21.56 L25.36 22.49 L24.63 23.35 L23.82 24.13 L22.95 24.82 L22.01 25.41 L21.03 25.91 L20.01 26.31 L18.95 26.60 L17.88 26.79 L16.80 26.87 L15.73 26.84 L14.67 26.70 L13.63 26.46 L12.62 26.13 L11.66 25.69 L10.75 25.17 L9.90 24.56 L9.12 23.87 L8.42 23.12 L7.80 22.30 L7.26 21.43 L6.82 20.52 L6.47 19.57 L6.21 18.59 L6.06 17.61 L6.00 16.61 L6.05 15.62 L6.19 14.65 L6.42 13.70 L6.75 12.78 L7.16 11.91 L7.66 11.08 L8.23 10.32 L8.87 9.61 L9.57 8.98 L10.33 8.42 L11.13 7.95 L11.98 7.55 L12.85 7.25 L13.74 7.03 L14.65 6.91 L15.56 6.88 L16.46 6.93 L17.34 7.08 L18.20 7.30 L19.03 7.62 L19.82 8.01 L20.57 8.47 L21.25 9.00 L21.88 9.60 L22.44 10.25 L22.94 10.94 L23.36 11.68 L23.70 12.45 L23.96 13.25 L24.14 14.06 L24.23 14.88 L24.25 15.70 L24.18 16.51 L24.04 17.31 L23.82 18.09 L23.52 18.83 L23.16 19.53 L22.72 20.19 L22.23 20.80 L21.69 21.36 L21.10 21.85 L20.46 22.28 L19.79 22.65 L19.09 22.94 L18.37 23.16 L17.64 23.30 L16.91 23.37 L16.17 23.37 L15.45 23.30 L14.74 23.15 L14.05 22.94 L13.40 22.66 L12.78 22.33 L12.20 21.93 L11.66 21.48 L11.18 20.99 L10.75 20.45 L10.39 19.88 L10.08 19.28 L9.83 18.66 L9.65 18.02 L9.54 17.37 L9.49 16.72 L9.51 16.07 L9.58 15.43 L9.73 14.81 L9.93 14.21 L10.18 13.64 L10.49 13.11 L10.85 12.61 L11.26 12.15 L11.70 11.74 L12.18 11.38 L12.68 11.07 L13.21 10.81 L13.76 10.61 L14.32 10.47 L14.88 10.39 L15.45 10.36 L16.01 10.39 L16.56 10.47 L17.09 10.60 L17.60 10.79 L18.09 11.03 L18.54 11.30 L18.96 11.62 L19.35 11.98 L19.69 12.37 L19.99 12.79 L20.24 13.23 L20.44 13.68 L20.60 14.15 L20.71 14.63 L20.76 15.11 L20.77 15.59 L20.73 16.07 L20.65 16.53 L20.52 16.97 L20.35 17.40 L20.14 17.80 L19.89 18.17 L19.62 18.52 L19.31 18.83 L18.97 19.10 L18.62 19.33 L18.25 19.53 L17.86 19.69 L17.47 19.80 L17.07 19.87 L16.68 19.91 L16.28 19.90 L15.90 19.85 L15.52 19.77 L15.17 19.65 L14.83 19.50 L14.51 19.32 L14.22 19.10 L13.95 18.87 L13.71 18.61 L13.51 18.33 L13.33 18.04 L13.19 17.74 L13.08 17.43 L13.01 17.12 L12.96 16.80 L12.95 16.49 L12.98 16.18 L13.03 15.88 L13.11 15.60 L13.22 15.33 L13.35 15.07 L13.50 14.84 L13.68 14.63 L13.87 14.44 L14.07 14.27 L14.29 14.13 L14.52 14.01 L14.75 13.92 L14.98 13.86 L15.22 13.82 L15.45 13.81 L15.68 13.82 L15.90 13.85 L16.11 13.91 L16.31 13.98 L16.49 14.08 L16.66 14.19 L16.81 14.31 L16.95 14.45 L17.06 14.59 L17.16 14.74 L17.24 14.90 L17.29 15.06" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span style="font-size:16px;font-weight:700;letter-spacing:-.2px">Ariadne</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+          <button class="navitem" onClick="{{ n.onClick }}" style="{{ n.style }}">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left">{{ n.label }}</span>
+            {{ n.badge }}
+          </button>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 8px 6px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.7px;color:#9a9a92">PROJECTS</span>
+        <button class="navitem" onClick="{{ onNewProject }}" title="New project" style="font-size:17px;color:#9a9a92;line-height:1;padding:1px 6px;border-radius:6px">+</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ projectNav }}" as="p" hint-placeholder-count="6">
+          <button class="navitem" onClick="{{ p.onClick }}" style="{{ p.style }}">
+            <span style="{{ p.dotStyle }}"></span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left">{{ p.name }}</span>
+            {{ p.right }}
+          </button>
+        </sc-for>
+      </div>
+      <div style="margin-top:auto;padding-top:14px">
+        <div style="display:flex;align-items:center;gap:9px;padding:10px 8px;border-top:1px solid rgba(20,20,15,.08)">
+          <span style="width:27px;height:27px;border-radius:50%;background:#e7e7e1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#73736c">{{ userInitial }}</span>
+          <span style="flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ userName }}</span>
+          <button class="btn subtle" onClick="{{ onLogout }}" style="font-size:12px;color:#9a9a92;padding:5px 7px;border-radius:7px">Sign out</button>
+        </div>
+      </div>
+    </aside>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden">
+      <header style="display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid rgba(20,20,15,.08);background:rgba(246,246,244,.88);backdrop-filter:blur(8px);flex:none;z-index:5">
+        <div style="min-width:0">
+          <div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ viewTitle }}</div>
+          <div style="font-size:11.5px;color:#9a9a92;font-family:ui-monospace,Menlo,monospace;margin-top:1px">{{ topbarDate }}</div>
+        </div>
+        {{ overduePill }}
+        <div style="flex:1"></div>
+        <input class="inp" value="{{ q }}" onInput="{{ onSearch }}" placeholder="Search tasks &amp; projects…" style="width:230px;padding:8px 12px;border:1px solid rgba(20,20,15,.12);border-radius:9px;font-size:13px;background:#fff"/>
+        <button class="btn primary" onClick="{{ onNewTask }}" style="font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;background:#4f5bd5;color:#fff;white-space:nowrap">+ New task</button>
+      </header>
+      <div class="scr" style="flex:1;overflow:auto;padding:24px 22px 60px">{{ viewBody }}</div>
+    </main>
+  </div>
+</sc-if>
+
+{{ modalEl }}
+{{ toastEl }}
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4f5bd5&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Comfortable&quot;,&quot;options&quot;:[&quot;Comfortable&quot;,&quot;Compact&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Command Center&quot;,&quot;options&quot;:[&quot;Command Center&quot;,&quot;Calendar&quot;,&quot;Reports&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  TODAY = '2026-07-08';
+  STATUSES = ['Todo','Doing','Waiting','Done','Dropped'];
+  PRIORITIES = ['Critical','High','Medium','Low'];
+  PALETTE = ['#4f5bd5','#2f8552','#a8710f','#c23b2b','#7c4dd6','#0e8a8a','#c2569b'];
+  STATUS = {
+    Todo:{c:'#7d7d75',bg:'#efefec',dot:'#b4b4ac'},
+    Doing:{c:'#2f62d8',bg:'#e9f0fd',dot:'#2f62d8'},
+    Waiting:{c:'#a8710f',bg:'#faf0dc',dot:'#d69220'},
+    Done:{c:'#2f8552',bg:'#e7f3ec',dot:'#3a9a5f'},
+    Dropped:{c:'#9a9a92',bg:'#f0f0ee',dot:'#bdbdb5'}
+  };
+  PRIO = {
+    Critical:{c:'#c23b2b',dot:'#d94c3a',bg:'#fbeae7'},
+    High:{c:'#a8710f',dot:'#e0a020',bg:'#faf0dc'},
+    Medium:{c:'#4f5bd5',dot:'#6b76e0',bg:'#eef0fc'},
+    Low:{c:'#8a8a82',dot:'#c2c2ba',bg:'#f1f1ef'}
+  };
+  C = {bg:'#f6f6f4',surface:'#ffffff',surface2:'#fbfbfa',border:'rgba(20,20,15,.10)',border2:'rgba(20,20,15,.06)',text:'#1b1b18',muted:'#73736c',faint:'#9a9a92',accent:'#4f5bd5'};
+
+  state = {
+    authed:false, loginUser:'', loginPass:'', loginError:'',
+    view:'home', activeProjectId:null, modal:null, data:null,
+    q:'', scope:'all', calMonth:'2026-07',
+    reportType:'weekly', reportTag:'all', reportFrom:'2026-06-08', reportTo:'2026-07-08',
+    quickTitle:'', importText:'', pwUser:'', pwPass:'', toast:null, fileMode:'preview'
+  };
+
+  componentDidMount(){
+    this.load();
+    this._esc = (e)=>{ if(e.key==='Escape' && this.state.modal) this.setState({modal:null}); };
+    window.addEventListener('keydown', this._esc);
+  }
+  componentWillUnmount(){ window.removeEventListener('keydown', this._esc); if(this._toastT) clearTimeout(this._toastT); }
+
+  load(){
+    let data=null;
+    try{ data=JSON.parse(localStorage.getItem('throughline.data.v1')); }catch(e){}
+    if(!data || !data.projects || !data.projects.length){ data=this.seed(); this.persist(data); }
+    if(!data.settings) data.settings={todoistToken:''};
+    if(!data.files){ data.files=[]; (data.projects||[]).forEach(p=>{ (p.docs||[]).forEach(dc=>{ data.files.push({id:'f'+Math.random().toString(36).slice(2,10),projectId:p.id,taskId:null,name:dc.name||'Document',ext:'',mime:'',kind:'ref',size:0,note:dc.note||'',content:'',createdAt:this.TODAY}); }); }); this.persist(data); }
+    try{ this.blobs=JSON.parse(localStorage.getItem('throughline.blobs.v1'))||{}; }catch(e){ this.blobs={}; }
+    let creds=null;
+    try{ creds=JSON.parse(localStorage.getItem('throughline.creds.v1')); }catch(e){}
+    if(!creds){ creds={user:'admin',pass:'admin'}; localStorage.setItem('throughline.creds.v1',JSON.stringify(creds)); }
+    this.creds=creds;
+    const start={'Command Center':'home','Calendar':'calendar','Reports':'reports'}[this.props.startView]||'home';
+    this.setState({data, view:start, pwUser:creds.user});
+  }
+  persist(data){ localStorage.setItem('throughline.data.v1', JSON.stringify(data)); }
+  save(fn){ const data=JSON.parse(JSON.stringify(this.state.data)); fn(data); this.persist(data); this.setState({data}); }
+  toast(msg){ this.setState({toast:msg}); if(this._toastT) clearTimeout(this._toastT); this._toastT=setTimeout(()=>this.setState({toast:null}),2600); }
+
+  // ---------- date helpers ----------
+  isoAdd(iso,n){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+  dDiff(a,b){ return Math.round((new Date(a+'T00:00:00') - new Date(b+'T00:00:00'))/86400000); }
+  fmtShort(iso){ if(!iso) return ''; return new Date(iso+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+  fmtLong(iso){ return new Date(iso+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+  relLabel(iso){ if(!iso) return {t:'',c:this.C.faint}; const n=this.dDiff(iso,this.TODAY); if(n<0) return {t:(-n)+'d overdue',c:'#d94c3a'}; if(n===0) return {t:'Today',c:'#c23b2b'}; if(n===1) return {t:'Tomorrow',c:'#a8710f'}; if(n<=7) return {t:'in '+n+'d',c:'#a8710f'}; return {t:this.fmtShort(iso),c:this.C.muted}; }
+  trunc(s,n){ s=s||''; return s.length>n ? s.slice(0,n-1)+'…' : s; }
+
+  // ---------- data accessors ----------
+  proj(id){ return (this.state.data.projects||[]).find(p=>p.id===id); }
+  byId(id){ return (this.state.data.tasks||[]).find(t=>t.id===id); }
+  tasksFor(pid){ return (this.state.data.tasks||[]).filter(t=>t.projectId===pid); }
+  allOpen(){ return (this.state.data.tasks||[]).filter(t=>t.status!=='Done'&&t.status!=='Dropped'); }
+  projectsInScope(){ const s=this.state.scope; return (this.state.data.projects||[]).filter(p=>s==='all'||p.category===s); }
+  tasksInScope(){ const s=this.state.scope; return (this.state.data.tasks||[]).filter(t=>{ if(s==='all') return true; const p=this.proj(t.projectId); return p&&p.category===s; }); }
+  isBlocked(t){ if(t.status==='Done'||t.status==='Dropped') return false; return (t.dependsOn||[]).some(id=>{ const d=this.byId(id); return d && d.status!=='Done' && d.status!=='Dropped'; }); }
+  byDue(a,b){ return (a.dueDate||'9999-99')<(b.dueDate||'9999-99')?-1:1; }
+  allTags(){ const s=new Set(); (this.state.data.projects||[]).forEach(p=>(p.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+  // ---------- mutations ----------
+  createTask(pid,patch){ const id='t'+Date.now().toString(36)+Math.floor(Math.random()*1e4); this.save(d=>{ d.tasks.push(Object.assign({id,projectId:pid,title:'',status:'Todo',priority:'Medium',tags:[],notes:'',dueDate:null,dependsOn:[],subtasks:[],links:[],createdAt:this.TODAY,completedAt:null},patch)); }); return id; }
+  updateTask(id,patch){ this.save(d=>{ const t=d.tasks.find(x=>x.id===id); if(!t) return; Object.assign(t,patch); if(patch.status==='Done'&&!t.completedAt) t.completedAt=this.TODAY; if(patch.status&&patch.status!=='Done') t.completedAt=null; }); }
+  deleteTask(id){ this.save(d=>{ d.tasks=d.tasks.filter(x=>x.id!==id); d.tasks.forEach(t=>{ t.dependsOn=(t.dependsOn||[]).filter(x=>x!==id); }); }); this.setState({modal:null}); }
+  cycleStatus(id){ const order=['Todo','Doing','Waiting','Done']; const t=this.byId(id); let i=order.indexOf(t.status); const next = i<0 ? 'Todo' : order[(i+1)%order.length]; this.updateTask(id,{status:next}); }
+  createProject(){ const idn='p'+Date.now().toString(36); const color=this.PALETTE[(this.state.data.projects.length)%this.PALETTE.length]; this.save(d=>{ d.projects.push({id:idn,name:'Untitled project',category:'work',tags:[],color,status:'Active',notes:'',links:[],docs:[],createdAt:this.TODAY}); }); this.setState({view:'project',activeProjectId:idn,q:''}); }
+  updateProject(id,patch){ this.save(d=>{ const p=d.projects.find(x=>x.id===id); if(p) Object.assign(p,patch); }); }
+  deleteProject(id){ if(!window.confirm('Delete this project and all its tasks?')) return; this.save(d=>{ d.projects=d.projects.filter(x=>x.id!==id); d.tasks=d.tasks.filter(t=>t.projectId!==id); }); this.setState({view:'home',activeProjectId:null}); }
+
+  go(view){ this.setState({view,q:''}); }
+  openProject(id){ this.setState({view:'project',activeProjectId:id,q:''}); }
+  openTask(id){ this.setState({modal:{type:'task',id}}); }
+  newTaskGlobal(){ const pid=this.state.activeProjectId||(this.state.data.projects[0]&&this.state.data.projects[0].id); if(!pid){ this.createProject(); return; } const id=this.createTask(pid,{}); this.openTask(id); }
+
+  // ============ small UI builders ============
+  _dot(color,size){ size=size||8; return React.createElement('span',{style:{width:size,height:size,borderRadius:'50%',background:color,display:'inline-block',flex:'none'}}); }
+  _pill(text,pal,extra){ return React.createElement('span',{style:Object.assign({fontSize:11,fontWeight:600,color:pal.c,background:pal.bg,padding:'2px 8px',borderRadius:20,whiteSpace:'nowrap',lineHeight:1.5},extra||{})},text); }
+  _btn(label,onClick,variant,extra){ variant=variant||'ghost'; const C=this.C; const base={fontSize:13,fontWeight:600,padding:'7px 13px',borderRadius:8,display:'inline-flex',alignItems:'center',gap:7,lineHeight:1,whiteSpace:'nowrap'}; const v={ primary:{background:C.accent,color:'#fff'}, ghost:{background:C.surface,color:C.text,border:'1px solid '+C.border}, subtle:{background:'transparent',color:C.muted}, danger:{background:'#fbeae7',color:'#c23b2b'} }[variant]; return React.createElement('button',{className:'btn '+variant,style:Object.assign({},base,v,extra||{}),onClick},label); }
+  _seg(value,opts,onChange){ const C=this.C; return React.createElement('div',{style:{display:'inline-flex',background:'#eaeae6',borderRadius:9,padding:3,gap:2}}, opts.map(o=>React.createElement('button',{key:o[0],onClick:()=>onChange(o[0]),style:{fontSize:12.5,fontWeight:600,padding:'5px 13px',borderRadius:7,color:value===o[0]?C.text:C.muted,background:value===o[0]?'#fff':'transparent',boxShadow:value===o[0]?'0 1px 2px rgba(0,0,0,.09)':'none'}},o[1]))); }
+  _select(value,options,onChange,extra){ const C=this.C; return React.createElement('select',{className:'inp',value,onChange:e=>onChange(e.target.value),style:Object.assign({padding:'7px 9px',border:'1px solid '+C.border,borderRadius:8,fontSize:13,background:'#fff',color:C.text,fontWeight:500},extra||{})}, options.map(o=>React.createElement('option',{key:o.v!==undefined?o.v:o,value:o.v!==undefined?o.v:o},o.l!==undefined?o.l:o))); }
+  _catPill(cat){ return cat==='work' ? this._pill('Work',{c:'#4f5bd5',bg:'#eef0fc'}) : this._pill('Home',{c:'#2f8552',bg:'#e7f3ec'}); }
+  _card(children,extra){ const C=this.C; return React.createElement('div',{className:'card',style:Object.assign({background:C.surface,border:'1px solid '+C.border,borderRadius:12},extra||{})},children); }
+  _cardHead(title,count,right){ const C=this.C; return React.createElement('div',{style:{display:'flex',alignItems:'center',gap:9,padding:'12px 15px',borderBottom:'1px solid '+C.border2}}, React.createElement('span',{style:{fontSize:13.5,fontWeight:700}},title), count!=null?React.createElement('span',{style:{fontSize:12,fontWeight:600,color:C.faint}},count):null, React.createElement('div',{style:{flex:1}}), right||null); }
+
+  _tagEditor(tags,onChange){ const C=this.C; tags=tags||[]; return React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}},
+    tags.map((t,i)=>React.createElement('span',{key:t+i,style:{display:'inline-flex',alignItems:'center',gap:4,fontSize:11.5,fontWeight:600,color:C.muted,background:'#f0f0ee',borderRadius:6,padding:'3px 4px 3px 8px'}}, '#'+t,
+      React.createElement('button',{onClick:()=>onChange(tags.filter((_,j)=>j!==i)),style:{color:C.faint,fontSize:14,lineHeight:1,padding:'0 2px'}},'×'))),
+    React.createElement('input',{placeholder:'+ tag',onKeyDown:e=>{ if(e.key==='Enter'&&e.target.value.trim()){ onChange(tags.concat([e.target.value.trim().replace(/^#/,'')])); e.target.value=''; } },style:{border:'none',outline:'none',fontSize:12.5,width:56,background:'transparent',color:C.text}})); }
+
+  _taskRow(t,opts){ opts=opts||{}; const C=this.C; const p=this.proj(t.projectId); const rel=this.relLabel(t.dueDate); const done=t.status==='Done'||t.status==='Dropped'; const st=this.STATUS[t.status]; const showPrio=t.priority==='Critical'||t.priority==='High';
+    return React.createElement('div',{key:t.id,className:'trow',onClick:()=>this.openTask(t.id),style:{display:'flex',alignItems:'center',gap:11,padding:'8px 10px',borderRadius:8,cursor:'pointer'}},
+      React.createElement('button',{title:'Advance status ('+t.status+')',onClick:e=>{e.stopPropagation();this.cycleStatus(t.id);},style:{width:16,height:16,borderRadius:'50%',border:'2px solid '+st.dot,background:done?st.dot:'transparent',flex:'none',padding:0,position:'relative'}},
+        t.status==='Doing'?React.createElement('span',{style:{position:'absolute',inset:3,borderRadius:'50%',background:st.dot}}):null),
+      React.createElement('div',{style:{flex:1,minWidth:0}},
+        React.createElement('div',{style:{fontSize:13.5,fontWeight:500,color:done?C.faint:C.text,textDecoration:t.status==='Done'?'line-through':'none',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},t.title||'Untitled task'),
+        opts.showProject&&p?React.createElement('div',{style:{fontSize:11.5,color:C.muted,marginTop:2,display:'flex',alignItems:'center',gap:6}},this._dot(p.color,7),p.name):null),
+      this.isBlocked(t)?this._pill('blocked',{c:'#a8710f',bg:'#faf0dc'}):null,
+      (showPrio&&!this.isBlocked(t))?React.createElement('span',{title:t.priority+' priority'},this._dot(this.PRIO[t.priority].dot,8)):null,
+      rel.t?React.createElement('span',{style:{fontSize:12,fontWeight:600,color:rel.c,minWidth:54,textAlign:'right',flex:'none'}},rel.t):null); }
+
+  _projectCard(p){ const C=this.C; const ts=this.tasksFor(p.id); const active=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'); const total=ts.filter(t=>t.status!=='Dropped').length; const done=ts.filter(t=>t.status==='Done').length; const overdue=active.filter(t=>t.dueDate&&t.dueDate<this.TODAY); const next=active.filter(t=>t.dueDate).sort((a,b)=>this.byDue(a,b))[0]; const pct=total?Math.round(done/total*100):0;
+    return React.createElement('div',{key:p.id,className:'card clk',onClick:()=>this.openProject(p.id),style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,padding:14}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:9}},this._dot(p.color,10),React.createElement('div',{style:{fontWeight:600,fontSize:14.5,flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},p.name),this._catPill(p.category)),
+      React.createElement('div',{style:{height:6,background:'#efefec',borderRadius:4,overflow:'hidden',marginBottom:9}},React.createElement('div',{style:{width:pct+'%',height:'100%',background:p.color,borderRadius:4,transition:'width .3s'}})),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:13,fontSize:12,color:C.muted}},
+        React.createElement('span',null,active.length+' open'),
+        React.createElement('span',null,done+'/'+total+' done'),
+        overdue.length?React.createElement('span',{style:{color:'#d94c3a',fontWeight:700}},overdue.length+' overdue'):null,
+        React.createElement('div',{style:{flex:1}}),
+        next?React.createElement('span',{style:{color:this.relLabel(next.dueDate).c,fontWeight:600}},'Next '+this.relLabel(next.dueDate).t):null)); }
+
+  _statCard(label,value,color){ const C=this.C; return React.createElement('div',{style:{background:C.surface,border:'1px solid '+C.border,borderRadius:11,padding:'12px 15px',flex:1,minWidth:0}},
+    React.createElement('div',{style:{fontSize:24,fontWeight:700,color:color||C.text,letterSpacing:'-.5px'}},value),
+    React.createElement('div',{style:{fontSize:11.5,fontWeight:600,color:C.muted,marginTop:2}},label)); }
+
+  // ============ VIEWS ============
+  renderBody(){ if(!this.state.data) return null; if(this.state.q.trim()) return this.viewSearch(); switch(this.state.view){ case 'home': return this.viewHome(); case 'calendar': return this.viewCalendar(); case 'project': return this.viewProject(); case 'reports': return this.viewReports(); case 'settings': return this.viewSettings(); default: return this.viewHome(); } }
+
+  viewHome(){ const C=this.C; const scope=this.state.scope; const open=this.tasksInScope().filter(t=>t.status!=='Done'&&t.status!=='Dropped');
+    const overdue=open.filter(t=>t.dueDate&&t.dueDate<this.TODAY).sort((a,b)=>this.byDue(a,b));
+    const today=open.filter(t=>t.dueDate===this.TODAY).sort((a,b)=>this.byDue(a,b));
+    const soon=open.filter(t=>{ const n=t.dueDate?this.dDiff(t.dueDate,this.TODAY):999; return n>=1&&n<=7; }).sort((a,b)=>this.byDue(a,b));
+    const blocked=open.filter(t=>this.isBlocked(t));
+    const urgent=open.filter(t=>(t.priority==='Critical'||t.priority==='High') && !(t.dueDate&&this.dDiff(t.dueDate,this.TODAY)<=7)).sort((a,b)=>this.byDue(a,b));
+    const projs=this.projectsInScope();
+    const dueWeek=open.filter(t=>t.dueDate&&this.dDiff(t.dueDate,this.TODAY)>=0&&this.dDiff(t.dueDate,this.TODAY)<=7).length;
+    const need=overdue.length+today.length;
+    const sections=[]; const push=(title,list,accent)=>{ const el=this._focusSection(title,list,accent); if(el) sections.push(el); };
+    push('Overdue',overdue,'#d94c3a'); push('Due today',today,'#c23b2b'); push('Blocked',blocked,'#d69220'); push('Due this week',soon,'#4f5bd5'); push('High priority · later',urgent,'#a8710f');
+    const banner = (overdue.length||today.some(t=>t.priority==='Critical'||t.priority==='High')) ? React.createElement('div',{style:{display:'flex',alignItems:'center',gap:11,background:'#fdf1ee',border:'1px solid #f3d3cb',borderRadius:11,padding:'11px 15px',marginBottom:16}},
+        React.createElement('span',{style:{width:8,height:8,borderRadius:'50%',background:'#d94c3a',flex:'none'}}),
+        React.createElement('span',{style:{fontSize:13,fontWeight:600,color:'#a2372a'}}, (overdue.length? overdue.length+' task'+(overdue.length>1?'s':'')+' overdue':'') + (overdue.length&&today.length?' · ':'') + (today.length? today.length+' due today':'')),
+        React.createElement('span',{style:{fontSize:12.5,color:'#b06a5e'}},'Clear these first.')) : null;
+    return React.createElement('div',{className:'fadein',style:{maxWidth:1200,margin:'0 auto'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'flex-end',gap:16,marginBottom:16,flexWrap:'wrap'}},
+        React.createElement('div',{style:{flex:1,minWidth:220}},
+          React.createElement('div',{style:{fontSize:11.5,fontWeight:700,letterSpacing:.7,color:C.faint,fontFamily:'ui-monospace,Menlo,monospace'}},'DAILY REVIEW · '+this.fmtShort(this.TODAY).toUpperCase()),
+          React.createElement('h1',{style:{fontSize:26,fontWeight:700,marginTop:5,letterSpacing:'-.5px'}}, need? need+' task'+(need>1?'s':'')+' need your attention today' : 'Nothing urgent today — nice work.')),
+        this._seg(scope,[['all','All'],['work','Work'],['home','Home']],v=>this.setState({scope:v}))),
+      React.createElement('div',{style:{display:'flex',gap:12,marginBottom:16}},
+        this._statCard('Open tasks',open.length),
+        this._statCard('Due this week',dueWeek,'#4f5bd5'),
+        this._statCard('Overdue',overdue.length,overdue.length?'#d94c3a':C.text),
+        this._statCard('Active projects',projs.length)),
+      banner,
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'minmax(0,1.35fr) minmax(0,1fr)',gap:18,alignItems:'start'}},
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:14}}, sections.length?sections : React.createElement('div',{style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,padding:'40px 20px',textAlign:'center',color:C.muted,fontSize:14}},'You are all caught up. 🎉')),
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'2px 4px'}},React.createElement('span',{style:{fontSize:13.5,fontWeight:700}},'Portfolio'),React.createElement('span',{style:{fontSize:12,color:C.faint,fontWeight:600}},projs.length),React.createElement('div',{style:{flex:1}}),this._btn('+ Project',()=>this.createProject(),'ghost',{fontSize:12,padding:'5px 10px'})),
+          projs.map(p=>this._projectCard(p)))));
+  }
+  _focusSection(title,tasks,accent){ if(!tasks.length) return null; const C=this.C; return React.createElement('div',{key:title,style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,overflow:'hidden'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:9,padding:'11px 14px',borderBottom:'1px solid '+C.border2}},React.createElement('span',{style:{width:7,height:7,borderRadius:'50%',background:accent}}),React.createElement('span',{style:{fontSize:13,fontWeight:700}},title),React.createElement('span',{style:{fontSize:12,color:C.faint,fontWeight:600}},tasks.length)),
+    React.createElement('div',{style:{padding:'5px 6px'}}, tasks.map(t=>this._taskRow(t,{showProject:true})))); }
+
+  viewSearch(){ const C=this.C; const ql=this.state.q.trim().toLowerCase();
+    const projs=(this.state.data.projects||[]).filter(p=>p.name.toLowerCase().includes(ql)||(p.tags||[]).some(t=>t.includes(ql)));
+    const tasks=(this.state.data.tasks||[]).filter(t=>(t.title||'').toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)||(t.tags||[]).some(x=>x.includes(ql)));
+    return React.createElement('div',{className:'fadein',style:{maxWidth:820,margin:'0 auto',display:'flex',flexDirection:'column',gap:16}},
+      React.createElement('div',{style:{fontSize:13,color:C.muted}},tasks.length+' task'+(tasks.length!==1?'s':'')+' · '+projs.length+' project'+(projs.length!==1?'s':'')+' matching “'+this.state.q+'”'),
+      projs.length?React.createElement('div',null,React.createElement('div',{style:{fontSize:12,fontWeight:700,color:C.faint,letterSpacing:.5,marginBottom:8}},'PROJECTS'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},projs.map(p=>this._projectCard(p)))):null,
+      tasks.length?React.createElement('div',null,React.createElement('div',{style:{fontSize:12,fontWeight:700,color:C.faint,letterSpacing:.5,marginBottom:8}},'TASKS'),this._card(React.createElement('div',{style:{padding:'5px 6px'}},tasks.map(t=>this._taskRow(t,{showProject:true}))))):null,
+      (!projs.length&&!tasks.length)?React.createElement('div',{style:{textAlign:'center',color:C.muted,padding:40}},'No matches.'):null); }
+
+  viewProject(){ const C=this.C; const p=this.proj(this.state.activeProjectId); if(!p) return React.createElement('div',null,'Project not found.');
+    const ts=this.tasksFor(p.id); const order={Doing:0,Todo:1,Waiting:2,Done:3,Dropped:4};
+    const sorted=[...ts].sort((a,b)=>{ const s=order[a.status]-order[b.status]; return s||this.byDue(a,b); });
+    const done=ts.filter(t=>t.status==='Done').length; const total=ts.filter(t=>t.status!=='Dropped').length;
+    const libFiles=(this.state.data.files||[]).filter(f=>f.projectId===p.id);
+    const libHead=React.createElement('div',{style:{display:'flex',gap:4}}, React.createElement('button',{className:'btn subtle',onClick:()=>this.addMarkdown(p.id,null),style:{fontSize:12,fontWeight:600,color:C.accent,padding:'4px 8px',borderRadius:7}},'+ Markdown'), React.createElement('label',{className:'btn subtle',style:{fontSize:12,fontWeight:600,color:C.accent,padding:'4px 8px',borderRadius:7,cursor:'pointer'}},'Upload', React.createElement('input',{type:'file',multiple:true,accept:'.md,.txt,.pdf,.csv,.docx,.rtf,.xlsx,.pptx,image/*',onChange:e=>this.uploadFiles(e.target.files,p.id,null),style:{display:'none'}})));
+    const libCard=this._card([ this._cardHead('Files & documents',libFiles.length,libHead), React.createElement('div',{key:'fl',style:{padding:'5px 6px'}}, libFiles.length?libFiles.map(f=>this._fileRow(f)):React.createElement('div',{style:{padding:'12px 10px',fontSize:13,color:C.muted,lineHeight:1.5}},'No files yet. Add a markdown note or upload reference material (PDF, CSV, DOCX, XLSX, PPTX, RTF).')) ]);
+    const linkRow=(items,fields,onChange,addLabel)=>React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      (items||[]).map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',gap:6,alignItems:'center'}},
+        React.createElement('input',{className:'inp',value:it[fields[0].k]||'',placeholder:fields[0].p,onChange:e=>{ const n=items.slice(); n[i]=Object.assign({},n[i],{[fields[0].k]:e.target.value}); onChange(n); },style:{flex:'1 1 40%',minWidth:0,padding:'6px 8px',border:'1px solid '+C.border,borderRadius:7,fontSize:12.5}}),
+        React.createElement('input',{className:'inp',value:it[fields[1].k]||'',placeholder:fields[1].p,onChange:e=>{ const n=items.slice(); n[i]=Object.assign({},n[i],{[fields[1].k]:e.target.value}); onChange(n); },style:{flex:'1 1 55%',minWidth:0,padding:'6px 8px',border:'1px solid '+C.border,borderRadius:7,fontSize:12.5}}),
+        React.createElement('button',{onClick:()=>onChange(items.filter((_,j)=>j!==i)),style:{color:C.faint,fontSize:16,lineHeight:1,padding:'0 4px'}},'×'))),
+      React.createElement('button',{className:'lnk',onClick:()=>onChange((items||[]).concat([{}])),style:{fontSize:12.5,color:C.accent,fontWeight:600,textAlign:'left',padding:'2px 0'}},addLabel));
+    return React.createElement('div',{className:'fadein',style:{maxWidth:1180,margin:'0 auto'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'flex-start',gap:12,marginBottom:18,flexWrap:'wrap'}},
+        React.createElement('div',{style:{flex:1,minWidth:260}},
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},this._dot(p.color,13),
+            React.createElement('input',{value:p.name,onChange:e=>this.updateProject(p.id,{name:e.target.value}),style:{fontSize:23,fontWeight:700,letterSpacing:'-.5px',border:'none',outline:'none',background:'transparent',flex:1,minWidth:0,color:C.text,padding:0}})),
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}},
+            this._select(p.category,[{v:'work',l:'Work'},{v:'home',l:'Home'}],v=>this.updateProject(p.id,{category:v}),{padding:'5px 8px',fontSize:12.5}),
+            React.createElement('span',{style:{fontSize:12.5,color:C.muted,fontWeight:600}},done+' / '+total+' done'),
+            this._tagEditor(p.tags,v=>this.updateProject(p.id,{tags:v})))),
+        React.createElement('div',{style:{display:'flex',gap:8}}, this._btn('+ Add task',()=>{ const id=this.createTask(p.id,{}); this.openTask(id); },'ghost'), this._btn('Delete',()=>this.deleteProject(p.id),'danger'))),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'minmax(0,1fr) 340px',gap:18,alignItems:'start'}},
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:16}},
+          this._card([ this._cardHead('Tasks',sorted.filter(t=>t.status!=='Dropped').length),
+            React.createElement('div',{key:'l',style:{padding:'5px 6px'}}, sorted.length?sorted.map(t=>this._taskRow(t,{showProject:false})):React.createElement('div',{style:{padding:14,color:C.muted,fontSize:13}},'No tasks yet.')),
+            React.createElement('div',{key:'a',style:{display:'flex',gap:8,padding:'8px 12px 12px',borderTop:'1px solid '+C.border2}},
+              React.createElement('input',{className:'inp',value:this.state.quickTitle,placeholder:'Add a task and press Enter…',onChange:e=>this.setState({quickTitle:e.target.value}),onKeyDown:e=>{ if(e.key==='Enter'&&this.state.quickTitle.trim()){ this.createTask(p.id,{title:this.state.quickTitle.trim()}); this.setState({quickTitle:''}); } },style:{flex:1,padding:'8px 11px',border:'1px solid '+C.border,borderRadius:8,fontSize:13}}),
+              this._btn('Add',()=>{ if(this.state.quickTitle.trim()){ this.createTask(p.id,{title:this.state.quickTitle.trim()}); this.setState({quickTitle:''}); } },'ghost')) ]),
+          this._card([ this._cardHead('Dependency map',null,React.createElement('span',{style:{fontSize:11.5,color:C.faint}},'click a node to edit')), React.createElement('div',{key:'g',style:{padding:'12px 14px'}}, this._depGraph(p.id)) ])),
+        React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+          this._card([ this._cardHead('Notes'), React.createElement('div',{key:'n',style:{padding:12}},
+            React.createElement('textarea',{className:'inp',value:p.notes||'',placeholder:'Context, decisions, running log…',onChange:e=>this.updateProject(p.id,{notes:e.target.value}),style:{width:'100%',minHeight:140,resize:'vertical',border:'1px solid '+C.border,borderRadius:9,padding:'10px 11px',fontSize:13,lineHeight:1.55,color:C.text}})) ]),
+          this._card([ this._cardHead('Links'), React.createElement('div',{key:'lk',style:{padding:12}}, linkRow(p.links,[{k:'title',p:'Label'},{k:'url',p:'https://…'}],v=>this.updateProject(p.id,{links:v}),'+ Add link')) ]),
+          libCard)));
+  }
+
+  _depGraph(pid){ const C=this.C; const ts=this.tasksFor(pid).filter(t=>t.status!=='Dropped'); const ids=new Set(ts.map(t=>t.id)); const has=ts.some(t=>(t.dependsOn||[]).some(x=>ids.has(x)));
+    if(ts.length<2||!has) return React.createElement('div',{style:{fontSize:13,color:C.muted,lineHeight:1.5}},'No dependencies mapped yet. Open a task and add “Blocked by” links to build the chain.');
+    const by={}; ts.forEach(t=>by[t.id]=t); const memo={};
+    const layer=(id,seen)=>{ if(memo[id]!=null) return memo[id]; const t=by[id]; const deps=(t.dependsOn||[]).filter(x=>ids.has(x)&&!seen.has(x)); if(!deps.length){ memo[id]=0; return 0; } let m=0; deps.forEach(x=>{ m=Math.max(m,layer(x,new Set([...seen,id]))+1); }); memo[id]=m; return m; };
+    ts.forEach(t=>layer(t.id,new Set([t.id])));
+    const cols={}; ts.forEach(t=>{ const L=memo[t.id]; (cols[L]=cols[L]||[]).push(t); });
+    const nodeW=172,nodeH=54,rowGap=44,colGap=16,padL=8,padT=8; const pos={}; let maxCols=0; const Ls=Object.keys(cols).map(Number); const maxL=Math.max(...Ls);
+    Ls.forEach(L=>{ maxCols=Math.max(maxCols,cols[L].length); });
+    const rowW=maxCols*(nodeW+colGap)-colGap;
+    Ls.forEach(L=>{ const arr=cols[L]; const startX=padL+(rowW-(arr.length*(nodeW+colGap)-colGap))/2; arr.forEach((t,i)=>{ pos[t.id]={x:startX+i*(nodeW+colGap),y:padT+L*(nodeH+rowGap)}; }); });
+    const width=padL*2+rowW; const height=padT*2+(maxL+1)*(nodeH+rowGap)-rowGap;
+    const edges=[]; ts.forEach(t=>{ (t.dependsOn||[]).forEach(x=>{ if(pos[x]&&pos[t.id]){ const a=pos[x],b=pos[t.id]; edges.push({x1:a.x+nodeW/2,y1:a.y+nodeH,x2:b.x+nodeW/2,y2:b.y}); } }); });
+    return React.createElement('div',{className:'scr',style:{overflow:'auto',maxWidth:'100%'}}, React.createElement('svg',{width:Math.max(width,300),height:Math.max(height,110),style:{display:'block'}},
+      React.createElement('defs',null,React.createElement('marker',{id:'arr',markerWidth:9,markerHeight:9,refX:7,refY:4.5,orient:'auto',markerUnits:'userSpaceOnUse'},React.createElement('path',{d:'M0,0 L9,4.5 L0,9 z',fill:'#c8c8c0'}))),
+      edges.map((e,i)=>{ const my=(e.y1+e.y2)/2; return React.createElement('path',{key:'e'+i,d:'M'+e.x1+','+e.y1+' C'+e.x1+','+my+' '+e.x2+','+my+' '+e.x2+','+(e.y2-3),stroke:'#d6d6ce',strokeWidth:1.5,fill:'none',markerEnd:'url(#arr)'}); }),
+      ts.map(t=>{ const p=pos[t.id]; const st=this.STATUS[t.status]; return React.createElement('g',{key:t.id,style:{cursor:'pointer'},onClick:()=>this.openTask(t.id)},
+        React.createElement('rect',{x:p.x,y:p.y,width:nodeW,height:nodeH,rx:9,fill:'#fff',stroke:st.dot,strokeWidth:1.5}),
+        React.createElement('circle',{cx:p.x+13,cy:p.y+17,r:4,fill:st.dot}),
+        React.createElement('text',{x:p.x+23,y:p.y+21,fontSize:10.5,fontWeight:700,fill:st.c},t.status),
+        React.createElement('text',{x:p.x+12,y:p.y+40,fontSize:12,fontWeight:600,fill:'#1b1b18'},this.trunc(t.title||'Untitled',22))); }))); }
+
+  viewCalendar(){ const C=this.C; const [y,m]=this.state.calMonth.split('-').map(Number); const first=new Date(y,m-1,1); const startDow=first.getDay(); const days=new Date(y,m,0).getDate();
+    const scope=this.state.scope; const tasks=this.tasksInScope().filter(t=>t.dueDate&&t.status!=='Dropped');
+    const byDate={}; tasks.forEach(t=>{ (byDate[t.dueDate]=byDate[t.dueDate]||[]).push(t); });
+    const cells=[]; for(let i=0;i<startDow;i++) cells.push(null); for(let d=1;d<=days;d++){ const iso=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); cells.push(iso); } while(cells.length%7) cells.push(null);
+    const monthName=first.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const shift=(n)=>{ const nd=new Date(y,m-1+n,1); this.setState({calMonth:nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')}); };
+    const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const upcoming=tasks.filter(t=>t.status!=='Done'&&this.dDiff(t.dueDate,this.TODAY)>=0).sort((a,b)=>this.byDue(a,b)).slice(0,10);
+    return React.createElement('div',{className:'fadein',style:{maxWidth:1180,margin:'0 auto'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16,flexWrap:'wrap'}},
+        React.createElement('h1',{style:{fontSize:22,fontWeight:700,letterSpacing:'-.4px',minWidth:180}},monthName),
+        this._btn('‹',()=>shift(-1),'ghost',{padding:'6px 12px',fontSize:15}),
+        this._btn('Today',()=>this.setState({calMonth:this.TODAY.slice(0,7)}),'ghost',{padding:'6px 12px'}),
+        this._btn('›',()=>shift(1),'ghost',{padding:'6px 12px',fontSize:15}),
+        React.createElement('div',{style:{flex:1}}),
+        this._seg(scope,[['all','All'],['work','Work'],['home','Home']],v=>this.setState({scope:v}))),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'minmax(0,1fr) 300px',gap:18,alignItems:'start'}},
+        this._card([ React.createElement('div',{key:'h',style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',borderBottom:'1px solid '+C.border2}}, dow.map(d=>React.createElement('div',{key:d,style:{padding:'9px 0',textAlign:'center',fontSize:11,fontWeight:700,color:C.faint,letterSpacing:.4}},d.toUpperCase()))),
+          React.createElement('div',{key:'g',style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)'}}, cells.map((iso,i)=>{ const isToday=iso===this.TODAY; const list=iso?(byDate[iso]||[]):[]; return React.createElement('div',{key:i,style:{minHeight:96,borderRight:(i%7!==6)?'1px solid '+C.border2:'none',borderBottom:'1px solid '+C.border2,padding:6,background:iso?(isToday?'#f5f6fe':'#fff'):'#fafaf8'}},
+            iso?React.createElement('div',{style:{fontSize:11.5,fontWeight:isToday?700:600,color:isToday?C.accent:C.muted,marginBottom:4,padding:'0 2px'}},Number(iso.slice(-2))):null,
+            React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:3}}, list.slice(0,4).map(t=>{ const pr=this.PRIO[t.priority]; const dn=t.status==='Done'; return React.createElement('button',{key:t.id,onClick:()=>this.openTask(t.id),title:t.title,style:{display:'flex',alignItems:'center',gap:5,textAlign:'left',fontSize:11,fontWeight:500,color:dn?C.faint:C.text,background:dn?'#f0f0ee':pr.bg,borderRadius:5,padding:'2px 5px',width:'100%',overflow:'hidden',textDecoration:dn?'line-through':'none'}},
+              React.createElement('span',{style:{width:5,height:5,borderRadius:'50%',background:pr.dot,flex:'none'}}),React.createElement('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.title||'Untitled')); }),
+              list.length>4?React.createElement('span',{style:{fontSize:10.5,color:C.faint,padding:'0 5px'}},'+'+(list.length-4)+' more'):null)); }))]),
+        this._card([ this._cardHead('Upcoming'), React.createElement('div',{key:'u',style:{padding:'5px 6px'}}, upcoming.length?upcoming.map(t=>this._taskRow(t,{showProject:true})):React.createElement('div',{style:{padding:14,fontSize:13,color:C.muted}},'Nothing scheduled ahead.')) ])));
+  }
+
+  viewReports(){ const C=this.C; const type=this.state.reportType; const tag=this.state.reportTag;
+    const tagOpts=[{v:'all',l:'All projects'},{v:'work',l:'Work only'},{v:'home',l:'Home only'}].concat(this.allTags().map(t=>({v:'tag:'+t,l:'#'+t})));
+    const filterP=(list)=>list.filter(p=>{ if(tag==='all') return true; if(tag==='work'||tag==='home') return p.category===tag; if(tag.startsWith('tag:')) return (p.tags||[]).includes(tag.slice(4)); return true; });
+    const projs=filterP(this.state.data.projects||[]);
+    const head=React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:18,flexWrap:'wrap'}},
+      this._seg(type,[['weekly','Weekly status'],['portfolio','Portfolio roll-up'],['retro','Retrospective'],['risk','At-risk']],v=>this.setState({reportType:v})),
+      React.createElement('div',{style:{flex:1}}),
+      type==='retro'?React.createElement('div',{style:{display:'flex',alignItems:'center',gap:6}},
+        React.createElement('input',{type:'date',className:'inp',value:this.state.reportFrom,onChange:e=>this.setState({reportFrom:e.target.value}),style:{padding:'6px 8px',border:'1px solid '+C.border,borderRadius:8,fontSize:12.5}}),
+        React.createElement('span',{style:{color:C.faint,fontSize:12}},'→'),
+        React.createElement('input',{type:'date',className:'inp',value:this.state.reportTo,onChange:e=>this.setState({reportTo:e.target.value}),style:{padding:'6px 8px',border:'1px solid '+C.border,borderRadius:8,fontSize:12.5}})):null,
+      this._select(tag,tagOpts,v=>this.setState({reportTag:v}),{fontSize:12.5}),
+      this._btn('Copy report',()=>this.copyReport(),'ghost'));
+    let body;
+    if(type==='weekly') body=this.reportWeekly(projs);
+    else if(type==='portfolio') body=this.reportPortfolio(projs);
+    else if(type==='retro') body=this.reportRetro(projs);
+    else body=this.reportRisk(projs);
+    return React.createElement('div',{className:'fadein',style:{maxWidth:900,margin:'0 auto'}}, head, body);
+  }
+  _reportBlock(children){ const C=this.C; return React.createElement('div',{style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,padding:'18px 20px'}},children); }
+  _rline(t){ const C=this.C; const rel=this.relLabel(t.dueDate); return React.createElement('div',{key:t.id,onClick:()=>this.openTask(t.id),style:{display:'flex',alignItems:'center',gap:9,padding:'4px 0',cursor:'pointer',fontSize:13}}, this._dot(this.STATUS[t.status].dot,7), React.createElement('span',{style:{flex:1,color:t.status==='Done'?C.muted:C.text}},t.title), t.dueDate?React.createElement('span',{style:{fontSize:11.5,fontWeight:600,color:rel.c}},rel.t):null); }
+  reportWeekly(projs){ const C=this.C; const blocks=projs.map(p=>{ const ts=this.tasksFor(p.id); const done=ts.filter(t=>t.completedAt&&this.dDiff(this.TODAY,t.completedAt)<=7&&this.dDiff(this.TODAY,t.completedAt)>=0); const planned=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'&&t.dueDate&&this.dDiff(t.dueDate,this.TODAY)>=0&&this.dDiff(t.dueDate,this.TODAY)<=7); const blockers=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'&&(t.status==='Waiting'||this.isBlocked(t)||(t.dueDate&&t.dueDate<this.TODAY)));
+      if(!done.length&&!planned.length&&!blockers.length) return null;
+      const col=(label,list,color,empty)=>React.createElement('div',{style:{flex:1,minWidth:0}},React.createElement('div',{style:{fontSize:11,fontWeight:700,letterSpacing:.4,color,marginBottom:5}},label),list.length?list.map(t=>this._rline(t)):React.createElement('div',{style:{fontSize:12.5,color:C.faint}},empty));
+      return React.createElement('div',{key:p.id,style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,padding:'16px 18px'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:12}},this._dot(p.color,10),React.createElement('span',{style:{fontWeight:700,fontSize:15}},p.name),this._catPill(p.category)),
+        React.createElement('div',{style:{display:'flex',gap:22,flexWrap:'wrap'}}, col('DONE THIS WEEK',done,'#2f8552','—'), col('PLANNED NEXT',planned,'#4f5bd5','—'), col('BLOCKERS / AT RISK',blockers,'#c23b2b','None'))); }).filter(Boolean);
+    return React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:14}}, blocks.length?blocks:this._reportBlock(React.createElement('span',{style:{color:C.muted}},'No activity in this filter.'))); }
+  reportPortfolio(projs){ const C=this.C; const cell=(v,st)=>React.createElement('td',{style:Object.assign({padding:'10px 12px',fontSize:13,borderBottom:'1px solid '+C.border2},st||{})},v);
+    return this._reportBlock(React.createElement('table',{style:{width:'100%',borderCollapse:'collapse'}},
+      React.createElement('thead',null,React.createElement('tr',null,['Project','Type','Open','Done','Overdue','Next due'].map((h,i)=>React.createElement('th',{key:h,style:{textAlign:i>1&&i<5?'center':'left',fontSize:11,fontWeight:700,letterSpacing:.4,color:C.faint,padding:'0 12px 8px'}},h.toUpperCase())))),
+      React.createElement('tbody',null, projs.map(p=>{ const ts=this.tasksFor(p.id); const active=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'); const done=ts.filter(t=>t.status==='Done').length; const overdue=active.filter(t=>t.dueDate&&t.dueDate<this.TODAY).length; const next=active.filter(t=>t.dueDate).sort((a,b)=>this.byDue(a,b))[0];
+        return React.createElement('tr',{key:p.id,className:'trow',style:{cursor:'pointer'},onClick:()=>this.openProject(p.id)},
+          cell(React.createElement('span',{style:{display:'flex',alignItems:'center',gap:8,fontWeight:600}},this._dot(p.color,9),p.name)),
+          cell(this._catPill(p.category)), cell(active.length,{textAlign:'center'}), cell(done,{textAlign:'center',color:C.muted}),
+          cell(overdue?React.createElement('b',{style:{color:'#d94c3a'}},overdue):'0',{textAlign:'center'}),
+          cell(next?React.createElement('span',{style:{color:this.relLabel(next.dueDate).c,fontWeight:600,fontSize:12.5}},this.relLabel(next.dueDate).t):'—')); })))); }
+  reportRetro(projs){ const C=this.C; const from=this.state.reportFrom,to=this.state.reportTo; const pids=new Set(projs.map(p=>p.id));
+    const done=(this.state.data.tasks||[]).filter(t=>t.completedAt&&pids.has(t.projectId)&&t.completedAt>=from&&t.completedAt<=to).sort((a,b)=>a.completedAt<b.completedAt?1:-1);
+    const groups={}; done.forEach(t=>{ (groups[t.projectId]=groups[t.projectId]||[]).push(t); });
+    return React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+      this._reportBlock(React.createElement('div',{style:{display:'flex',alignItems:'baseline',gap:10}},React.createElement('span',{style:{fontSize:30,fontWeight:700,letterSpacing:'-1px'}},done.length),React.createElement('span',{style:{color:C.muted,fontSize:14}},'tasks completed · '+this.fmtShort(from)+' – '+this.fmtShort(to)))),
+      Object.keys(groups).length?Object.keys(groups).map(pid=>{ const p=this.proj(pid); return React.createElement('div',{key:pid,style:{background:C.surface,border:'1px solid '+C.border,borderRadius:12,padding:'16px 18px'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:9}},this._dot(p.color,10),React.createElement('span',{style:{fontWeight:700,fontSize:14.5}},p.name),React.createElement('span',{style:{fontSize:12,color:C.faint,fontWeight:600}},groups[pid].length)),
+        groups[pid].map(t=>React.createElement('div',{key:t.id,onClick:()=>this.openTask(t.id),style:{display:'flex',alignItems:'center',gap:9,padding:'4px 0',fontSize:13,cursor:'pointer'}},this._dot('#3a9a5f',7),React.createElement('span',{style:{flex:1}},t.title),React.createElement('span',{style:{fontSize:11.5,color:C.faint,fontFamily:'ui-monospace,Menlo,monospace'}},this.fmtShort(t.completedAt))))); }):this._reportBlock(React.createElement('span',{style:{color:C.muted}},'No tasks completed in this range.'))); }
+  reportRisk(projs){ const C=this.C; const pids=new Set(projs.map(p=>p.id)); const open=(this.state.data.tasks||[]).filter(t=>pids.has(t.projectId)&&t.status!=='Done'&&t.status!=='Dropped');
+    const rows=[]; open.forEach(t=>{ let reason=null,color='#a8710f'; if(t.dueDate&&t.dueDate<this.TODAY){ reason=this.relLabel(t.dueDate).t; color='#d94c3a'; } else if(this.isBlocked(t)){ reason='Blocked by dependency'; } else if((t.priority==='Critical'||t.priority==='High')&&t.dueDate&&this.dDiff(t.dueDate,this.TODAY)<=3){ reason=t.priority+' · due '+this.relLabel(t.dueDate).t; color='#c23b2b'; } if(reason) rows.push({t,reason,color}); });
+    rows.sort((a,b)=>this.byDue(a.t,b.t));
+    return this._reportBlock(rows.length?React.createElement('div',{style:{display:'flex',flexDirection:'column'}}, rows.map(({t,reason,color})=>{ const p=this.proj(t.projectId); return React.createElement('div',{key:t.id,className:'trow',onClick:()=>this.openTask(t.id),style:{display:'flex',alignItems:'center',gap:11,padding:'9px 6px',borderRadius:8,cursor:'pointer'}},
+      this._dot(this.PRIO[t.priority].dot,9), React.createElement('div',{style:{flex:1,minWidth:0}}, React.createElement('div',{style:{fontSize:13.5,fontWeight:600}},t.title), React.createElement('div',{style:{fontSize:11.5,color:C.muted,display:'flex',gap:6,alignItems:'center',marginTop:1}},this._dot(p.color,6),p.name)),
+      React.createElement('span',{style:{fontSize:12,fontWeight:700,color}},reason)); })):React.createElement('span',{style:{color:'#2f8552',fontWeight:600}},'Nothing at risk in this filter. ✓')); }
+  copyReport(){ const type=this.state.reportType,tag=this.state.reportTag; const filterP=(list)=>list.filter(p=>{ if(tag==='all') return true; if(tag==='work'||tag==='home') return p.category===tag; if(tag.startsWith('tag:')) return (p.tags||[]).includes(tag.slice(4)); return true; }); const projs=filterP(this.state.data.projects||[]); let out='';
+    if(type==='weekly'){ out='WEEKLY STATUS — '+this.fmtLong(this.TODAY)+'\n\n'; projs.forEach(p=>{ const ts=this.tasksFor(p.id); const done=ts.filter(t=>t.completedAt&&this.dDiff(this.TODAY,t.completedAt)<=7&&this.dDiff(this.TODAY,t.completedAt)>=0); const planned=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'&&t.dueDate&&this.dDiff(t.dueDate,this.TODAY)>=0&&this.dDiff(t.dueDate,this.TODAY)<=7); const blockers=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'&&(t.status==='Waiting'||this.isBlocked(t)||(t.dueDate&&t.dueDate<this.TODAY))); if(!done.length&&!planned.length&&!blockers.length) return; out+='## '+p.name+'\n'; out+='Done this week: '+(done.map(t=>t.title).join('; ')||'—')+'\n'; out+='Planned next: '+(planned.map(t=>t.title).join('; ')||'—')+'\n'; out+='Blockers: '+(blockers.map(t=>t.title).join('; ')||'None')+'\n\n'; }); }
+    else if(type==='portfolio'){ out='PORTFOLIO ROLL-UP — '+this.fmtLong(this.TODAY)+'\n\n'; projs.forEach(p=>{ const ts=this.tasksFor(p.id); const active=ts.filter(t=>t.status!=='Done'&&t.status!=='Dropped'); const done=ts.filter(t=>t.status==='Done').length; const overdue=active.filter(t=>t.dueDate&&t.dueDate<this.TODAY).length; out+='- '+p.name+' ['+p.category+']: '+active.length+' open, '+done+' done'+(overdue?', '+overdue+' overdue':'')+'\n'; }); }
+    else if(type==='retro'){ const from=this.state.reportFrom,to=this.state.reportTo; const pids=new Set(projs.map(p=>p.id)); const done=(this.state.data.tasks||[]).filter(t=>t.completedAt&&pids.has(t.projectId)&&t.completedAt>=from&&t.completedAt<=to); out='RETROSPECTIVE — '+this.fmtShort(from)+' to '+this.fmtShort(to)+'\n'+done.length+' tasks completed.\n\n'; done.forEach(t=>{ out+='- ['+this.fmtShort(t.completedAt)+'] '+this.proj(t.projectId).name+': '+t.title+'\n'; }); }
+    else { out='AT-RISK — '+this.fmtLong(this.TODAY)+'\n\n'; const pids=new Set(projs.map(p=>p.id)); (this.state.data.tasks||[]).filter(t=>pids.has(t.projectId)&&t.status!=='Done'&&t.status!=='Dropped').forEach(t=>{ let r=null; if(t.dueDate&&t.dueDate<this.TODAY) r=this.relLabel(t.dueDate).t; else if(this.isBlocked(t)) r='blocked'; else if((t.priority==='Critical'||t.priority==='High')&&t.dueDate&&this.dDiff(t.dueDate,this.TODAY)<=3) r=t.priority+' due '+this.relLabel(t.dueDate).t; if(r) out+='- '+this.proj(t.projectId).name+': '+t.title+' ('+r+')\n'; }); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(out).then(()=>this.toast('Report copied to clipboard'),()=>this.toast('Copy failed — check permissions')); } else this.toast('Clipboard unavailable'); }
+
+  viewSettings(){ const C=this.C; const s=this.state; const settings=this.state.data.settings||{};
+    const sec=(title,children)=>this._card([ this._cardHead(title), React.createElement('div',{key:'b',style:{padding:'16px 18px'}},children) ],{marginBottom:16});
+    const label=(t)=>React.createElement('div',{style:{fontSize:12,fontWeight:600,color:C.muted,marginBottom:6}},t);
+    const inp=(props)=>React.createElement('input',Object.assign({className:'inp'},props,{style:Object.assign({padding:'8px 11px',border:'1px solid '+C.border,borderRadius:8,fontSize:13,background:'#fff'},props.style||{})}));
+    return React.createElement('div',{className:'fadein',style:{maxWidth:720,margin:'0 auto'}},
+      sec('Account',React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',alignItems:'flex-end'}},
+        React.createElement('div',null,label('Username'),inp({value:s.pwUser,onChange:e=>this.setState({pwUser:e.target.value}),style:{width:200}})),
+        React.createElement('div',null,label('New password'),inp({type:'password',value:s.pwPass,placeholder:'leave blank to keep',onChange:e=>this.setState({pwPass:e.target.value}),style:{width:200}})),
+        this._btn('Save credentials',()=>{ const creds={user:s.pwUser||'admin',pass:s.pwPass||this.creds.pass}; localStorage.setItem('throughline.creds.v1',JSON.stringify(creds)); this.creds=creds; this.setState({pwPass:''}); this.toast('Credentials updated'); },'primary'))),
+      sec('Data',React.createElement('div',null,
+        React.createElement('div',{style:{fontSize:13,color:C.muted,marginBottom:12,lineHeight:1.5}},'Everything lives in this browser. Export a JSON backup any time, or import to restore / move machines.'),
+        React.createElement('div',{style:{display:'flex',gap:9,flexWrap:'wrap',marginBottom:14}},
+          this._btn('Export JSON',()=>this.exportData(),'ghost'),
+          React.createElement('label',{className:'btn ghost',style:{fontSize:13,fontWeight:600,padding:'7px 13px',borderRadius:8,background:C.surface,border:'1px solid '+C.border,cursor:'pointer'}},'Import file…',React.createElement('input',{type:'file',accept:'.json,application/json',onChange:e=>this.importFile(e),style:{display:'none'}})),
+          this._btn('Reset to sample data',()=>{ if(window.confirm('Replace everything with the sample dataset?')){ const d=this.seed(); this.persist(d); this.setState({data:d}); this.toast('Reset to sample data'); } },'ghost'),
+          this._btn('Clear all',()=>{ if(window.confirm('Delete ALL projects and tasks?')){ this.save(d=>{ d.projects=[]; d.tasks=[]; }); this.toast('All data cleared'); } },'danger')),
+        label('Import from pasted JSON'),
+        React.createElement('textarea',{className:'inp',value:s.importText,placeholder:'Paste exported JSON here…',onChange:e=>this.setState({importText:e.target.value}),style:{width:'100%',minHeight:80,border:'1px solid '+C.border,borderRadius:8,padding:'9px 11px',fontSize:12.5,fontFamily:'ui-monospace,Menlo,monospace',resize:'vertical',marginBottom:9}}),
+        this._btn('Apply pasted JSON',()=>this.importText(),'ghost'))),
+      sec('Integrations · Todoist',React.createElement('div',null,
+        React.createElement('div',{style:{fontSize:13,color:C.muted,marginBottom:12,lineHeight:1.5}},'Store your Todoist API token to sync tasks from your phone. In this prototype, syncing loads a demo set of tasks into a “Todoist Inbox” project (no live network calls).'),
+        React.createElement('div',{style:{display:'flex',gap:10,alignItems:'flex-end',flexWrap:'wrap'}},
+          React.createElement('div',{style:{flex:1,minWidth:220}},label('Todoist API token'),inp({value:settings.todoistToken||'',placeholder:'0123abcd…',onChange:e=>this.save(d=>{ d.settings.todoistToken=e.target.value; }),style:{width:'100%'}})),
+          this._btn('Sync now',()=>this.todoistSync(),'primary')))),
+      sec('Status & priority reference',React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+        React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},React.createElement('span',{style:{fontSize:12,fontWeight:700,color:C.faint,width:70}},'STATUS'),this.STATUSES.map(st=>this._pill(st,this.STATUS[st]))),
+        React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},React.createElement('span',{style:{fontSize:12,fontWeight:700,color:C.faint,width:70}},'PRIORITY'),this.PRIORITIES.map(pr=>React.createElement('span',{key:pr,style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,fontWeight:600,color:this.PRIO[pr].c}},this._dot(this.PRIO[pr].dot,8),pr))))));
+  }
+  exportData(){ const blob=new Blob([JSON.stringify(Object.assign({},this.state.data,{_blobs:this.blobs||{}}),null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='ariadne-export-'+this.TODAY+'.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); this.toast('Exported JSON backup'); }
+  importFile(e){ const f=e.target.files&&e.target.files[0]; if(!f) return; f.text().then(txt=>this._applyImport(txt)); e.target.value=''; }
+  importText(){ if(!this.state.importText.trim()){ this.toast('Nothing to import'); return; } this._applyImport(this.state.importText); }
+  _applyImport(txt){ try{ const d=JSON.parse(txt); if(!d.projects||!d.tasks) throw new Error('bad'); if(!d.settings) d.settings={todoistToken:''}; if(!d.files) d.files=[]; if(d._blobs){ this.blobs=d._blobs; this.saveBlobs(); delete d._blobs; } this.persist(d); this.setState({data:d,importText:'',view:'home'}); this.toast('Imported '+d.projects.length+' projects, '+d.tasks.length+' tasks'); }catch(err){ this.toast('Invalid JSON — import failed'); } }
+  todoistSync(){ const T=this.TODAY; this.save(d=>{ let inbox=d.projects.find(p=>p.id==='todoist-inbox'); if(!inbox){ inbox={id:'todoist-inbox',name:'Todoist Inbox',category:'home',tags:['todoist'],color:'#c2569b',status:'Active',notes:'Synced from Todoist (demo).',links:[],docs:[],createdAt:T}; d.projects.push(inbox); } const seed=[{title:'Call plumber about kitchen sink',priority:'High',dueDate:this.isoAdd(T,1)},{title:'Pick up dry cleaning',priority:'Low',dueDate:this.isoAdd(T,0)},{title:'Renew car registration',priority:'Medium',dueDate:this.isoAdd(T,6)}]; seed.forEach(sd=>{ if(!d.tasks.some(t=>t.projectId==='todoist-inbox'&&t.title===sd.title)){ d.tasks.push(Object.assign({id:'td'+Date.now().toString(36)+Math.floor(Math.random()*1e4),projectId:'todoist-inbox',status:'Todo',tags:['todoist'],notes:'',dependsOn:[],subtasks:[],links:[],createdAt:T,completedAt:null},sd)); } }); }); this.toast('Synced 3 tasks from Todoist (demo)'); }
+
+  // ============ DOCUMENT LIBRARY ============
+  humanSize(n){ if(!n) return ''; if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+  saveBlobs(){ try{ localStorage.setItem('throughline.blobs.v1',JSON.stringify(this.blobs||{})); return true; }catch(e){ this.toast('Local storage full — file too large to save'); return false; } }
+  openFile(id){ const cur=this.state.modal; const back=cur&&cur.type==='task'?cur:null; this.setState({modal:{type:'file',id,back},fileMode:'preview'}); }
+  addMarkdown(projectId,taskId){ const id='f'+Date.now().toString(36)+Math.floor(Math.random()*1e4); const back=this.state.modal&&this.state.modal.type==='task'?this.state.modal:null; this.save(d=>{ d.files.push({id,projectId,taskId:taskId||null,name:'Untitled.md',ext:'md',mime:'text/markdown',kind:'markdown',size:0,content:'# Untitled\n\n',createdAt:this.TODAY}); }); this.setState({modal:{type:'file',id,back},fileMode:'edit'}); }
+  updateFile(id,patch){ this.save(d=>{ const f=d.files.find(x=>x.id===id); if(f) Object.assign(f,patch); }); }
+  deleteFile(id){ this.save(d=>{ d.files=d.files.filter(f=>f.id!==id); }); if(this.blobs&&this.blobs[id]){ delete this.blobs[id]; this.saveBlobs(); } const m=this.state.modal; if(m&&m.type==='file'&&m.id===id) this.setState({modal:m.back||null}); }
+  uploadFiles(list,projectId,taskId){ const files=[...(list||[])]; if(!files.length) return; let added=0,pending=files.length; const finish=()=>{ pending--; if(pending===0&&added) this.toast(added+' file'+(added>1?'s':'')+' added to library'); }; files.forEach(file=>{ if(file.size>3.5*1048576){ this.toast('“'+file.name+'” is over 3.5 MB — too large for local storage'); finish(); return; } const reader=new FileReader(); reader.onload=()=>{ const id='f'+Date.now().toString(36)+Math.floor(Math.random()*1e4); if(!this.blobs) this.blobs={}; this.blobs[id]=reader.result; if(!this.saveBlobs()){ delete this.blobs[id]; finish(); return; } const ext=(file.name.split('.').pop()||'').toLowerCase(); this.save(d=>{ d.files.push({id,projectId,taskId:taskId||null,name:file.name,ext,mime:file.type||'',kind:'file',size:file.size,content:'',createdAt:this.TODAY}); }); added++; finish(); }; reader.onerror=finish; reader.readAsDataURL(file); }); }
+  downloadFile(f){ let url; if(f.kind==='markdown'){ url=URL.createObjectURL(new Blob([f.content||''],{type:'text/markdown'})); } else if(!this.blobs||!this.blobs[f.id]){ this.toast('Reference only — no file stored to download'); return; } else { url=this.blobs[f.id]; } const a=document.createElement('a'); a.href=url; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); if(f.kind==='markdown') setTimeout(()=>URL.revokeObjectURL(url),1500); }
+  parseCsv(text){ const rows=[]; (text||'').split(/\r?\n/).forEach(line=>{ if(line==='') return; const cells=[]; let cur='',q=false; for(let i=0;i<line.length;i++){ const c=line[i]; if(q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; } else { if(c==='"') q=true; else if(c===','){ cells.push(cur); cur=''; } else cur+=c; } } cells.push(cur); rows.push(cells); }); return rows; }
+  decodeDataText(dataUrl){ try{ const b64=(dataUrl||'').split(',')[1]||''; return decodeURIComponent(escape(atob(b64))); }catch(e){ try{ return atob((dataUrl||'').split(',')[1]||''); }catch(_){ return ''; } } }
+  mdToHtml(src){ const C=this.C; if(!src||!src.trim()) return '<p style="color:#9a9a92">Empty document.</p>'; const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); const blocks=[]; src=src.replace(/```([\s\S]*?)```/g,(m,c)=>{ blocks.push('<pre style="background:#f4f4f1;border:1px solid rgba(20,20,15,.08);border-radius:8px;padding:12px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55">'+esc(c.replace(/^\n|\n$/g,''))+'</pre>'); return '\u0000B'+(blocks.length-1)+'\u0000'; }); const inline=t=>esc(t).replace(/`([^`]+)`/g,'<code style="background:#f0f0ee;border-radius:4px;padding:1px 5px;font-family:ui-monospace,Menlo,monospace;font-size:.9em">$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>').replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:'+C.accent+'">$1</a>'); const lines=src.split('\n'); const out=[]; let i=0; while(i<lines.length){ const l=lines[i]; const bm=l.match(/^\u0000B(\d+)\u0000$/); if(bm){ out.push(blocks[+bm[1]]); i++; continue; } if(/^\s*$/.test(l)){ i++; continue; } if(/^###\s+/.test(l)){ out.push('<h3 style="font-size:15px;font-weight:700;margin:16px 0 6px">'+inline(l.replace(/^###\s+/,''))+'</h3>'); i++; continue; } if(/^##\s+/.test(l)){ out.push('<h2 style="font-size:18px;font-weight:700;margin:18px 0 7px">'+inline(l.replace(/^##\s+/,''))+'</h2>'); i++; continue; } if(/^#\s+/.test(l)){ out.push('<h1 style="font-size:22px;font-weight:800;margin:6px 0 10px;letter-spacing:-.4px">'+inline(l.replace(/^#\s+/,''))+'</h1>'); i++; continue; } if(/^(---|\*\*\*)\s*$/.test(l)){ out.push('<hr style="border:none;border-top:1px solid rgba(20,20,15,.1);margin:16px 0"/>'); i++; continue; } if(/^>\s?/.test(l)){ const buf=[]; while(i<lines.length&&/^>\s?/.test(lines[i])){ buf.push(inline(lines[i].replace(/^>\s?/,''))); i++; } out.push('<blockquote style="border-left:3px solid #d4d4cc;padding:2px 0 2px 12px;margin:10px 0;color:#57574f">'+buf.join('<br/>')+'</blockquote>'); continue; } if(/^\s*[-*]\s+/.test(l)){ const buf=[]; while(i<lines.length&&/^\s*[-*]\s+/.test(lines[i])){ buf.push('<li style="margin:3px 0">'+inline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>'); i++; } out.push('<ul style="margin:8px 0;padding-left:22px">'+buf.join('')+'</ul>'); continue; } if(/^\s*\d+\.\s+/.test(l)){ const buf=[]; while(i<lines.length&&/^\s*\d+\.\s+/.test(lines[i])){ buf.push('<li style="margin:3px 0">'+inline(lines[i].replace(/^\s*\d+\.\s+/,''))+'</li>'); i++; } out.push('<ol style="margin:8px 0;padding-left:24px">'+buf.join('')+'</ol>'); continue; } const buf=[l]; i++; while(i<lines.length&&!/^\s*$/.test(lines[i])&&!/^(#|>|---|\*\*\*)/.test(lines[i])&&!/^\s*[-*]\s/.test(lines[i])&&!/^\s*\d+\.\s/.test(lines[i])){ buf.push(lines[i]); i++; } out.push('<p style="margin:8px 0;line-height:1.6">'+buf.map(inline).join('<br/>')+'</p>'); } return out.join(''); }
+  _fileIcon(f){ const map={md:'#4f5bd5',txt:'#8a8a82',pdf:'#c23b2b',csv:'#2f8552',xlsx:'#2f8552',docx:'#2f62d8',rtf:'#8a8a82',pptx:'#c46a1c',png:'#7c4dd6',jpg:'#7c4dd6',jpeg:'#7c4dd6',gif:'#7c4dd6',webp:'#7c4dd6'}; const ext=(f.kind==='markdown'?'md':(f.ext||'')).toLowerCase(); const col=map[ext]||'#8a8a82'; const labelTxt=(f.kind==='ref'&&!ext)?'REF':((ext||'?').toUpperCase().slice(0,4)); return React.createElement('span',{style:{width:32,height:32,borderRadius:7,background:col+'1c',color:col,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9.5,fontWeight:800,fontFamily:'ui-monospace,Menlo,monospace',flex:'none',letterSpacing:.3}},labelTxt); }
+  _fileRow(f){ const C=this.C; const tk=f.taskId?this.byId(f.taskId):null; return React.createElement('div',{key:f.id,className:'trow',onClick:()=>this.openFile(f.id),style:{display:'flex',alignItems:'center',gap:11,padding:'7px 8px',borderRadius:8,cursor:'pointer'}}, this._fileIcon(f), React.createElement('div',{style:{flex:1,minWidth:0}}, React.createElement('div',{style:{fontSize:13.5,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},f.name), React.createElement('div',{style:{fontSize:11.5,color:C.muted,marginTop:1,display:'flex',gap:7,alignItems:'center',flexWrap:'wrap'}}, React.createElement('span',null,f.kind==='markdown'?'Markdown':(f.kind==='ref'?'Reference':(f.ext?f.ext.toUpperCase():'File'))), f.size?React.createElement('span',null,this.humanSize(f.size)):null, tk?React.createElement('span',{style:{color:C.accent}},'· '+this.trunc(tk.title,22)):null)), React.createElement('button',{title:'Download',onClick:e=>{ e.stopPropagation(); this.downloadFile(f); },style:{color:C.faint,fontSize:14,fontWeight:700,padding:'4px 7px'}},'↓'), React.createElement('button',{title:'Delete',onClick:e=>{ e.stopPropagation(); if(window.confirm('Delete '+f.name+'?')) this.deleteFile(f.id); },style:{color:C.faint,fontSize:16,padding:'2px 5px'}},'×')); }
+  _filePlaceholder(f,msg){ const C=this.C; return React.createElement('div',{style:{textAlign:'center',padding:'46px 20px'}}, React.createElement('div',{style:{display:'flex',justifyContent:'center',marginBottom:16}}, this._fileIcon(f)), React.createElement('div',{style:{fontSize:15,fontWeight:700,marginBottom:6}},f.name), React.createElement('div',{style:{fontSize:13,color:C.muted,maxWidth:360,margin:'0 auto',lineHeight:1.5}},msg), (this.blobs&&this.blobs[f.id])?React.createElement('div',{style:{marginTop:18}},this._btn('Download file',()=>this.downloadFile(f),'primary')):null); }
+  fileModal(id){ const C=this.C; const f=(this.state.data.files||[]).find(x=>x.id===id); if(!f) return null; const m=this.state.modal; const back=m&&m.back; const close=()=>this.setState({modal:back||null}); const ext=(f.kind==='markdown'?'md':(f.ext||'')).toLowerCase(); const data=(this.blobs||{})[id]; const isImg=['png','jpg','jpeg','gif','webp','svg'].indexOf(ext)>=0||(f.mime||'').indexOf('image/')===0; const isPdf=ext==='pdf'||(f.mime||'')==='application/pdf'; const isCsv=ext==='csv'; let body; if(f.kind==='markdown'){ const mode=this.state.fileMode||'preview'; body=React.createElement('div',null, React.createElement('div',{style:{marginBottom:12}}, this._seg(mode,[['preview','Preview'],['edit','Edit']],v=>this.setState({fileMode:v}))), mode==='edit'?React.createElement('textarea',{className:'inp',value:f.content||'',placeholder:'Write markdown…',onChange:e=>this.updateFile(id,{content:e.target.value}),style:{width:'100%',minHeight:'50vh',resize:'vertical',border:'1px solid '+C.border,borderRadius:9,padding:'12px 13px',fontSize:13.5,lineHeight:1.6,fontFamily:'ui-monospace,Menlo,monospace',color:C.text}}):React.createElement('div',{style:{minHeight:120,fontSize:14,color:C.text},dangerouslySetInnerHTML:{__html:this.mdToHtml(f.content)}})); } else if(f.kind==='ref'||!data){ body=this._filePlaceholder(f,'Reference entry — no file stored locally. Upload the actual file, or keep this as a pointer with a note.'); } else if(isImg){ body=React.createElement('div',{style:{textAlign:'center'}}, React.createElement('img',{src:data,alt:f.name,style:{maxWidth:'100%',maxHeight:'66vh',borderRadius:8,border:'1px solid '+C.border}})); } else if(isPdf){ body=React.createElement('object',{data:data,type:'application/pdf',style:{width:'100%',height:'66vh',border:'1px solid '+C.border,borderRadius:8}}, this._filePlaceholder(f,'Inline PDF preview is unavailable in this browser — download to view.')); } else if(isCsv){ const rows=this.parseCsv(this.decodeDataText(data)); body=React.createElement('div',{className:'scr',style:{overflow:'auto',maxHeight:'64vh',border:'1px solid '+C.border,borderRadius:8}}, React.createElement('table',{style:{borderCollapse:'collapse',width:'100%',fontSize:12.5}}, React.createElement('tbody',null, rows.slice(0,300).map((r,ri)=>React.createElement('tr',{key:ri,style:{background:ri===0?'#f6f6f4':'#fff'}}, r.map((c,ci)=>React.createElement(ri===0?'th':'td',{key:ci,style:{border:'1px solid '+C.border2,padding:'6px 9px',textAlign:'left',fontWeight:ri===0?700:400,whiteSpace:'nowrap'}},c)))))) ); } else { body=this._filePlaceholder(f,'Preview not available for .'+ext.toUpperCase()+' files in the browser. Download to open it in its native application.'); } const panel=React.createElement('div',{onClick:e=>e.stopPropagation(),className:'scr',style:{width:'min(840px,95vw)',maxHeight:'92vh',overflow:'auto',background:'#fff',borderRadius:16,boxShadow:'0 24px 70px -20px rgba(20,20,15,.4)',animation:'modalin .2s ease'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',gap:11,padding:'15px 18px',position:'sticky',top:0,background:'#fff',zIndex:2,borderBottom:'1px solid '+C.border2}}, this._fileIcon(f), f.kind==='markdown'?React.createElement('input',{value:f.name,onChange:e=>this.updateFile(id,{name:e.target.value}),style:{flex:1,fontSize:16,fontWeight:700,border:'none',outline:'none',background:'transparent',color:C.text}}):React.createElement('div',{style:{flex:1,fontSize:16,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},f.name), this._btn('Download',()=>this.downloadFile(f),'ghost',{fontSize:12.5,padding:'6px 11px'}), this._btn('Delete',()=>{ if(window.confirm('Delete '+f.name+'?')) this.deleteFile(id); },'danger',{fontSize:12.5,padding:'6px 11px'}), React.createElement('button',{onClick:close,style:{fontSize:22,color:C.faint,lineHeight:1,padding:'0 4px'}},'×')), React.createElement('div',{style:{padding:'18px 20px 24px'}}, back?React.createElement('button',{className:'lnk',onClick:close,style:{fontSize:12.5,color:C.accent,fontWeight:600,marginBottom:12,display:'block'}},'‹ Back to task'):null, body)); return React.createElement('div',{onClick:close,style:{position:'fixed',inset:0,background:'rgba(20,20,15,.42)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'4vh 16px',zIndex:110,animation:'overlayin .15s ease'}},panel); }
+
+  // ============ TASK MODAL ============
+  taskModal(id){ const C=this.C; const t=this.byId(id); if(!t){ return null; } const p=this.proj(t.projectId); const siblings=this.tasksFor(t.projectId).filter(x=>x.id!==id);
+    const label=(txt)=>React.createElement('div',{style:{fontSize:11,fontWeight:700,letterSpacing:.4,color:C.faint,marginBottom:7}},txt.toUpperCase());
+    const done=Math.round((t.subtasks||[]).filter(s=>s.done).length);
+    const panel=React.createElement('div',{onClick:e=>e.stopPropagation(),style:{width:'min(660px,94vw)',maxHeight:'90vh',overflow:'auto',background:'#fff',borderRadius:16,boxShadow:'0 24px 70px -20px rgba(20,20,15,.4)',animation:'modalin .2s ease'},className:'scr'},
+      React.createElement('div',{style:{display:'flex',alignItems:'flex-start',gap:12,padding:'18px 20px 12px',position:'sticky',top:0,background:'#fff',zIndex:2,borderBottom:'1px solid '+C.border2}},
+        React.createElement('button',{onClick:()=>this.cycleStatus(id),title:'Advance status',style:{width:22,height:22,marginTop:3,borderRadius:'50%',border:'2px solid '+this.STATUS[t.status].dot,background:(t.status==='Done'||t.status==='Dropped')?this.STATUS[t.status].dot:'transparent',flex:'none'}}),
+        React.createElement('textarea',{value:t.title,placeholder:'Task title',rows:1,onChange:e=>this.updateTask(id,{title:e.target.value}),style:{flex:1,fontSize:19,fontWeight:700,border:'none',outline:'none',resize:'none',lineHeight:1.25,color:C.text,fontFamily:'inherit'}}),
+        React.createElement('button',{onClick:()=>this.setState({modal:null}),style:{fontSize:22,color:C.faint,lineHeight:1,padding:'0 4px'}},'×')),
+      React.createElement('div',{style:{padding:'16px 20px 22px',display:'flex',flexDirection:'column',gap:18}},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
+          React.createElement('div',null,label('Project'),this._select(t.projectId,(this.state.data.projects||[]).map(pp=>({v:pp.id,l:pp.name})),v=>this.updateTask(id,{projectId:v}),{width:'100%'})),
+          React.createElement('div',null,label('Due date'),React.createElement('input',{type:'date',className:'inp',value:t.dueDate||'',onChange:e=>this.updateTask(id,{dueDate:e.target.value||null}),style:{width:'100%',padding:'7px 9px',border:'1px solid '+C.border,borderRadius:8,fontSize:13}})),
+          React.createElement('div',null,label('Status'),this._select(t.status,this.STATUSES,v=>this.updateTask(id,{status:v}),{width:'100%'})),
+          React.createElement('div',null,label('Priority'),this._select(t.priority,this.PRIORITIES,v=>this.updateTask(id,{priority:v}),{width:'100%'}))),
+        React.createElement('div',null,label('Tags'),this._tagEditor(t.tags,v=>this.updateTask(id,{tags:v}))),
+        React.createElement('div',null,label('Notes'),React.createElement('textarea',{className:'inp',value:t.notes||'',placeholder:'Details, context, next steps…',onChange:e=>this.updateTask(id,{notes:e.target.value}),style:{width:'100%',minHeight:80,resize:'vertical',border:'1px solid '+C.border,borderRadius:9,padding:'9px 11px',fontSize:13,lineHeight:1.5}})),
+        React.createElement('div',null,label('Subtasks'+((t.subtasks||[]).length?' · '+done+'/'+t.subtasks.length:'')),
+          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:4}}, (t.subtasks||[]).map((s,i)=>React.createElement('div',{key:i,style:{display:'flex',alignItems:'center',gap:9,padding:'2px 0'}},
+            React.createElement('button',{onClick:()=>{ const ns=t.subtasks.slice(); ns[i]=Object.assign({},ns[i],{done:!ns[i].done}); this.updateTask(id,{subtasks:ns}); },style:{width:16,height:16,borderRadius:5,border:'2px solid '+(s.done?'#3a9a5f':C.border),background:s.done?'#3a9a5f':'transparent',flex:'none',color:'#fff',fontSize:10,lineHeight:1}},s.done?'✓':''),
+            React.createElement('input',{value:s.title,onChange:e=>{ const ns=t.subtasks.slice(); ns[i]=Object.assign({},ns[i],{title:e.target.value}); this.updateTask(id,{subtasks:ns}); },style:{flex:1,border:'none',outline:'none',fontSize:13,textDecoration:s.done?'line-through':'none',color:s.done?C.faint:C.text,background:'transparent'}}),
+            React.createElement('button',{onClick:()=>this.updateTask(id,{subtasks:t.subtasks.filter((_,j)=>j!==i)}),style:{color:C.faint,fontSize:15,padding:'0 3px'}},'×'))),
+            React.createElement('input',{placeholder:'+ add subtask',onKeyDown:e=>{ if(e.key==='Enter'&&e.target.value.trim()){ this.updateTask(id,{subtasks:(t.subtasks||[]).concat([{title:e.target.value.trim(),done:false}])}); e.target.value=''; } },style:{border:'none',outline:'none',fontSize:13,padding:'4px 0',color:C.accent}}))),
+        React.createElement('div',null,label('Blocked by (dependencies)'),
+          siblings.length?React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:2,maxHeight:170,overflow:'auto'},className:'scr'}, siblings.map(sib=>{ const on=(t.dependsOn||[]).includes(sib.id); return React.createElement('label',{key:sib.id,style:{display:'flex',alignItems:'center',gap:9,padding:'5px 6px',borderRadius:7,cursor:'pointer',background:on?'#f5f6fe':'transparent'}},
+            React.createElement('input',{type:'checkbox',checked:on,onChange:()=>{ const dep=on?(t.dependsOn||[]).filter(x=>x!==sib.id):(t.dependsOn||[]).concat([sib.id]); this.updateTask(id,{dependsOn:dep}); }}),
+            this._dot(this.STATUS[sib.status].dot,7), React.createElement('span',{style:{flex:1,fontSize:13}},sib.title), React.createElement('span',{style:{fontSize:11,color:C.faint}},sib.status)); })):React.createElement('div',{style:{fontSize:12.5,color:C.faint}},'No other tasks in this project yet.')),
+        React.createElement('div',null,label('Attachments'), React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:2,marginBottom:(this.state.data.files||[]).some(f=>f.taskId===id)?8:2}}, (this.state.data.files||[]).filter(f=>f.taskId===id).map(f=>this._fileRow(f))), React.createElement('div',{style:{display:'flex',gap:14,alignItems:'center'}}, React.createElement('button',{className:'lnk',onClick:()=>this.addMarkdown(t.projectId,id),style:{fontSize:12.5,color:C.accent,fontWeight:600}},'+ Markdown note'), React.createElement('label',{style:{fontSize:12.5,color:C.accent,fontWeight:600,cursor:'pointer'}},'Upload file', React.createElement('input',{type:'file',multiple:true,accept:'.md,.txt,.pdf,.csv,.docx,.rtf,.xlsx,.pptx,image/*',onChange:e=>this.uploadFiles(e.target.files,t.projectId,id),style:{display:'none'}})))),
+        React.createElement('div',null,label('Links'),
+          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:6}}, (t.links||[]).map((lk,i)=>React.createElement('div',{key:i,style:{display:'flex',gap:6,alignItems:'center'}},
+            React.createElement('input',{className:'inp',value:lk.title||'',placeholder:'Label',onChange:e=>{ const n=t.links.slice(); n[i]=Object.assign({},n[i],{title:e.target.value}); this.updateTask(id,{links:n}); },style:{flex:'1 1 35%',minWidth:0,padding:'6px 8px',border:'1px solid '+C.border,borderRadius:7,fontSize:12.5}}),
+            React.createElement('input',{className:'inp',value:lk.url||'',placeholder:'https://…',onChange:e=>{ const n=t.links.slice(); n[i]=Object.assign({},n[i],{url:e.target.value}); this.updateTask(id,{links:n}); },style:{flex:'1 1 60%',minWidth:0,padding:'6px 8px',border:'1px solid '+C.border,borderRadius:7,fontSize:12.5}}),
+            React.createElement('button',{onClick:()=>this.updateTask(id,{links:t.links.filter((_,j)=>j!==i)}),style:{color:C.faint,fontSize:15,padding:'0 4px'}},'×'))),
+            React.createElement('button',{className:'lnk',onClick:()=>this.updateTask(id,{links:(t.links||[]).concat([{}])}),style:{fontSize:12.5,color:C.accent,fontWeight:600,textAlign:'left',padding:'2px 0'}},'+ Add link'))),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',paddingTop:6,borderTop:'1px solid '+C.border2}},
+          React.createElement('div',{style:{fontSize:11.5,color:C.faint}},p?('in '+p.name):''),
+          React.createElement('div',{style:{flex:1}}),
+          this._btn('Delete task',()=>this.deleteTask(id),'danger'),
+          this._btn('Done',()=>this.setState({modal:null}),'primary',{marginLeft:8}))));
+    return React.createElement('div',{onClick:()=>this.setState({modal:null}),style:{position:'fixed',inset:0,background:'rgba(20,20,15,.42)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'5vh 16px',zIndex:100,animation:'overlayin .15s ease'}}, panel);
+  }
+
+  // ============ RENDER ============
+  renderVals(){
+    const s=this.state;
+    this.C=Object.assign({},this.C,{accent:this.props.accent||'#4f5bd5'});
+    const dataReady=!!s.data;
+    const authed=s.authed&&dataReady;
+    const notAuthed=!s.authed;
+    const vals={
+      notAuthed, authed,
+      loginUser:s.loginUser, loginPass:s.loginPass, loginError:s.loginError,
+      onLoginUser:e=>this.setState({loginUser:e.target.value,loginError:''}),
+      onLoginPass:e=>this.setState({loginPass:e.target.value,loginError:''}),
+      onLoginKey:e=>{ if(e.key==='Enter') this.doLogin(); },
+      onLoginSubmit:()=>this.doLogin(),
+    };
+    if(!authed) return vals;
+    const overdue=this.allOpen().filter(t=>t.dueDate&&t.dueDate<this.TODAY).length;
+    const navStyle=(active)=>({display:'flex',alignItems:'center',gap:10,width:'100%',padding:'8px 10px',borderRadius:8,fontSize:13.5,fontWeight:active?600:500,color:active?this.C.text:this.C.muted,background:active?'rgba(20,20,15,.06)':'transparent'});
+    const isView=(v)=>s.view===v&&!s.q.trim();
+    const badge=(n)=> n?React.createElement('span',{style:{fontSize:11,fontWeight:700,color:'#d94c3a',background:'#fbeae7',borderRadius:20,padding:'1px 7px'}},n):null;
+    const navItems=[
+      {key:'home',label:'Command Center',onClick:()=>this.go('home'),style:navStyle(isView('home')),badge:badge(overdue)},
+      {key:'calendar',label:'Calendar',onClick:()=>this.go('calendar'),style:navStyle(isView('calendar')),badge:null},
+      {key:'reports',label:'Reports',onClick:()=>this.go('reports'),style:navStyle(isView('reports')),badge:null},
+      {key:'settings',label:'Settings',onClick:()=>this.go('settings'),style:navStyle(isView('settings')),badge:null},
+    ];
+    const projectNav=(s.data.projects||[]).map(p=>{ const active=s.view==='project'&&s.activeProjectId===p.id&&!s.q.trim(); const open=this.tasksFor(p.id).filter(t=>t.status!=='Done'&&t.status!=='Dropped').length; const od=this.tasksFor(p.id).filter(t=>t.status!=='Done'&&t.status!=='Dropped'&&t.dueDate&&t.dueDate<this.TODAY).length;
+      return { name:p.name, onClick:()=>this.openProject(p.id), style:navStyle(active), dotStyle:{width:8,height:8,borderRadius:'50%',background:p.color,flex:'none'}, right: od?React.createElement('span',{style:{fontSize:11,fontWeight:700,color:'#d94c3a'}},od):(open?React.createElement('span',{style:{fontSize:11,fontWeight:600,color:this.C.faint}},open):null) }; });
+    const viewTitle = s.q.trim()?'Search results' : {home:'Command Center',calendar:'Calendar',reports:'Reports',settings:'Settings',project:(this.proj(s.activeProjectId)||{}).name||'Project'}[s.view];
+    const overduePill = overdue?React.createElement('button',{onClick:()=>this.setState({view:'home',scope:'all',q:''}),style:{display:'flex',alignItems:'center',gap:6,background:'#fbeae7',color:'#c23b2b',border:'none',borderRadius:20,padding:'5px 11px',fontSize:12.5,fontWeight:700,cursor:'pointer'}},React.createElement('span',{style:{width:6,height:6,borderRadius:'50%',background:'#d94c3a'}}),overdue+' overdue'):null;
+    const toastEl = s.toast?React.createElement('div',{style:{position:'fixed',bottom:26,left:'50%',transform:'translateX(-50%)',background:'#1b1b18',color:'#fff',fontSize:13,fontWeight:600,padding:'10px 18px',borderRadius:10,boxShadow:'0 10px 30px -8px rgba(0,0,0,.4)',zIndex:200,animation:'toastin .2s ease'}},s.toast):null;
+    Object.assign(vals,{
+      navItems, projectNav, onNewProject:()=>this.createProject(),
+      userName:(this.creds&&this.creds.user)||'admin', userInitial:(((this.creds&&this.creds.user)||'A')[0]||'A').toUpperCase(),
+      onLogout:()=>this.setState({authed:false,loginPass:'',loginUser:''}),
+      viewTitle, topbarDate:this.fmtLong(this.TODAY),
+      overduePill, q:s.q, onSearch:e=>this.setState({q:e.target.value}),
+      onNewTask:()=>this.newTaskGlobal(),
+      viewBody:this.renderBody(),
+      modalEl: s.modal ? (s.modal.type==='task'?this.taskModal(s.modal.id):(s.modal.type==='file'?this.fileModal(s.modal.id):null)) : null,
+      toastEl,
+    });
+    return vals;
+  }
+  doLogin(){ const {loginUser,loginPass}=this.state; if(!loginUser||!loginPass){ this.setState({loginError:'Enter a username and password.'}); return; } if(this.creds&&(loginUser!==this.creds.user||loginPass!==this.creds.pass)){ this.setState({loginError:'Incorrect credentials. (demo: admin / admin)'}); return; } this.setState({authed:true,loginError:''}); }
+
+  seed(){ const d=(n)=>this.isoAdd(this.TODAY,n); const PAL=this.PALETTE;
+    const projects=[
+      {id:'p1',name:'Q3 Platform Migration',category:'work',tags:['infra','q3'],color:PAL[0],status:'Active',notes:'Migrating core services off the legacy monolith onto the new k8s platform before end of Q3. Zero-downtime cutover is the hard requirement — coordinate the DNS switch with the on-call rotation.',links:[{title:'Migration RFC',url:'https://example.com/rfc'},{title:'Runbook (draft)',url:'https://example.com/runbook'}],docs:[{name:'Architecture diagram v3',note:'Current + target topology'},{name:'Rollback plan',note:'Owned by SRE'}],createdAt:d(-40)},
+      {id:'p2',name:'Customer Onboarding Revamp',category:'work',tags:['product','ux'],color:PAL[4],status:'Active',notes:'Reduce time-to-first-value in onboarding. Research done; now designing the new flow and scoping eng.',links:[{title:'Research readout',url:'https://example.com/research'}],docs:[{name:'Interview notes',note:'8 participants'}],createdAt:d(-30)},
+      {id:'p3',name:'Refinish boat table',category:'home',tags:['woodworking'],color:PAL[2],status:'Active',notes:'Teak table off the boat — strip, sand, and re-varnish with marine spar varnish. Three coats with a light sand between each.',links:[{title:'Varnish product',url:'https://example.com/varnish'}],docs:[],createdAt:d(-20)},
+      {id:'p4',name:'2025 Taxes',category:'home',tags:['finance'],color:PAL[3],status:'Active',notes:'Pull together everything for the accountant. Extension is filed; final docs due soon.',links:[],docs:[{name:'W-2 + 1099s',note:'Scanned to Drive'}],createdAt:d(-15)},
+      {id:'p5',name:'Hiring: Senior Engineer',category:'work',tags:['hiring'],color:PAL[1],status:'Active',notes:'Backfill for the platform team. In active screening; targeting an offer this month.',links:[{title:'Job post',url:'https://example.com/job'}],docs:[],createdAt:d(-45)},
+      {id:'p6',name:'Home network upgrade',category:'home',tags:['tech'],color:PAL[5],status:'Active',notes:'Mesh wifi + wired backhaul to the office. Router arrived.',links:[],docs:[],createdAt:d(-10)}
+    ];
+    const tasks=[]; let n=0;
+    const mk=(pid,o)=>{ const id='t'+(++n); tasks.push(Object.assign({id,projectId:pid,title:'',status:'Todo',priority:'Medium',tags:[],notes:'',dueDate:null,dependsOn:[],subtasks:[],links:[],createdAt:d(-30),completedAt:null},o)); return id; };
+    const a=mk('p1',{title:'Audit legacy service dependencies',status:'Done',priority:'High',dueDate:d(-16),completedAt:d(-14)});
+    const b=mk('p1',{title:'Provision new k8s cluster',status:'Doing',priority:'High',dueDate:d(2),dependsOn:[a],subtasks:[{title:'Terraform modules',done:true},{title:'Network policies',done:false},{title:'Observability stack',done:false}]});
+    const c=mk('p1',{title:'Migrate auth service',status:'Todo',priority:'Critical',dueDate:d(-1),dependsOn:[b]});
+    const e=mk('p1',{title:'Migrate billing service',status:'Todo',priority:'High',dueDate:d(9),dependsOn:[b]});
+    mk('p1',{title:'Cutover & DNS switch',status:'Waiting',priority:'Critical',dueDate:d(16),dependsOn:[c,e]});
+    mk('p1',{title:'Write migration runbook',status:'Doing',priority:'Medium',dueDate:d(0),links:[{title:'Runbook doc',url:'https://example.com/runbook'}]});
+    const f=mk('p2',{title:'User interviews (8 participants)',status:'Done',priority:'Medium',dueDate:d(-22),completedAt:d(-20)});
+    const g=mk('p2',{title:'Synthesize findings',status:'Done',priority:'Medium',dueDate:d(-11),completedAt:d(-9),dependsOn:[f]});
+    const w=mk('p2',{title:'New onboarding wireframes',status:'Doing',priority:'High',dueDate:d(0),dependsOn:[g]});
+    mk('p2',{title:'Prototype in Figma',status:'Todo',priority:'Medium',dueDate:d(5),dependsOn:[w]});
+    mk('p2',{title:'Eng scoping & estimates',status:'Waiting',priority:'Medium',dueDate:d(7)});
+    mk('p2',{title:'Draft A/B test plan',status:'Todo',priority:'Low',dueDate:d(12)});
+    const s1=mk('p3',{title:'Strip old varnish',status:'Done',priority:'Medium',dueDate:d(-6),completedAt:d(-5)});
+    const s2=mk('p3',{title:'Sand to 220 grit',status:'Doing',priority:'Medium',dueDate:d(-2),dependsOn:[s1]});
+    const s3=mk('p3',{title:'Apply first coat of spar varnish',status:'Todo',priority:'Medium',dueDate:d(3),dependsOn:[s2]});
+    const s4=mk('p3',{title:'Second coat + light sand',status:'Todo',priority:'Low',dueDate:d(6),dependsOn:[s3]});
+    mk('p3',{title:'Third coat & reattach to boat',status:'Todo',priority:'Low',dueDate:d(10),dependsOn:[s4]});
+    const x1=mk('p4',{title:'Gather 1099s and receipts',status:'Doing',priority:'High',dueDate:d(-3)});
+    const x2=mk('p4',{title:'Categorize expenses',status:'Todo',priority:'High',dueDate:d(1),dependsOn:[x1]});
+    mk('p4',{title:'Meet with accountant',status:'Todo',priority:'Critical',dueDate:d(4),dependsOn:[x2]});
+    mk('p4',{title:'Confirm extension deadline',status:'Waiting',priority:'Medium',dueDate:d(8)});
+    const j1=mk('p5',{title:'Write job description',status:'Done',priority:'Medium',dueDate:d(-26),completedAt:d(-24)});
+    const j2=mk('p5',{title:'Screen candidates (12)',status:'Doing',priority:'Medium',dueDate:d(1),dependsOn:[j1]});
+    const j3=mk('p5',{title:'Onsite loops (4)',status:'Todo',priority:'High',dueDate:d(11),dependsOn:[j2]});
+    mk('p5',{title:'Make offer',status:'Waiting',priority:'High',dueDate:d(18),dependsOn:[j3]});
+    mk('p5',{title:'Refine leveling rubric',status:'Todo',priority:'Low',dueDate:d(14)});
+    mk('p5',{title:'Post to niche job boards',status:'Dropped',priority:'Low'});
+    const r1=mk('p6',{title:'Buy mesh router',status:'Done',priority:'Low',dueDate:d(-8),completedAt:d(-8)});
+    const r2=mk('p6',{title:'Run cat6 to office',status:'Todo',priority:'Medium',dueDate:d(2),dependsOn:[r1]});
+    mk('p6',{title:'Configure VLANs',status:'Todo',priority:'Low',dueDate:d(9),dependsOn:[r2]});
+    const files=[
+      {id:'fa',projectId:'p1',taskId:null,name:'Migration overview.md',ext:'md',mime:'text/markdown',kind:'markdown',size:0,createdAt:d(-20),content:'# Q3 Platform Migration\n\n## Goal\nMove core services to the new **k8s platform** with a zero-downtime cutover before end of Q3.\n\n## Sequence\n1. Provision cluster\n2. Migrate auth service\n3. Migrate billing service\n4. DNS cutover\n\n> Coordinate the DNS switch with the on-call rotation.\n\nSee the [runbook](https://example.com/runbook) for the step-by-step.'},
+      {id:'fb',projectId:'p1',taskId:null,name:'Rollback plan.md',ext:'md',mime:'text/markdown',kind:'markdown',size:0,createdAt:d(-14),content:'# Rollback plan\n\n- Keep the legacy stack warm for 72h\n- DNS TTL set to `60s`\n- Owner: **SRE on-call**\n\nIf error rate exceeds 2%, revert DNS immediately.'},
+      {id:'fc',projectId:'p1',taskId:null,name:'Architecture diagram',ext:'pdf',mime:'application/pdf',kind:'ref',size:0,note:'Current + target topology — stored in Drive',createdAt:d(-18),content:''},
+      {id:'fd',projectId:'p2',taskId:null,name:'Interview findings.md',ext:'md',mime:'text/markdown',kind:'markdown',size:0,createdAt:d(-19),content:'# Onboarding interviews\n\n8 participants. Top themes:\n\n1. Setup takes too long\n2. Unclear next step after signup\n3. Wants sample data to explore\n\n## Quote\n> The empty first screen was the biggest drop-off point.'},
+      {id:'fe',projectId:'p3',taskId:null,name:'Varnish product spec',ext:'pdf',mime:'application/pdf',kind:'ref',size:0,note:'Manufacturer datasheet',createdAt:d(-15),content:''}
+    ];
+    return {projects,tasks,files,settings:{todoistToken:''}};
+  }
+}
+</script>
+</body>
+</html>

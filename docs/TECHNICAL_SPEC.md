@@ -1,0 +1,436 @@
+# Ariadne — Technical Specification
+
+**Version:** 1.0 · **Date:** 2026-07-08 · **Status:** Approved for implementation
+
+Ariadne is a single-user, local-first personal project & task tracking system delivered as
+an **Electron desktop application**. This document is the engineering source of truth for
+the internal object model, services, and application architecture. Visual fidelity
+(layout, colors, typography, spacing, interactions) is governed by the design handoff in
+`design/README.md` and the prototype `design/Throughline.dc.html`; where behavior is
+ambiguous, the prototype source wins.
+
+## 1. Scope & Product Decisions
+
+Confirmed decisions that diverge from or refine the prototype:
+
+| # | Decision |
+|---|----------|
+| D1 | **No login/auth.** The prototype's login gate, credentials storage, and Account settings section are removed entirely. The app opens directly into the Command Center. |
+| D2 | **Stack:** Electron + React 18 + TypeScript + Vite (via `electron-vite`). |
+| D3 | **Persistence:** human-readable JSON documents on the local filesystem plus a `blobs/` directory of real binary files. No database. |
+| D4 | **Data directory:** defaults to Electron `userData`, but user-configurable in Settings (e.g. point at a Dropbox-synced folder). |
+| D5 | **Todoist:** real **one-way import** (Todoist → Ariadne) via the Todoist REST API from the main process, scheduled as a late sprint. No push-back to Todoist in v1. |
+| D6 | **Real dates.** The prototype pins "today" to `2026-07-08` for demo stability; production uses the real current date through an injectable clock (tests may pin it). |
+| D7 | **No file-size cap on uploads.** The prototype's 3.5 MB limit existed only because of localStorage; blobs are ordinary files on disk. (A sanity warning above 100 MB is acceptable.) |
+| D8 | **Deleting a project cascades to its files and blobs.** (Prototype leaked file records; treated as a prototype bug.) |
+| D9 | Legacy `project.docs[]` no longer exists in the domain model; it is accepted **on import only** and migrated into `FileEntry` records of `kind: "ref"` (matching the prototype's own migration). |
+
+Non-goals for v1: multi-user, cloud sync, mobile, two-way Todoist sync, embedded office
+document editing, hardened security boundaries.
+
+## 2. Application Architecture
+
+### 2.1 Process model
+
+Standard three-layer Electron architecture with strict isolation:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ MAIN PROCESS (Node.js)                                       │
+│  window management · app lifecycle · custom blob protocol    │
+│  Services: ConfigService, StorageService, BlobService,       │
+│            ImportExportService, TodoistService, BackupService│
+└───────────────▲──────────────────────────────────────────────┘
+                │ typed IPC (invoke/handle), contract in shared/ipc.ts
+┌───────────────┴──────────────────────────────────────────────┐
+│ PRELOAD (contextBridge)                                      │
+│  exposes window.ariadne — a narrow, promise-based API that   │
+│  mirrors the IPC contract; no Node primitives leak through   │
+└───────────────▲──────────────────────────────────────────────┘
+                │
+┌───────────────┴──────────────────────────────────────────────┐
+│ RENDERER (React SPA, sandboxed)                              │
+│  Zustand store (data + ui slices) · views · modals           │
+│  pure domain logic imported from shared/                     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Security posture (even though single-user/local, this keeps the renderer a plain web app):
+`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, a restrictive CSP,
+no remote content, fonts (Public Sans) self-hosted in the bundle. External links open via
+`shell.openExternal` (validated `http(s):` only); all `target=_blank`/window-open attempts
+are denied in the renderer.
+
+### 2.2 Source layout
+
+```
+src/
+  main/                     # Electron main process
+    index.ts                # app bootstrap, window creation, protocol registration
+    ipc.ts                  # ipcMain.handle registrations → services
+    services/
+      config-service.ts     # userData/config.json (dataDir pointer, window bounds)
+      storage-service.ts    # load/save JSON collections, atomic writes, debounce
+      blob-service.ts       # blobs/ directory CRUD + ariadne-blob:// protocol
+      backup-service.ts     # rotating snapshots of the JSON documents
+      import-export-service.ts  # full-workspace JSON export/import (+ prototype compat)
+      todoist-service.ts    # one-way import from Todoist REST API
+  preload/
+    index.ts                # contextBridge.exposeInMainWorld('ariadne', …)
+  shared/                   # ZERO Electron/DOM dependencies — pure TypeScript
+    types.ts                # domain entities (§3)
+    ipc-contract.ts         # channel names + request/response types
+    schema/                 # zod schemas: validation + import migration
+    domain/
+      derive.ts             # isBlocked, overdue, progress, relative labels… (§4)
+      mutate.ts             # pure mutation functions (create/update/delete) (§5.2)
+      sort.ts               # canonical sort orders
+      search.ts             # search predicate
+      reports.ts            # the four report builders + plain-text serializers
+      calendar.ts           # month-grid cell computation
+      dep-graph.ts          # dependency-layer layout algorithm
+      csv.ts                # quoted-CSV parser (file viewer)
+      clock.ts              # todayIso() — injectable for tests
+      id.ts                 # id generation
+      seed.ts               # sample dataset (used by "Reset to sample data")
+  renderer/
+    main.tsx                # React root
+    app/
+      store.ts              # Zustand store: data slice + ui slice
+      persistence.ts        # store subscriber → debounced IPC write-through
+      api.ts                # typed wrapper over window.ariadne
+    styles/tokens.css       # design tokens from design/README.md as CSS variables
+    components/             # TaskRow, ProjectCard, StatCard, Pill, Card, SegControl,
+                            # TagEditor, LinkListEditor, Toast, …
+    views/                  # CommandCenter, Calendar, ProjectDetail, Reports,
+                            # Settings, SearchResults
+    modals/                 # TaskModal, FileViewerModal
+e2e/                        # Playwright Electron tests
+docs/                       # this spec, implementation plan
+```
+
+The `shared/` package is the heart of the system: **all domain behavior is pure,
+synchronous, dependency-free TypeScript**, unit-testable without Electron, React, or the
+filesystem. Main-process services and renderer components are thin shells around it.
+
+## 3. Object Model
+
+All persisted entities. Dates are ISO `YYYY-MM-DD` strings (type alias `IsoDate`); IDs are
+generated with `crypto.randomUUID()` (import preserves foreign IDs, e.g. the prototype's
+`p1`/`t3`).
+
+```ts
+type ProjectCategory = 'work' | 'home';
+type TaskStatus   = 'Todo' | 'Doing' | 'Waiting' | 'Done' | 'Dropped';
+type TaskPriority = 'Critical' | 'High' | 'Medium' | 'Low';
+type FileKind     = 'markdown' | 'file' | 'ref';
+
+interface LinkRef { title: string; url: string; }
+interface Subtask { title: string; done: boolean; }
+
+interface Project {
+  id: string;
+  name: string;
+  category: ProjectCategory;   // drives Work/Home scoping everywhere
+  tags: string[];              // free-form, lowercase-insensitive match in search
+  color: string;               // hex, assigned round-robin from PROJECT_PALETTE
+  status: string;              // free-form; default "Active"
+  notes: string;               // plain text
+  links: LinkRef[];
+  createdAt: IsoDate;
+}
+
+interface Task {
+  id: string;
+  projectId: string;
+  title: string;
+  status: TaskStatus;          // default "Todo"
+  priority: TaskPriority;      // default "Medium"
+  tags: string[];
+  notes: string;
+  dueDate: IsoDate | null;
+  dependsOn: string[];         // task ids this task is blocked by (same project)
+  subtasks: Subtask[];
+  links: LinkRef[];
+  createdAt: IsoDate;
+  completedAt: IsoDate | null; // stamped when status → Done; cleared on reopen
+}
+
+interface FileEntry {
+  id: string;
+  projectId: string;
+  taskId: string | null;       // when set, also appears as a task attachment
+  name: string;                // display name incl. extension, e.g. "Rollback plan.md"
+  ext: string;                 // lowercase, no dot: "md","pdf","csv","docx",…
+  mime: string;
+  kind: FileKind;              // markdown = editable text; file = binary blob on disk;
+                               // ref = pointer/placeholder, no stored bytes
+  size: number;                // bytes; 0 for markdown/ref
+  note?: string;               // ref entries only
+  content: string;             // markdown source (kind === 'markdown' only)
+  createdAt: IsoDate;
+}
+
+interface Settings {
+  todoistToken: string;        // stored encrypted-at-rest via Electron safeStorage
+                               // when available; plaintext fallback is acceptable
+  lastTodoistImportAt: string | null;  // ISO datetime, informational
+}
+
+interface Workspace {          // the full in-memory domain state
+  projects: Project[];
+  tasks: Task[];
+  files: FileEntry[];
+  settings: Settings;
+}
+```
+
+App-level configuration (not part of the workspace; lives in Electron `userData`):
+
+```ts
+interface AppConfig {
+  dataDir: string;             // absolute path; default: <userData>/data
+  windowBounds?: { x: number; y: number; width: number; height: number };
+}
+```
+
+### 3.1 Invariants
+
+- `task.projectId` always references an existing project; `file.projectId` likewise.
+- `task.dependsOn` references only tasks **in the same project**; deleting a task removes
+  its id from every other task's `dependsOn`.
+- Deleting a project cascades: its tasks, its files, their blobs, and any `dependsOn`
+  references to the deleted tasks.
+- Moving a task to another project (Project select in the task modal) clears `dependsOn`
+  entries pointing at tasks that are no longer siblings, and re-homes its attached files'
+  `projectId`.
+- Dependency cycles are **tolerated, not prevented** (matching the prototype): the graph
+  layout and `isBlocked` both guard against infinite recursion with visited-sets.
+- `completedAt` is non-null iff `status === 'Done'` (enforced by the mutation layer).
+- Zod schemas validate every document on load and every import; unknown extra keys are
+  stripped, missing optional collections default to empty.
+
+### 3.2 Constants
+
+Enumerations and the visual constant tables (status colors, priority colors, project
+palette, file-badge colors) are defined once in `shared/types.ts` /
+`renderer/styles/tokens.css` with the exact values from `design/README.md` §Design Tokens.
+`STATUS_CYCLE = ['Todo','Doing','Waiting','Done']` (Dropped is only reachable via the
+status select; cycling from Dropped goes to Todo).
+
+## 4. Derived Values (pure functions, `shared/domain/derive.ts`)
+
+Exact semantics ported from the prototype; `today` is always passed in explicitly.
+
+| Function | Definition |
+|---|---|
+| `isOpen(t)` | `status ∉ {Done, Dropped}` |
+| `isOverdue(t, today)` | open ∧ `dueDate < today` |
+| `isDueToday(t, today)` | open ∧ `dueDate === today` |
+| `isDueThisWeek(t, today)` | open ∧ `1 ≤ diff(dueDate, today) ≤ 7` |
+| `isBlocked(t, byId)` | open ∧ some `dependsOn` task exists and is open (cycle-safe) |
+| `isHighLater(t, today)` | open ∧ priority ∈ {Critical, High} ∧ ¬(dueDate within ≤ 7 days, including overdue) |
+| `projectProgress(tasks)` | `done / count(status ≠ Dropped)`; 0 when denominator is 0 |
+| `relativeDueLabel(iso, today)` | `<n>d overdue` / `Today` / `Tomorrow` / `in <n>d` (n ≤ 7) / `Mon D` — with the color from the prototype (`#d94c3a`, `#c23b2b`, `#a8710f`, `#a8710f`, muted) |
+| `nextDue(tasks)` | earliest `dueDate` among open tasks that have one |
+| `dayDiff(a, b)` | whole-day difference computed on local-midnight dates |
+
+Canonical sort orders (`shared/domain/sort.ts`):
+
+- **byDue:** ascending `dueDate`, `null` sorts last.
+- **Project task list:** status order `Doing(0) → Todo(1) → Waiting(2) → Done(3) → Dropped(4)`, then byDue.
+- **Focus sections & upcoming:** byDue.
+
+Scope filtering: `scope ∈ {all, work, home}` filters projects by `category` and tasks by
+their project's category. Applies to Command Center and Calendar (not Project detail).
+
+## 5. Services & State Management
+
+### 5.1 Renderer state (Zustand)
+
+Two slices in one store:
+
+- **data slice** — the authoritative in-memory `Workspace`. The *only* way to change it is
+  `apply(mutation)` where mutations are the pure functions of §5.2; `apply` also reports
+  which collections changed so persistence can write only those.
+- **ui slice** — `view` (`home | calendar | project | reports | settings`),
+  `activeProjectId`, `modal` (`{type:'task'|'file', id, back?} | null`), `fileMode`
+  (`preview | edit`), `q` (search text; non-empty overrides the view with search results),
+  `scope`, `calMonth` (`YYYY-MM`), report controls (`type`, `tag`, `from`, `to`),
+  transient `toast`. Never persisted.
+
+Auto-save semantics: **every data mutation is immediately applied to the store and
+enqueued for persistence** (write-through, matching the prototype's save-on-every-edit).
+A store subscriber (`persistence.ts`) batches changed collections and invokes
+`workspace:save` over IPC; the main process debounces writes per document (~300 ms) and
+flushes synchronously on `before-quit`. There is no Save button anywhere.
+
+### 5.2 Domain mutations (`shared/domain/mutate.ts`)
+
+Pure `(workspace, args, ctx: {today, newId}) → {workspace', changed: CollectionName[]}`
+functions — the complete command surface of the app:
+
+`createProject`, `updateProject`, `deleteProject` (cascades §3.1),
+`createTask` (defaults per §3), `updateTask` (stamps/clears `completedAt`),
+`deleteTask` (scrubs `dependsOn`), `cycleTaskStatus`,
+`createMarkdownFile`, `updateFile`, `deleteFile`, `registerUploadedFile`,
+`updateSettings`, `applyImport`, `resetToSeed`, `clearAll`,
+`mergeTodoistImport` (§9).
+
+### 5.3 Main-process services
+
+**ConfigService** — loads/saves `userData/config.json`; resolves the active `dataDir`
+(creating it and seeding an empty/sample workspace on first run); handles "change data
+directory" (points at the new folder; offers to migrate current files if the target is
+empty, or load-in-place if it already contains a workspace).
+
+**StorageService** — owns the on-disk workspace documents:
+
+```
+<dataDir>/
+  workspace.json      # { schemaVersion: 1 }
+  projects.json       # Project[]
+  tasks.json          # Task[]
+  files.json          # FileEntry[]
+  settings.json       # Settings
+  blobs/<fileId>.<ext>
+  backups/<timestamp>/*.json
+```
+
+Every write is **atomic**: serialize → write `<name>.json.tmp` → `rename`. Loads validate
+with zod; a corrupt document is moved aside (`<name>.json.corrupt-<ts>`) and restored from
+the most recent backup, surfacing a non-fatal warning to the renderer.
+
+**BlobService** — stores uploaded binaries as ordinary files named `<fileId>.<ext>`;
+read/delete by id. Registers the `ariadne-blob://<fileId>` privileged protocol so the
+renderer can render `<img>`, `<object type="application/pdf">`, and fetch CSV text
+directly without shipping bytes over IPC. Uploads flow renderer → IPC (ArrayBuffer) →
+BlobService.
+
+**BackupService** — before the first write of each app session, snapshots the four JSON
+documents into `backups/<ISO-timestamp>/`; keeps the most recent 10 snapshots.
+
+**ImportExportService** — Export: one JSON document `{ schemaVersion, projects, tasks,
+files, settings, _blobs }` where `_blobs` maps fileId → data-URL (prototype-compatible),
+written via a save dialog as `ariadne-export-<date>.json`. Import (file dialog or pasted
+text): accepts both native exports and prototype localStorage exports — migrates legacy
+`project.docs[]` to `kind:'ref'` FileEntries, materializes `_blobs` data-URLs into the
+blobs directory, defaults missing `settings`/`files`, validates, then replaces the
+workspace. Invalid JSON → error toast, no state change.
+
+**TodoistService** — §9.
+
+### 5.4 IPC contract (`shared/ipc-contract.ts`)
+
+All channels are `ipcRenderer.invoke`-style request/response with typed payloads:
+
+| Channel | Request → Response |
+|---|---|
+| `workspace:load` | → `{ workspace, warnings[] }` |
+| `workspace:save` | `{ [collection]: data }` → ack |
+| `blob:save` | `{ fileId, ext, bytes }` → `{ size }` |
+| `blob:delete` | `{ fileId }` → ack |
+| `export:run` | → `{ savedPath | null }` (dialog in main) |
+| `import:fromFile` | → `{ raw | null }`; parsing/validation shared |
+| `dataDir:get` / `dataDir:choose` | → `{ path, mode: 'migrated'|'loaded'|'cancelled' }` |
+| `todoist:import` | `{ token }` → `{ added, projectCreated } | { error }` |
+| `shell:openExternal` | `{ url }` → ack (http/https only) |
+
+The preload exposes exactly these as `window.ariadne.*`; the renderer never sees Node.
+
+## 6. Views & UI Composition
+
+One React SPA, no router library — `ui.view` + `ui.q` select the rendered view, exactly
+like the prototype. Global chrome: 250 px sidebar (brand, nav with overdue badge, project
+list with open/overdue counts, "+ project") and top bar (view title, long date, overdue
+pill → Command Center with scope `all`, search input, "+ New task"). The sidebar's user
+row and Sign out are **removed** (D1).
+
+| View / component | Source of behavior | Notes |
+|---|---|---|
+| Command Center | prototype `viewHome` | stat cards, ambient banner, 5 conditional focus sections, portfolio cards; scope segmented control |
+| Calendar | `viewCalendar` | month grid (≤4 chips/day + "+N more"), Upcoming (next 10), ‹/Today/› paging |
+| Project detail | `viewProject` | editable header, tasks card with quick-add, dependency map card, Notes/Links/Files side column |
+| Dependency map | `_depGraph` | pure layout in `shared/domain/dep-graph.ts` (longest-path layering, centered rows, cubic edges w/ arrowheads); SVG rendering in a component; nodes click → task modal |
+| Task modal | `taskModal` | all fields auto-save; status circle cycles; Blocked-by checkbox list of siblings; attachments; Escape/backdrop closes |
+| File viewer modal | `fileModal` | markdown Preview/Edit (editable filename), PDF `<object>`, CSV table (first 300 rows), image, download-only placeholder for office types; "‹ Back to task" when opened from a task |
+| Reports | `viewReports` + builders | 4 types (§7), tag/scope select, retro date range, Copy report |
+| Settings | `viewSettings` minus Account | Data (data-dir chooser + export/import/reset/clear), Integrations · Todoist, status/priority legend |
+| Search results | `viewSearch` | project cards grid + task rows |
+| Toast | `toast()` | bottom-center, ~2.6 s |
+
+Markdown preview uses `marked` (CommonMark superset of the prototype's subset) with
+`DOMPurify` sanitization — never raw `dangerouslySetInnerHTML` of unsanitized input.
+CSV parsing uses the shared quoted-CSV parser. Styling is plain CSS (CSS variables from
+`tokens.css` + CSS modules); no component library, matching the design's restraint
+(no icon set, text nav, colored dots).
+
+## 7. Reports (`shared/domain/reports.ts`)
+
+Each report is a pure builder `(workspace, filter, today[, range]) → ReportModel` plus a
+plain-text serializer for Copy report (clipboard via `navigator.clipboard`). Filter:
+`all | work | home | tag:<tag>` applied to projects.
+
+- **Weekly status** — per project (omit empty): *Done this week* (`completedAt` within the
+  last 7 days), *Planned next* (open, due in 0–7 days), *Blockers / at risk* (open ∧
+  (Waiting ∨ blocked ∨ overdue)).
+- **Portfolio roll-up** — table per project: open, done, overdue counts, next due.
+- **Retrospective** — tasks with `completedAt ∈ [from, to]` in filtered projects, grouped
+  by project, newest first; headline count.
+- **At-risk** — open tasks with a reason, sorted byDue: overdue (red) → blocked by
+  dependency → Critical/High due within ≤ 3 days.
+
+## 8. Cross-cutting Concerns
+
+- **Clock:** `shared/domain/clock.ts` exports `todayIso()` (local timezone). Everything
+  downstream takes `today` as a parameter; only the store shell calls the clock. The
+  renderer refreshes `today` on window focus and at local midnight so a left-open app
+  rolls over correctly.
+- **IDs:** `crypto.randomUUID()` behind `shared/domain/id.ts` (injectable in tests).
+- **Error handling:** main-process service errors return typed error results over IPC
+  (never throw across the bridge); renderer surfaces a toast and logs. `electron-log`
+  writes rotating logs to `userData/logs/`. A React error boundary offers reload.
+- **Confirmations:** destructive actions (delete project / task / file, reset, clear all)
+  use an in-app confirm dialog (not `window.confirm`).
+- **Seed data:** `shared/domain/seed.ts` ports the prototype's sample dataset generator
+  (relative to a passed `today`); used for first-run option and "Reset to sample data".
+- **Packaging:** `electron-builder` for Linux (AppImage/deb) + macOS/Windows targets;
+  app id `com.wdogsystems.ariadne`; spiral SVG logo rendered to icon sizes.
+
+## 9. Todoist Integration (one-way import)
+
+`TodoistService` (main process, no CORS constraints) calls the Todoist REST API v2
+(`GET /rest/v2/tasks`, `Authorization: Bearer <token>`). Import behavior:
+
+1. Ensure an Ariadne project named **Todoist Inbox** exists (id `todoist-inbox`, category
+   `home`, tag `todoist`, palette color `#c2569b`) — created on first import.
+2. Map each active Todoist task → Ariadne task: `content` → title, `due.date` → dueDate,
+   priority p4→Low … p1→Critical, `description` → notes, tag `todoist`, plus the Todoist
+   task id recorded in `notes` footer (`todoist:<id>`) for dedupe.
+3. Dedupe on the recorded Todoist id (fallback: same title in Todoist Inbox); re-import
+   updates dueDate/priority of previously imported, still-open tasks; never deletes.
+4. Result summary → toast (`Imported N tasks from Todoist`). Network/auth failures →
+   typed error → toast with the reason. Token stored via `safeStorage` when available.
+
+## 10. Testing Strategy & Quality Gates
+
+- **Unit/integration: Vitest.** `shared/` (node env — the bulk of coverage), main
+  services (node env, `tmpdir()` fixtures, real fs), renderer (jsdom +
+  @testing-library/react, `window.ariadne` mocked). Coverage provider `v8` with
+  **global thresholds ≥ 80 % for lines, statements, branches, and functions** — the
+  `test:coverage` script fails below threshold. E2E and config files excluded from
+  coverage denominators; everything under `src/` is included (no per-file opt-outs
+  without a comment justifying it).
+- **E2E: Playwright** driving the packaged-dev Electron app (`_electron.launch`): boot →
+  seed → create project/task → edit in modal → restart app → data persisted; import/export
+  round-trip; smoke over every view. Kept fast (< 2 min) and deterministic (temp dataDir
+  per run, pinned clock via env var `ARIADNE_FAKE_TODAY`).
+- **Lint:** ESLint flat config (`typescript-eslint` strict-type-checked where practical,
+  `react-hooks`, `import` ordering) + Prettier. `npm run lint` covers **all** files.
+- **Definition of Done per sprint** (from the implementation plan): all tests green
+  (entire suite, not just new tests), lint clean, coverage ≥ 80 %, changes committed.
+
+## 11. Open Items / Future
+
+Two-way Todoist sync; global keyboard shortcuts / quick-add palette; recurring tasks;
+rich-text project notes; auto-update channel. None block v1.

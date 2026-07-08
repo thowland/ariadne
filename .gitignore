@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build output (electron-vite / Vite / TypeScript)
+dist/
+out/
+build/
+*.tsbuildinfo
+
+# Packaging output (electron-builder)
+release/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Local environment / secrets (Todoist tokens etc. never belong in git)
+.env
+.env.*
+!.env.example
+
+# Runtime data — never commit a live workspace or its blobs
+data/
+*.local.json
+
+# Design handoff archive — exact duplicate of the extracted files in design/
+design/designnotes.zip
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.swp
