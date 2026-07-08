@@ -1,13 +1,17 @@
-import { cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
+import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
 import type { Subtask, TaskPriority, TaskStatus } from '@shared/types';
 import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useRef } from 'react';
 
+import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
+import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
 import { Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { STATUS_COLORS } from '../styles/colors';
+
+import { FileViewerModal } from './FileViewerModal';
 
 function FieldLabel({ text }: { text: string }): React.JSX.Element {
   return <div className="field-label">{text.toUpperCase()}</div>;
@@ -19,7 +23,7 @@ function FieldLabel({ text }: { text: string }): React.JSX.Element {
  * globally in App).
  */
 export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | null {
-  const { workspace, apply, closeModal, askConfirm, showToast } = useStore();
+  const { workspace, apply, closeModal, openFile, askConfirm, showToast } = useStore();
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const task = workspace?.tasks.find((t) => t.id === taskId);
@@ -266,7 +270,41 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
 
           <div>
             <FieldLabel text="Attachments" />
-            <div className="card-empty">File attachments arrive in Sprint 5.</div>
+            <div className="attachment-list">
+              {workspace.files
+                .filter((f) => f.taskId === task.id)
+                .map((f) => (
+                  <FileRow key={f.id} file={f} />
+                ))}
+            </div>
+            <div className="attachment-actions">
+              <button
+                className="link-add"
+                onClick={() => {
+                  const result = apply((ws, ctx) =>
+                    createMarkdownFile(ws, ctx, task.projectId, task.id),
+                  );
+                  if (result !== null) openFile(result.id, 'edit');
+                }}
+              >
+                + Markdown note
+              </button>
+              <label className="link-add upload-label">
+                Upload file
+                <input
+                  type="file"
+                  multiple
+                  aria-label="Upload attachment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files !== null) {
+                      void uploadFiles(e.target.files, task.projectId, task.id);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           <div>
@@ -297,9 +335,10 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
   );
 }
 
-/** Renders whatever modal is active (task now; file viewer in Sprint 5). */
+/** Renders whatever modal is active. */
 export function ModalHost(): React.JSX.Element | null {
   const modal = useStore((s) => s.modal);
   if (modal === null) return null;
+  if (modal.type === 'file') return <FileViewerModal fileId={modal.id} />;
   return <TaskModal taskId={modal.id} />;
 }

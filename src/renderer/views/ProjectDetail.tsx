@@ -1,9 +1,17 @@
-import { deleteProject, createTask, updateProject } from '@shared/domain/mutate';
+import {
+  createMarkdownFile,
+  createTask,
+  deleteProject,
+  updateProject,
+} from '@shared/domain/mutate';
 import { byProjectListOrder } from '@shared/domain/sort';
 import { useState } from 'react';
 
+import { getApi } from '../app/api';
+import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
 import { DependencyMap } from '../components/DependencyMap';
+import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
@@ -11,7 +19,8 @@ import { TaskRow } from '../components/TaskRow';
 
 /** The per-project workspace (prototype viewProject). */
 export function ProjectDetail(): React.JSX.Element {
-  const { workspace, activeProjectId, apply, openTask, go, askConfirm, showToast } = useStore();
+  const { workspace, activeProjectId, apply, openTask, openFile, go, askConfirm, showToast } =
+    useStore();
   const [quickTitle, setQuickTitle] = useState('');
 
   const project = workspace?.projects.find((p) => p.id === activeProjectId);
@@ -20,6 +29,7 @@ export function ProjectDetail(): React.JSX.Element {
   }
 
   const tasks = (workspace?.tasks ?? []).filter((t) => t.projectId === project.id);
+  const files = (workspace?.files ?? []).filter((f) => f.projectId === project.id);
   const sorted = [...tasks].sort(byProjectListOrder);
   const done = tasks.filter((t) => t.status === 'Done').length;
   const total = tasks.filter((t) => t.status !== 'Dropped').length;
@@ -39,7 +49,10 @@ export function ProjectDetail(): React.JSX.Element {
   const remove = (): void => {
     void askConfirm('Delete this project and all its tasks?').then((ok) => {
       if (!ok) return;
-      apply((ws) => deleteProject(ws, project.id));
+      const result = apply((ws) => deleteProject(ws, project.id));
+      if (result !== null && result.removedBlobIds.length > 0) {
+        void getApi().deleteBlobs(result.removedBlobIds);
+      }
       go('home');
       showToast('Project deleted');
     });
@@ -156,9 +169,49 @@ export function ProjectDetail(): React.JSX.Element {
               />
             </div>
           </Card>
-          <Card title="Files & documents">
-            <div className="card-pad">
-              <div className="card-empty">The document library arrives in Sprint 5.</div>
+          <Card
+            title="Files & documents"
+            count={files.length}
+            headRight={
+              <div className="lib-actions">
+                <button
+                  className="lib-btn"
+                  onClick={() => {
+                    const result = apply((ws, ctx) =>
+                      createMarkdownFile(ws, ctx, project.id, null),
+                    );
+                    if (result !== null) openFile(result.id, 'edit');
+                  }}
+                >
+                  + Markdown
+                </button>
+                <label className="lib-btn upload-label">
+                  Upload
+                  <input
+                    type="file"
+                    multiple
+                    aria-label="Upload files"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files !== null) {
+                        void uploadFiles(e.target.files, project.id, null);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            }
+          >
+            <div className="focus-section-body">
+              {files.length > 0 ? (
+                files.map((f) => <FileRow key={f.id} file={f} />)
+              ) : (
+                <div className="card-empty">
+                  No files yet. Add a markdown note or upload reference material (PDF, CSV, DOCX,
+                  XLSX, PPTX, RTF).
+                </div>
+              )}
             </div>
           </Card>
         </div>

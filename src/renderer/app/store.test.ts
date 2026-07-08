@@ -17,6 +17,9 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
     saveCollections: vi.fn().mockResolvedValue(undefined),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
     openExternal: vi.fn().mockResolvedValue(undefined),
+    saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
+    deleteBlobs: vi.fn().mockResolvedValue(undefined),
+    downloadFile: vi.fn().mockResolvedValue({ savedPath: null }),
     fakeToday: TODAY,
     ...overrides,
   };

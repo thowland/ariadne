@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -156,4 +156,59 @@ test('calendar and dependency map are wired end-to-end', async () => {
   const dialog = win.getByRole('dialog', { name: 'Edit task' });
   await expect(dialog.getByPlaceholder('Task title')).toHaveValue('Cutover & DNS switch');
   await app.close();
+});
+
+test('document library: markdown editing, CSV upload/preview, persistence', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const csvPath = join(userData, 'inventory.csv');
+  writeFileSync(csvPath, 'item,qty\nrope,2\n"tar, pitch",1\n');
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Open the migration project's seeded markdown file.
+  const nav = win.getByRole('navigation', { name: 'Projects' });
+  await nav.getByRole('button', { name: /Q3 Platform Migration/ }).click();
+  await win.getByTestId('file-row-fa').click();
+  const viewer = win.getByRole('dialog', { name: 'File viewer' });
+  await expect(viewer.getByTestId('md-preview')).toContainText('Q3 Platform Migration');
+
+  // Edit it; the preview reflects the change immediately (auto-save).
+  await viewer.getByRole('tab', { name: 'Edit' }).click();
+  await viewer.getByLabel('Markdown source').fill('# Rewritten\n\nNew **content** here.');
+  await viewer.getByRole('tab', { name: 'Preview' }).click();
+  await expect(viewer.getByTestId('md-preview')).toContainText('Rewritten');
+  await viewer.getByLabel('Close').click();
+
+  // Upload a CSV and preview it as a table (served over ariadne-blob://).
+  await win.getByLabel('Upload files').setInputFiles(csvPath);
+  await win
+    .getByTestId(/file-row-/)
+    .filter({ hasText: 'inventory.csv' })
+    .click();
+  const table = win.getByTestId('csv-table');
+  await expect(table).toBeVisible();
+  await expect(table.getByText('tar, pitch')).toBeVisible();
+  await win.getByRole('dialog', { name: 'File viewer' }).getByLabel('Close').click();
+  await first.close();
+
+  // Both the edit and the uploaded blob survive a restart.
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Q3 Platform Migration/ })
+    .click();
+  await win.getByTestId('file-row-fa').click();
+  await expect(
+    win.getByRole('dialog', { name: 'File viewer' }).getByTestId('md-preview'),
+  ).toContainText('Rewritten');
+  await win.getByRole('dialog', { name: 'File viewer' }).getByLabel('Close').click();
+  await win
+    .getByTestId(/file-row-/)
+    .filter({ hasText: 'inventory.csv' })
+    .click();
+  await expect(win.getByTestId('csv-table').getByText('rope')).toBeVisible();
+  await second.close();
 });

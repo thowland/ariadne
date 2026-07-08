@@ -1,9 +1,12 @@
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-import { app, BrowserWindow, shell } from 'electron';
+import { BLOB_PROTOCOL } from '@shared/ipc-contract';
+import { app, BrowserWindow, net, protocol, shell } from 'electron';
 
 import { registerIpc } from './ipc';
 import { BackupService } from './services/backup-service';
+import { BlobService } from './services/blob-service';
 import { ConfigService } from './services/config-service';
 import { StorageService } from './services/storage-service';
 
@@ -15,6 +18,11 @@ if (testUserData) {
 }
 
 let storage: StorageService | null = null;
+
+// Must run before app ready.
+protocol.registerSchemesAsPrivileged([
+  { scheme: BLOB_PROTOCOL, privileges: { stream: true, supportFetchAPI: true } },
+]);
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -55,9 +63,18 @@ void app.whenReady().then(() => {
   const config = new ConfigService(app.getPath('userData'));
   const dataDir = config.resolveDataDir();
   const backups = new BackupService(dataDir);
+  const blobs = new BlobService(dataDir);
   storage = new StorageService(dataDir, backups);
   storage.init();
-  registerIpc(storage, dataDir);
+  registerIpc(storage, blobs, dataDir);
+
+  // Serve stored blobs to the renderer (img/object/fetch) without IPC copies.
+  protocol.handle(BLOB_PROTOCOL, (request) => {
+    const fileId = new URL(request.url).host;
+    const path = blobs.find(fileId);
+    if (path === null) return new Response('Not found', { status: 404 });
+    return net.fetch(pathToFileURL(path).toString());
+  });
 
   createWindow();
 

@@ -13,8 +13,12 @@ export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCt
 
 export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'settings';
 
-/** File viewer joins in Sprint 5. */
-export type ModalState = { type: 'task'; id: string } | null;
+export type ModalState =
+  | { type: 'task'; id: string }
+  | { type: 'file'; id: string; back?: { type: 'task'; id: string } }
+  | null;
+
+export type FileMode = 'preview' | 'edit';
 
 export interface ConfirmState {
   message: string;
@@ -50,11 +54,16 @@ export interface AriadneStore {
   confirmState: ConfirmState | null;
   /** Calendar month being viewed; null = the month containing today. */
   calMonth: string | null;
+  /** File viewer mode; reset to preview on open. */
+  fileMode: FileMode;
 
   go: (view: ViewName) => void;
   openProject: (id: string) => void;
   /** Opens the task editor modal over the current view. */
   openTask: (id: string) => void;
+  /** Opens the file viewer; remembers an open task modal to return to. */
+  openFile: (id: string, mode?: FileMode) => void;
+  setFileMode: (mode: FileMode) => void;
   closeModal: () => void;
   setQuery: (q: string) => void;
   setScope: (scope: Scope) => void;
@@ -119,6 +128,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
   modal: null,
   confirmState: null,
   calMonth: null,
+  fileMode: 'preview',
 
   go: (view) => {
     set({ view, q: '' });
@@ -134,8 +144,24 @@ export const useStore = create<AriadneStore>((set, get) => ({
     }
   },
 
+  openFile: (id, mode = 'preview') => {
+    const current = get().modal;
+    const back = current?.type === 'task' ? current : undefined;
+    set({ modal: { type: 'file', id, back }, fileMode: mode });
+  },
+
+  setFileMode: (mode) => {
+    set({ fileMode: mode });
+  },
+
   closeModal: () => {
-    set({ modal: null });
+    const current = get().modal;
+    // Closing a file viewer opened from a task returns to that task.
+    if (current?.type === 'file' && current.back !== undefined) {
+      set({ modal: current.back });
+    } else {
+      set({ modal: null });
+    }
   },
 
   setQuery: (q) => {

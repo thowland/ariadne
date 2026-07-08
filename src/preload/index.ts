@@ -1,4 +1,4 @@
-import type { AriadneApi, WorkspaceSavePayload } from '@shared/ipc-contract';
+import type { AriadneApi, DownloadRequest, WorkspaceSavePayload } from '@shared/ipc-contract';
 import { IPC } from '@shared/ipc-contract';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -12,6 +12,10 @@ const api: AriadneApi = {
     ipcRenderer.invoke(IPC.workspaceSave, payload),
   getDataDir: () => ipcRenderer.invoke(IPC.dataDirGet),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url),
+  saveBlob: (fileId: string, ext: string, bytes: ArrayBuffer) =>
+    ipcRenderer.invoke(IPC.blobSave, { fileId, ext, bytes: new Uint8Array(bytes) }),
+  deleteBlobs: (fileIds: string[]) => ipcRenderer.invoke(IPC.blobDelete, { fileIds }),
+  downloadFile: (request: DownloadRequest) => ipcRenderer.invoke(IPC.fileDownload, request),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
 

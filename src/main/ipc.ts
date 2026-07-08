@@ -1,17 +1,22 @@
+import { writeFile } from 'node:fs/promises';
+import { copyFile } from 'node:fs/promises';
+
 import { todayIso } from '@shared/domain/clock';
 import { seedWorkspace } from '@shared/domain/seed';
-import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import { IPC } from '@shared/ipc-contract';
+import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
+import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
 import { COLLECTION_NAMES } from '@shared/types';
-import { ipcMain, shell } from 'electron';
+import { dialog, ipcMain, shell } from 'electron';
 
+import type { BlobService } from './services/blob-service';
 import type { StorageService } from './services/storage-service';
 
 /**
  * Thin glue: ipcMain.handle registrations → services. No logic beyond
  * routing; excluded from unit coverage and exercised by the E2E suite.
  */
-export function registerIpc(storage: StorageService, dataDir: string): void {
+export function registerIpc(storage: StorageService, blobs: BlobService, dataDir: string): void {
   ipcMain.handle(IPC.workspaceLoad, async (): Promise<WorkspaceLoadResponse> => {
     const loaded = await storage.loadWorkspace();
     if (loaded.workspace !== null) {
@@ -37,4 +42,36 @@ export function registerIpc(storage: StorageService, dataDir: string): void {
       void shell.openExternal(url);
     }
   });
+
+  ipcMain.handle(
+    IPC.blobSave,
+    (_event, payload: { fileId: string; ext: string; bytes: Uint8Array }) =>
+      blobs.save(payload.fileId, payload.ext, payload.bytes),
+  );
+
+  ipcMain.handle(IPC.blobDelete, (_event, payload: { fileIds: string[] }) =>
+    blobs.deleteMany(payload.fileIds),
+  );
+
+  ipcMain.handle(
+    IPC.fileDownload,
+    async (_event, request: DownloadRequest): Promise<DownloadResponse> => {
+      const picked = await dialog.showSaveDialog({ defaultPath: request.suggestedName });
+      if (picked.canceled || picked.filePath === '') return { savedPath: null };
+      try {
+        if (request.content !== undefined) {
+          await writeFile(picked.filePath, request.content, 'utf8');
+        } else if (request.fileId !== undefined) {
+          const source = blobs.find(request.fileId);
+          if (source === null) return { savedPath: null, error: 'No stored file to download' };
+          await copyFile(source, picked.filePath);
+        } else {
+          return { savedPath: null, error: 'Nothing to download' };
+        }
+        return { savedPath: picked.filePath };
+      } catch (err) {
+        return { savedPath: null, error: err instanceof Error ? err.message : 'Download failed' };
+      }
+    },
+  );
 }
