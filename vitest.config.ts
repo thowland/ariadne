@@ -46,7 +46,9 @@ export default defineConfig({
         'src/preload/**',
         // DOM mount point only; exercised by E2E.
         'src/renderer/main.tsx',
+        // Test-only infrastructure, not shipped code.
         'src/renderer/test-setup.ts',
+        'src/renderer/test-utils.tsx',
       ],
       // Sprint exit gate: >=80% everywhere. These thresholds are never lowered.
       thresholds: {

@@ -1,80 +1,74 @@
-import { seedWorkspace } from '@shared/domain/seed';
-import type { AriadneApi } from '@shared/ipc-contract';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from './App';
-import { useStore } from './app/store';
-
-const TODAY = '2026-07-08';
-
-function installApiMock(): AriadneApi {
-  const api: AriadneApi = {
-    loadWorkspace: vi.fn().mockResolvedValue({
-      workspace: seedWorkspace(TODAY),
-      warnings: [],
-      firstRun: false,
-    }),
-    saveCollections: vi.fn().mockResolvedValue(undefined),
-    getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
-    openExternal: vi.fn().mockResolvedValue(undefined),
-    fakeToday: TODAY,
-  };
-  window.ariadne = api;
-  return api;
-}
+import { setupTestApp } from './test-utils';
 
 beforeEach(() => {
-  useStore.setState({
-    workspace: null,
-    today: TODAY,
-    loaded: false,
-    firstRun: false,
-    warnings: [],
-  });
+  setupTestApp();
 });
 
-describe('App (sprint 1 debug shell)', () => {
-  it('loads and summarizes the workspace', async () => {
-    installApiMock();
+describe('App shell', () => {
+  it('loads the workspace into the Command Center', async () => {
     render(<App />);
-    expect(await screen.findByTestId('workspace-summary')).toHaveTextContent(
-      '6 projects · 30 tasks · 5 files',
+    expect(await screen.findByTestId('home-headline')).toHaveTextContent(
+      /tasks? need your attention today/,
     );
-    expect(screen.getByText('Wednesday, July 8, 2026')).toBeInTheDocument();
-    expect(screen.getByText(/Q3 Platform Migration/)).toBeInTheDocument();
+    // Chrome present
+    expect(screen.getByText('Ariadne')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search tasks & projects…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ New task' })).toBeInTheDocument();
   });
 
-  it('adds a debug task and persists it', async () => {
-    const api = installApiMock();
+  it('navigates between views via the sidebar', async () => {
     render(<App />);
-    await screen.findByTestId('workspace-summary');
+    await screen.findByTestId('home-headline');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Add debug task' }));
-    expect(screen.getByTestId('workspace-summary')).toHaveTextContent('31 tasks');
-    expect(api.saveCollections).toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    expect(screen.getByText('Calendar arrives in Sprint 4.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Command Center/ }));
+    expect(screen.getByTestId('home-headline')).toBeInTheDocument();
   });
 
-  it('resets to sample data', async () => {
-    installApiMock();
+  it('opens a project from the sidebar', async () => {
     render(<App />);
-    await screen.findByTestId('workspace-summary');
+    await screen.findByTestId('home-headline');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Add debug task' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Reset to sample data' }));
-    expect(screen.getByTestId('workspace-summary')).toHaveTextContent('30 tasks');
+    const sidebar = screen.getByRole('navigation', { name: 'Projects' });
+    await userEvent.click(within(sidebar).getByRole('button', { name: /Refinish boat table/ }));
+    expect(screen.getByRole('heading', { name: 'Refinish boat table' })).toBeInTheDocument();
+    expect(screen.getByText(/Full project workspace/)).toBeInTheDocument();
   });
 
-  it('shows load warnings when present', async () => {
-    const api = installApiMock();
-    vi.mocked(api.loadWorkspace).mockResolvedValue({
-      workspace: seedWorkspace(TODAY),
-      warnings: ['tasks.json restored from backup'],
-      firstRun: false,
-    });
+  it('shows search results while a query is present and restores the view after', async () => {
     render(<App />);
-    await screen.findByTestId('workspace-summary');
-    expect(screen.getByTestId('load-warnings')).toHaveTextContent('restored from backup');
+    await screen.findByTestId('home-headline');
+
+    const box = screen.getByPlaceholderText('Search tasks & projects…');
+    await userEvent.type(box, 'varnish');
+    expect(screen.getByTestId('search-summary')).toHaveTextContent(/matching “varnish”/);
+
+    await userEvent.clear(box);
+    expect(screen.getByTestId('home-headline')).toBeInTheDocument();
+  });
+
+  it('creates a task from the top bar and lands on the project (with toast)', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+
+    await userEvent.click(screen.getByRole('button', { name: '+ New task' }));
+    // First seeded project is the migration project.
+    expect(screen.getByRole('heading', { name: 'Q3 Platform Migration' })).toBeInTheDocument();
+    expect(screen.getByText('Task created')).toBeInTheDocument();
+  });
+
+  it('creates a project from the sidebar +', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+
+    await userEvent.click(screen.getByTitle('New project'));
+    expect(screen.getByRole('heading', { name: 'Untitled project' })).toBeInTheDocument();
   });
 });

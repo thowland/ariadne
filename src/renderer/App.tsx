@@ -1,81 +1,84 @@
-import { fmtLong } from '@shared/domain/dates';
-import { isOpen } from '@shared/domain/derive';
-import { createTask, replaceWorkspace } from '@shared/domain/mutate';
-import { seedWorkspace } from '@shared/domain/seed';
 import { useEffect } from 'react';
 
 import { useStore } from './app/store';
+import { Sidebar } from './chrome/Sidebar';
+import { TopBar } from './chrome/TopBar';
+import { Logo } from './components/Logo';
+import { CommandCenter } from './views/CommandCenter';
+import { ProjectStub } from './views/ProjectStub';
+import { SearchResults } from './views/SearchResults';
 
-/**
- * Sprint 1 debug shell: proves the load → mutate → persist → reload loop
- * end-to-end. Replaced by the real global chrome + Command Center in Sprint 2.
- */
+function StubView({ name, sprint }: { name: string; sprint: number }): React.JSX.Element {
+  return (
+    <div className="view-wrap fadein">
+      <div className="stub-view">
+        {name} arrives in Sprint {sprint}.
+      </div>
+    </div>
+  );
+}
+
+function ViewBody(): React.JSX.Element {
+  const { view, q } = useStore();
+  if (q.trim() !== '') return <SearchResults />;
+  switch (view) {
+    case 'home':
+      return <CommandCenter />;
+    case 'project':
+      return <ProjectStub />;
+    case 'calendar':
+      return <StubView name="Calendar" sprint={4} />;
+    case 'reports':
+      return <StubView name="Reports" sprint={6} />;
+    case 'settings':
+      return <StubView name="Settings" sprint={6} />;
+  }
+}
+
 export function App(): React.JSX.Element {
-  const { workspace, today, loaded, warnings, load, apply } = useStore();
+  const { loaded, workspace, toast, warnings, load, refreshToday, showToast } = useStore();
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  // `today` rolls over while the app sits open: refresh on focus and once a
+  // minute (cheap; state only changes at midnight).
+  useEffect(() => {
+    const onFocus = (): void => {
+      refreshToday();
+    };
+    window.addEventListener('focus', onFocus);
+    const interval = setInterval(onFocus, 60_000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(interval);
+    };
+  }, [refreshToday]);
+
+  useEffect(() => {
+    if (loaded && warnings.length > 0) showToast(warnings[0] ?? '');
+  }, [loaded, warnings, showToast]);
+
   if (!loaded || workspace === null) {
     return (
-      <div className="shell">
-        <main className="placeholder">
-          <span className="brand-mark" aria-hidden="true" />
-          <h1>Ariadne</h1>
-          <p className="muted">Loading workspace…</p>
-        </main>
+      <div className="loading-screen">
+        <Logo size={48} />
+        <p>Loading workspace…</p>
       </div>
     );
   }
 
-  const firstProject = workspace.projects[0];
-
   return (
     <div className="shell">
-      <main className="placeholder">
-        <span className="brand-mark" aria-hidden="true" />
-        <h1>Ariadne</h1>
-        <p>{fmtLong(today)}</p>
-        <p data-testid="workspace-summary">
-          {workspace.projects.length} projects · {workspace.tasks.length} tasks ·{' '}
-          {workspace.files.length} files
-        </p>
-        {warnings.length > 0 && (
-          <p className="muted" data-testid="load-warnings">
-            {warnings.join(' — ')}
-          </p>
-        )}
-        <ul className="debug-projects">
-          {workspace.projects.map((p) => (
-            <li key={p.id}>
-              {p.name} — {workspace.tasks.filter((t) => t.projectId === p.id && isOpen(t)).length}{' '}
-              open
-            </li>
-          ))}
-        </ul>
-        <p>
-          <button
-            onClick={() => {
-              if (firstProject !== undefined) {
-                apply((ws, ctx) =>
-                  createTask(ws, ctx, firstProject.id, { title: `Debug task ${ctx.today}` }),
-                );
-              }
-            }}
-          >
-            Add debug task
-          </button>{' '}
-          <button
-            onClick={() => {
-              apply(() => replaceWorkspace(seedWorkspace(today)));
-            }}
-          >
-            Reset to sample data
-          </button>
-        </p>
-        <p className="muted">Persistence online — the Command Center arrives in Sprint 2.</p>
+      <Sidebar />
+      <main className="main-col">
+        <TopBar />
+        <div className="view-scroll scr">
+          <ViewBody />
+        </div>
       </main>
+      {toast !== null && <div className="toast">{toast}</div>}
     </div>
   );
 }

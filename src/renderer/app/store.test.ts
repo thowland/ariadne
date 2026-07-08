@@ -31,6 +31,11 @@ beforeEach(() => {
     loaded: false,
     firstRun: false,
     warnings: [],
+    view: 'home',
+    activeProjectId: null,
+    q: '',
+    scope: 'all',
+    toast: null,
   });
 });
 
@@ -106,5 +111,82 @@ describe('store.refreshToday', () => {
     installApiMock({ fakeToday: '2030-01-02' });
     useStore.getState().refreshToday();
     expect(useStore.getState().today).toBe('2030-01-02');
+  });
+});
+
+describe('ui slice', () => {
+  it('go() switches views and clears the search query', () => {
+    useStore.setState({ q: 'something' });
+    useStore.getState().go('calendar');
+    expect(useStore.getState().view).toBe('calendar');
+    expect(useStore.getState().q).toBe('');
+  });
+
+  it('openProject / openTask navigate to the project view', async () => {
+    installApiMock();
+    await useStore.getState().load();
+
+    useStore.getState().openProject('p3');
+    expect(useStore.getState().view).toBe('project');
+    expect(useStore.getState().activeProjectId).toBe('p3');
+
+    useStore.getState().openTask('t1'); // t1 lives in p1
+    expect(useStore.getState().activeProjectId).toBe('p1');
+  });
+
+  it('showToast auto-clears after ~2.6s', () => {
+    vi.useFakeTimers();
+    try {
+      useStore.getState().showToast('Saved');
+      expect(useStore.getState().toast).toBe('Saved');
+      vi.advanceTimersByTime(2700);
+      expect(useStore.getState().toast).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('newProject creates, navigates, and toasts', async () => {
+    installApiMock();
+    await useStore.getState().load();
+    useStore.getState().newProject();
+    const s = useStore.getState();
+    expect(s.view).toBe('project');
+    expect(s.workspace?.projects.some((p) => p.name === 'Untitled project')).toBe(true);
+    expect(s.toast).toBe('Project created');
+  });
+
+  it('newTaskGlobal targets the active project, falling back to the first', async () => {
+    installApiMock();
+    await useStore.getState().load();
+
+    useStore.setState({ activeProjectId: 'p4' });
+    useStore.getState().newTaskGlobal();
+    const tasks = useStore.getState().workspace?.tasks ?? [];
+    expect(tasks[tasks.length - 1]?.projectId).toBe('p4');
+
+    useStore.setState({ activeProjectId: null });
+    useStore.getState().newTaskGlobal();
+    const tasks2 = useStore.getState().workspace?.tasks ?? [];
+    expect(tasks2[tasks2.length - 1]?.projectId).toBe('p1');
+  });
+
+  it('newTaskGlobal on an empty workspace creates a project instead', async () => {
+    installApiMock({
+      loadWorkspace: vi.fn().mockResolvedValue({
+        workspace: {
+          projects: [],
+          tasks: [],
+          files: [],
+          settings: { todoistToken: '', lastTodoistImportAt: null },
+        },
+        warnings: [],
+        firstRun: false,
+      }),
+    });
+    await useStore.getState().load();
+    useStore.getState().newTaskGlobal();
+    expect(useStore.getState().workspace?.projects).toHaveLength(1);
+    expect(useStore.getState().workspace?.tasks).toHaveLength(0);
   });
 });
