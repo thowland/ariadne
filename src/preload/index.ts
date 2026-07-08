@@ -1,11 +1,18 @@
-import { contextBridge } from 'electron';
+import type { AriadneApi, WorkspaceSavePayload } from '@shared/ipc-contract';
+import { IPC } from '@shared/ipc-contract';
+import { contextBridge, ipcRenderer } from 'electron';
 
-// Placeholder bridge. The typed IPC contract (shared/ipc-contract.ts) replaces
-// this in Sprint 1; the renderer only ever sees `window.ariadne`.
-const api = {
-  ping: (): string => 'pong',
+/**
+ * The complete surface the renderer sees. Narrow, promise-based, mirroring
+ * shared/ipc-contract.ts; no Node primitives leak through.
+ */
+const api: AriadneApi = {
+  loadWorkspace: () => ipcRenderer.invoke(IPC.workspaceLoad),
+  saveCollections: (payload: WorkspaceSavePayload) =>
+    ipcRenderer.invoke(IPC.workspaceSave, payload),
+  getDataDir: () => ipcRenderer.invoke(IPC.dataDirGet),
+  openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url),
+  fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
-
-export type AriadneApi = typeof api;
 
 contextBridge.exposeInMainWorld('ariadne', api);

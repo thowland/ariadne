@@ -45,6 +45,13 @@ body {
   font-size: 12.5px;
 }
 
+.debug-projects {
+  list-style: none;
+  padding: 0;
+  font-size: 13px;
+  color: #73736c;
+}
+
 .brand-mark {
   display: inline-block;
   width: 48px;

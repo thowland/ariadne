@@ -59,6 +59,16 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
+    // Tests assert against known fixtures; `!` on a looked-up fixture is
+    // clearer than optional-chaining every expectation.
+    files: ['**/*.test.{ts,tsx}', 'e2e/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      // vi.mocked(api.method) / expect(api.method) are standard mock idioms.
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
+  {
     files: ['**/*.{js,mjs,cjs}'],
     ...tseslint.configs.disableTypeChecked,
   },

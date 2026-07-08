@@ -38,9 +38,11 @@ export default defineConfig({
       exclude: [
         '**/*.test.*',
         '**/*.d.ts',
-        // Electron bootstrap + contextBridge glue: no domain logic; exercised by
-        // the Playwright E2E suite, which vitest coverage cannot instrument.
+        // Electron bootstrap, ipcMain routing glue, and contextBridge glue: no
+        // domain logic; exercised by the Playwright E2E suite, which vitest
+        // coverage cannot instrument.
         'src/main/index.ts',
+        'src/main/ipc.ts',
         'src/preload/**',
         // DOM mount point only; exercised by E2E.
         'src/renderer/main.tsx',
