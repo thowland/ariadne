@@ -1,0 +1,12 @@
+# Build / dependency output
+node_modules/
+out/
+dist/
+release/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+
+# Design handoff package — reference material, never reformat
+design/

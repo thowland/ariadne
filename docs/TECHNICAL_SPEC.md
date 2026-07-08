@@ -13,17 +13,17 @@ ambiguous, the prototype source wins.
 
 Confirmed decisions that diverge from or refine the prototype:
 
-| # | Decision |
-|---|----------|
-| D1 | **No login/auth.** The prototype's login gate, credentials storage, and Account settings section are removed entirely. The app opens directly into the Command Center. |
-| D2 | **Stack:** Electron + React 18 + TypeScript + Vite (via `electron-vite`). |
-| D3 | **Persistence:** human-readable JSON documents on the local filesystem plus a `blobs/` directory of real binary files. No database. |
-| D4 | **Data directory:** defaults to Electron `userData`, but user-configurable in Settings (e.g. point at a Dropbox-synced folder). |
-| D5 | **Todoist:** real **one-way import** (Todoist → Ariadne) via the Todoist REST API from the main process, scheduled as a late sprint. No push-back to Todoist in v1. |
-| D6 | **Real dates.** The prototype pins "today" to `2026-07-08` for demo stability; production uses the real current date through an injectable clock (tests may pin it). |
-| D7 | **No file-size cap on uploads.** The prototype's 3.5 MB limit existed only because of localStorage; blobs are ordinary files on disk. (A sanity warning above 100 MB is acceptable.) |
-| D8 | **Deleting a project cascades to its files and blobs.** (Prototype leaked file records; treated as a prototype bug.) |
-| D9 | Legacy `project.docs[]` no longer exists in the domain model; it is accepted **on import only** and migrated into `FileEntry` records of `kind: "ref"` (matching the prototype's own migration). |
+| #   | Decision                                                                                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | **No login/auth.** The prototype's login gate, credentials storage, and Account settings section are removed entirely. The app opens directly into the Command Center.                           |
+| D2  | **Stack:** Electron + React 18 + TypeScript + Vite (via `electron-vite`).                                                                                                                        |
+| D3  | **Persistence:** human-readable JSON documents on the local filesystem plus a `blobs/` directory of real binary files. No database.                                                              |
+| D4  | **Data directory:** defaults to Electron `userData`, but user-configurable in Settings (e.g. point at a Dropbox-synced folder).                                                                  |
+| D5  | **Todoist:** real **one-way import** (Todoist → Ariadne) via the Todoist REST API from the main process, scheduled as a late sprint. No push-back to Todoist in v1.                              |
+| D6  | **Real dates.** The prototype pins "today" to `2026-07-08` for demo stability; production uses the real current date through an injectable clock (tests may pin it).                             |
+| D7  | **No file-size cap on uploads.** The prototype's 3.5 MB limit existed only because of localStorage; blobs are ordinary files on disk. (A sanity warning above 100 MB is acceptable.)             |
+| D8  | **Deleting a project cascades to its files and blobs.** (Prototype leaked file records; treated as a prototype bug.)                                                                             |
+| D9  | Legacy `project.docs[]` no longer exists in the domain model; it is accepted **on import only** and migrated into `FileEntry` records of `kind: "ref"` (matching the prototype's own migration). |
 
 Non-goals for v1: multi-user, cloud sync, mobile, two-way Todoist sync, embedded office
 document editing, hardened security boundaries.
@@ -121,21 +121,27 @@ generated with `crypto.randomUUID()` (import preserves foreign IDs, e.g. the pro
 
 ```ts
 type ProjectCategory = 'work' | 'home';
-type TaskStatus   = 'Todo' | 'Doing' | 'Waiting' | 'Done' | 'Dropped';
+type TaskStatus = 'Todo' | 'Doing' | 'Waiting' | 'Done' | 'Dropped';
 type TaskPriority = 'Critical' | 'High' | 'Medium' | 'Low';
-type FileKind     = 'markdown' | 'file' | 'ref';
+type FileKind = 'markdown' | 'file' | 'ref';
 
-interface LinkRef { title: string; url: string; }
-interface Subtask { title: string; done: boolean; }
+interface LinkRef {
+  title: string;
+  url: string;
+}
+interface Subtask {
+  title: string;
+  done: boolean;
+}
 
 interface Project {
   id: string;
   name: string;
-  category: ProjectCategory;   // drives Work/Home scoping everywhere
-  tags: string[];              // free-form, lowercase-insensitive match in search
-  color: string;               // hex, assigned round-robin from PROJECT_PALETTE
-  status: string;              // free-form; default "Active"
-  notes: string;               // plain text
+  category: ProjectCategory; // drives Work/Home scoping everywhere
+  tags: string[]; // free-form, lowercase-insensitive match in search
+  color: string; // hex, assigned round-robin from PROJECT_PALETTE
+  status: string; // free-form; default "Active"
+  notes: string; // plain text
   links: LinkRef[];
   createdAt: IsoDate;
 }
@@ -144,12 +150,12 @@ interface Task {
   id: string;
   projectId: string;
   title: string;
-  status: TaskStatus;          // default "Todo"
-  priority: TaskPriority;      // default "Medium"
+  status: TaskStatus; // default "Todo"
+  priority: TaskPriority; // default "Medium"
   tags: string[];
   notes: string;
   dueDate: IsoDate | null;
-  dependsOn: string[];         // task ids this task is blocked by (same project)
+  dependsOn: string[]; // task ids this task is blocked by (same project)
   subtasks: Subtask[];
   links: LinkRef[];
   createdAt: IsoDate;
@@ -159,25 +165,26 @@ interface Task {
 interface FileEntry {
   id: string;
   projectId: string;
-  taskId: string | null;       // when set, also appears as a task attachment
-  name: string;                // display name incl. extension, e.g. "Rollback plan.md"
-  ext: string;                 // lowercase, no dot: "md","pdf","csv","docx",…
+  taskId: string | null; // when set, also appears as a task attachment
+  name: string; // display name incl. extension, e.g. "Rollback plan.md"
+  ext: string; // lowercase, no dot: "md","pdf","csv","docx",…
   mime: string;
-  kind: FileKind;              // markdown = editable text; file = binary blob on disk;
-                               // ref = pointer/placeholder, no stored bytes
-  size: number;                // bytes; 0 for markdown/ref
-  note?: string;               // ref entries only
-  content: string;             // markdown source (kind === 'markdown' only)
+  kind: FileKind; // markdown = editable text; file = binary blob on disk;
+  // ref = pointer/placeholder, no stored bytes
+  size: number; // bytes; 0 for markdown/ref
+  note?: string; // ref entries only
+  content: string; // markdown source (kind === 'markdown' only)
   createdAt: IsoDate;
 }
 
 interface Settings {
-  todoistToken: string;        // stored encrypted-at-rest via Electron safeStorage
-                               // when available; plaintext fallback is acceptable
-  lastTodoistImportAt: string | null;  // ISO datetime, informational
+  todoistToken: string; // stored encrypted-at-rest via Electron safeStorage
+  // when available; plaintext fallback is acceptable
+  lastTodoistImportAt: string | null; // ISO datetime, informational
 }
 
-interface Workspace {          // the full in-memory domain state
+interface Workspace {
+  // the full in-memory domain state
   projects: Project[];
   tasks: Task[];
   files: FileEntry[];
@@ -189,7 +196,7 @@ App-level configuration (not part of the workspace; lives in Electron `userData`
 
 ```ts
 interface AppConfig {
-  dataDir: string;             // absolute path; default: <userData>/data
+  dataDir: string; // absolute path; default: <userData>/data
   windowBounds?: { x: number; y: number; width: number; height: number };
 }
 ```
@@ -222,18 +229,18 @@ status select; cycling from Dropped goes to Todo).
 
 Exact semantics ported from the prototype; `today` is always passed in explicitly.
 
-| Function | Definition |
-|---|---|
-| `isOpen(t)` | `status ∉ {Done, Dropped}` |
-| `isOverdue(t, today)` | open ∧ `dueDate < today` |
-| `isDueToday(t, today)` | open ∧ `dueDate === today` |
-| `isDueThisWeek(t, today)` | open ∧ `1 ≤ diff(dueDate, today) ≤ 7` |
-| `isBlocked(t, byId)` | open ∧ some `dependsOn` task exists and is open (cycle-safe) |
-| `isHighLater(t, today)` | open ∧ priority ∈ {Critical, High} ∧ ¬(dueDate within ≤ 7 days, including overdue) |
-| `projectProgress(tasks)` | `done / count(status ≠ Dropped)`; 0 when denominator is 0 |
+| Function                       | Definition                                                                                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isOpen(t)`                    | `status ∉ {Done, Dropped}`                                                                                                                                  |
+| `isOverdue(t, today)`          | open ∧ `dueDate < today`                                                                                                                                    |
+| `isDueToday(t, today)`         | open ∧ `dueDate === today`                                                                                                                                  |
+| `isDueThisWeek(t, today)`      | open ∧ `1 ≤ diff(dueDate, today) ≤ 7`                                                                                                                       |
+| `isBlocked(t, byId)`           | open ∧ some `dependsOn` task exists and is open (cycle-safe)                                                                                                |
+| `isHighLater(t, today)`        | open ∧ priority ∈ {Critical, High} ∧ ¬(dueDate within ≤ 7 days, including overdue)                                                                          |
+| `projectProgress(tasks)`       | `done / count(status ≠ Dropped)`; 0 when denominator is 0                                                                                                   |
 | `relativeDueLabel(iso, today)` | `<n>d overdue` / `Today` / `Tomorrow` / `in <n>d` (n ≤ 7) / `Mon D` — with the color from the prototype (`#d94c3a`, `#c23b2b`, `#a8710f`, `#a8710f`, muted) |
-| `nextDue(tasks)` | earliest `dueDate` among open tasks that have one |
-| `dayDiff(a, b)` | whole-day difference computed on local-midnight dates |
+| `nextDue(tasks)`               | earliest `dueDate` among open tasks that have one                                                                                                           |
+| `dayDiff(a, b)`                | whole-day difference computed on local-midnight dates                                                                                                       |
 
 Canonical sort orders (`shared/domain/sort.ts`):
 
@@ -250,7 +257,7 @@ their project's category. Applies to Command Center and Calendar (not Project de
 
 Two slices in one store:
 
-- **data slice** — the authoritative in-memory `Workspace`. The *only* way to change it is
+- **data slice** — the authoritative in-memory `Workspace`. The _only_ way to change it is
   `apply(mutation)` where mutations are the pure functions of §5.2; `apply` also reports
   which collections changed so persistence can write only those.
 - **ui slice** — `view` (`home | calendar | project | reports | settings`),
@@ -324,17 +331,17 @@ workspace. Invalid JSON → error toast, no state change.
 
 All channels are `ipcRenderer.invoke`-style request/response with typed payloads:
 
-| Channel | Request → Response |
-|---|---|
-| `workspace:load` | → `{ workspace, warnings[] }` |
-| `workspace:save` | `{ [collection]: data }` → ack |
-| `blob:save` | `{ fileId, ext, bytes }` → `{ size }` |
-| `blob:delete` | `{ fileId }` → ack |
-| `export:run` | → `{ savedPath | null }` (dialog in main) |
-| `import:fromFile` | → `{ raw | null }`; parsing/validation shared |
-| `dataDir:get` / `dataDir:choose` | → `{ path, mode: 'migrated'|'loaded'|'cancelled' }` |
-| `todoist:import` | `{ token }` → `{ added, projectCreated } | { error }` |
-| `shell:openExternal` | `{ url }` → ack (http/https only) |
+| Channel                          | Request → Response                       |
+| -------------------------------- | ---------------------------------------- |
+| `workspace:load`                 | → `{ workspace, warnings[] }`            |
+| `workspace:save`                 | `{ [collection]: data }` → ack           |
+| `blob:save`                      | `{ fileId, ext, bytes }` → `{ size }`    |
+| `blob:delete`                    | `{ fileId }` → ack                       |
+| `export:run`                     | → `{ savedPath                           | null }` (dialog in main)           |
+| `import:fromFile`                | → `{ raw                                 | null }`; parsing/validation shared |
+| `dataDir:get` / `dataDir:choose` | → `{ path, mode: 'migrated'              | 'loaded'                           | 'cancelled' }` |
+| `todoist:import`                 | `{ token }` → `{ added, projectCreated } | { error }`                         |
+| `shell:openExternal`             | `{ url }` → ack (http/https only)        |
 
 The preload exposes exactly these as `window.ariadne.*`; the renderer never sees Node.
 
@@ -346,18 +353,18 @@ list with open/overdue counts, "+ project") and top bar (view title, long date, 
 pill → Command Center with scope `all`, search input, "+ New task"). The sidebar's user
 row and Sign out are **removed** (D1).
 
-| View / component | Source of behavior | Notes |
-|---|---|---|
-| Command Center | prototype `viewHome` | stat cards, ambient banner, 5 conditional focus sections, portfolio cards; scope segmented control |
-| Calendar | `viewCalendar` | month grid (≤4 chips/day + "+N more"), Upcoming (next 10), ‹/Today/› paging |
-| Project detail | `viewProject` | editable header, tasks card with quick-add, dependency map card, Notes/Links/Files side column |
-| Dependency map | `_depGraph` | pure layout in `shared/domain/dep-graph.ts` (longest-path layering, centered rows, cubic edges w/ arrowheads); SVG rendering in a component; nodes click → task modal |
-| Task modal | `taskModal` | all fields auto-save; status circle cycles; Blocked-by checkbox list of siblings; attachments; Escape/backdrop closes |
-| File viewer modal | `fileModal` | markdown Preview/Edit (editable filename), PDF `<object>`, CSV table (first 300 rows), image, download-only placeholder for office types; "‹ Back to task" when opened from a task |
-| Reports | `viewReports` + builders | 4 types (§7), tag/scope select, retro date range, Copy report |
-| Settings | `viewSettings` minus Account | Data (data-dir chooser + export/import/reset/clear), Integrations · Todoist, status/priority legend |
-| Search results | `viewSearch` | project cards grid + task rows |
-| Toast | `toast()` | bottom-center, ~2.6 s |
+| View / component  | Source of behavior           | Notes                                                                                                                                                                              |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Command Center    | prototype `viewHome`         | stat cards, ambient banner, 5 conditional focus sections, portfolio cards; scope segmented control                                                                                 |
+| Calendar          | `viewCalendar`               | month grid (≤4 chips/day + "+N more"), Upcoming (next 10), ‹/Today/› paging                                                                                                        |
+| Project detail    | `viewProject`                | editable header, tasks card with quick-add, dependency map card, Notes/Links/Files side column                                                                                     |
+| Dependency map    | `_depGraph`                  | pure layout in `shared/domain/dep-graph.ts` (longest-path layering, centered rows, cubic edges w/ arrowheads); SVG rendering in a component; nodes click → task modal              |
+| Task modal        | `taskModal`                  | all fields auto-save; status circle cycles; Blocked-by checkbox list of siblings; attachments; Escape/backdrop closes                                                              |
+| File viewer modal | `fileModal`                  | markdown Preview/Edit (editable filename), PDF `<object>`, CSV table (first 300 rows), image, download-only placeholder for office types; "‹ Back to task" when opened from a task |
+| Reports           | `viewReports` + builders     | 4 types (§7), tag/scope select, retro date range, Copy report                                                                                                                      |
+| Settings          | `viewSettings` minus Account | Data (data-dir chooser + export/import/reset/clear), Integrations · Todoist, status/priority legend                                                                                |
+| Search results    | `viewSearch`                 | project cards grid + task rows                                                                                                                                                     |
+| Toast             | `toast()`                    | bottom-center, ~2.6 s                                                                                                                                                              |
 
 Markdown preview uses `marked` (CommonMark superset of the prototype's subset) with
 `DOMPurify` sanitization — never raw `dangerouslySetInnerHTML` of unsanitized input.
@@ -371,8 +378,8 @@ Each report is a pure builder `(workspace, filter, today[, range]) → ReportMod
 plain-text serializer for Copy report (clipboard via `navigator.clipboard`). Filter:
 `all | work | home | tag:<tag>` applied to projects.
 
-- **Weekly status** — per project (omit empty): *Done this week* (`completedAt` within the
-  last 7 days), *Planned next* (open, due in 0–7 days), *Blockers / at risk* (open ∧
+- **Weekly status** — per project (omit empty): _Done this week_ (`completedAt` within the
+  last 7 days), _Planned next_ (open, due in 0–7 days), _Blockers / at risk_ (open ∧
   (Waiting ∨ blocked ∨ overdue)).
 - **Portfolio roll-up** — table per project: open, done, overdue counts, next due.
 - **Retrospective** — tasks with `completedAt ∈ [from, to]` in filtered projects, grouped

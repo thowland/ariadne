@@ -1,0 +1,54 @@
+/* Minimal base for the Sprint 0 shell. The full design-token sheet
+   (design/README.md — Design Tokens) lands in Sprint 2 as tokens.css. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f6f4;
+  color: #1b1b18;
+  font-family:
+    'Public Sans',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+}
+
+.placeholder {
+  margin: auto;
+  text-align: center;
+}
+
+.placeholder h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 14px 0 4px;
+}
+
+.placeholder p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.placeholder .muted {
+  color: #73736c;
+  font-size: 12.5px;
+}
+
+.brand-mark {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  background: #4f5bd5;
+}

@@ -11,7 +11,7 @@ unit tests first, and views are thin, testable shells over it.
 
 A sprint is not done until all of the following hold, in this order:
 
-1. **All tests pass** — the *entire* suite (`npm test`), not just tests added this sprint.
+1. **All tests pass** — the _entire_ suite (`npm test`), not just tests added this sprint.
    Tests made obsolete by intentional behavior changes are deleted, not skipped.
 2. **Coverage ≥ 80 %** — `npm run test:coverage` passes its enforced global thresholds
    (lines, statements, branches, functions). Thresholds live in `vitest.config.ts` and are
@@ -129,7 +129,7 @@ app; data is intact. Pull the plug mid-write; no corruption (temp-rename).
 **Goal:** the two visualization surfaces.
 
 - `shared/domain/calendar.ts` (month-grid cells, chips ≤ 4 + "+N more", upcoming top 10)
-  + Calendar view with ‹/Today/› paging and scope control.
+  - Calendar view with ‹/Today/› paging and scope control.
 - `shared/domain/dep-graph.ts` (longest-path layering, cycle-safe, centered horizontal
   rows stacking downward, edge routing) with thorough unit tests (diamond, chain, cycle,
   disconnected); SVG `DependencyMap` component with status-colored nodes, click → task
