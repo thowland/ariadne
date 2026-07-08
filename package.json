@@ -25,8 +25,11 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "electron-vite build && playwright test",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
-    "package": "electron-vite build && electron-builder --linux --publish never",
-    "package:dir": "electron-vite build && electron-builder --dir --publish never"
+    "package": "npm run package:linux",
+    "package:dir": "electron-vite build && electron-builder --dir --publish never",
+    "package:linux": "electron-vite build && electron-builder --linux --publish never",
+    "package:mac": "electron-vite build && electron-builder --mac --publish never",
+    "package:mac:universal": "electron-vite build && electron-builder --mac --universal --publish never"
   },
   "dependencies": {
     "@fontsource/public-sans": "^5.2.7",
@@ -85,10 +88,12 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "darkModeSupport": true
     },
     "win": {
       "target": [

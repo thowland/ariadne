@@ -17,9 +17,40 @@ attachments. No accounts, no cloud, no database.
 
 ## Installing
 
-Build the desktop packages with `npm run package` (Linux AppImage + deb land in
-`release/`; macOS/Windows targets are configured in package.json). Or run from
-source with `npm run dev`.
+Build the desktop packages for the platform you are on (artifacts land in
+`release/`), or run from source with `npm run dev`.
+
+```sh
+npm run package:linux          # AppImage + deb (run on Linux)
+npm run package:mac            # DMG + zip for this Mac's architecture (run on macOS)
+npm run package:mac:universal  # single DMG for both Apple Silicon and Intel
+```
+
+### Building for macOS
+
+macOS packages **must be built on a Mac** — DMG creation and code signing use
+Apple's tooling, and Apple Silicon refuses to launch apps without at least an
+ad-hoc signature, which only macOS can produce. On the Mac:
+
+```sh
+git clone <this repo> && cd ariadne   # a fresh checkout — see warning below
+npm ci
+npm run package:mac
+open release/Ariadne-*.dmg
+```
+
+Requirements: Node ≥ 18.18 and the Xcode Command Line Tools
+(`xcode-select --install`). Without an Apple Developer certificate the app is
+ad-hoc signed: it runs fine, but the first launch needs right-click → Open (or
+System Settings → Privacy & Security → Open Anyway) to pass Gatekeeper. With a
+Developer ID certificate in your keychain, electron-builder picks it up
+automatically and signs properly.
+
+> **Warning — shared folders:** `node_modules/` contains platform-specific
+> binaries (the Electron runtime itself). If this repo lives in a folder shared
+> between a Linux VM and the Mac, do **not** run `npm ci`/builds from both
+> sides in the same checkout — use a separate clone per OS, or delete
+> `node_modules/`, `out/`, and `release/` when switching.
 
 Your data lives in the app's data folder (shown in Settings → Data, changeable
 to any directory, e.g. a synced one) as plain JSON plus a `blobs/` folder of
