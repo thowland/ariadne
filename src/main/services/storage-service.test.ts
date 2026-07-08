@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { seedWorkspace } from '@shared/domain/seed';
+import { DEFAULT_SETTINGS } from '@shared/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { BackupService } from './backup-service';
@@ -99,7 +100,7 @@ describe('StorageService', () => {
     await svc.saveWorkspaceNow(seeded);
 
     // Take a backup of the good state, then corrupt tasks.json.
-    new BackupService(dir).snapshotOnce();
+    new BackupService(dir, () => TODAY).runBackup();
     writeFileSync(join(dir, 'tasks.json'), '{definitely not json', 'utf8');
 
     const { workspace, warnings } = await svc.loadWorkspace();
@@ -129,7 +130,7 @@ describe('StorageService', () => {
     rmSync(join(dir, 'settings.json'));
 
     const { workspace, warnings } = await svc.loadWorkspace();
-    expect(workspace?.settings).toEqual({ todoistToken: '', lastTodoistImportAt: null });
+    expect(workspace?.settings).toEqual(DEFAULT_SETTINGS);
     expect(warnings).toEqual([]);
   });
 

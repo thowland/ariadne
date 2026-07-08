@@ -19,6 +19,8 @@ export const IPC = {
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
   todoistFetch: 'todoist:fetch',
+  backupRun: 'backup:run',
+  backupDirChoose: 'backupDir:choose',
 } as const;
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
@@ -91,6 +93,8 @@ export interface AriadneApi {
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
   todoistFetch(token: string): Promise<TodoistFetchResponse>;
+  runBackupNow(): Promise<{ ok: boolean; path?: string; error?: string }>;
+  chooseBackupDir(): Promise<{ path: string | null }>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
 }

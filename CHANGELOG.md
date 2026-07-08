@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0 — 2026-07-08
+
+- **Calendar**: month cells are now a consistent fixed size regardless of how
+  many tasks are due. Cells truncate to three chips plus "+N more"; clicking
+  the day number (or "+N more") on any day with tasks opens a single-day view
+  listing everything due, and tasks opened from it return there on close.
+- **Automatic backups**: the whole workspace — JSON documents and uploaded
+  files — is copied into a dated folder (`YYYY-MM-DD`) once per day and again
+  when the app quits. The backup folder (default `backups/` inside the data
+  directory) and retention (1–100 days, default 10) are configurable in
+  Settings, alongside a "Back up now" button. Corrupt-file recovery now
+  restores from these daily backups.
+
 ## 1.0.0 — 2026-07-08
 
 First release. Ariadne is a single-user, local-first project & task tracker

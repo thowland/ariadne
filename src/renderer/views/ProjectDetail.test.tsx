@@ -69,7 +69,8 @@ describe('ProjectDetail', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ Add task' }));
     const modal = useStore.getState().modal;
     expect(modal?.type).toBe('task');
-    expect(ws().tasks.find((t) => t.id === modal?.id)?.projectId).toBe('p3');
+    const modalId = modal !== null && modal.type === 'task' ? modal.id : null;
+    expect(ws().tasks.find((t) => t.id === modalId)?.projectId).toBe('p3');
   });
 
   it('edits links inline', async () => {

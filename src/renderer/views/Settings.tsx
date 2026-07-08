@@ -2,7 +2,7 @@ import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutat
 import { seedWorkspace } from '@shared/domain/seed';
 import { mergeTodoistImport } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
-import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
+import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
 
 import { getApi } from '../app/api';
@@ -100,6 +100,34 @@ export function Settings(): React.JSX.Element {
       });
   };
 
+  const runBackupNow = (): void => {
+    void getApi()
+      .runBackupNow()
+      .then((res) => {
+        showToast(
+          res.ok ? `Backed up to ${res.path ?? 'backup folder'}` : (res.error ?? 'Backup failed'),
+        );
+      });
+  };
+
+  const chooseBackupDir = (): void => {
+    void getApi()
+      .chooseBackupDir()
+      .then((res) => {
+        if (res.path !== null) {
+          apply((ws2) => updateSettings(ws2, { backupDir: res.path }));
+          showToast('Backup folder updated');
+        }
+      });
+  };
+
+  const setBackupKeep = (value: string): void => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(BACKUP_KEEP_MAX, Math.max(1, Math.round(n)));
+    apply((ws2) => updateSettings(ws2, { backupKeep: clamped }));
+  };
+
   const changeDataDir = (): void => {
     void getApi()
       .chooseDataDir()
@@ -130,7 +158,7 @@ export function Settings(): React.JSX.Element {
                   {dataDir}
                 </code>
               </div>
-              <button className="btn ghost" onClick={changeDataDir}>
+              <button className="btn ghost" aria-label="Change data folder" onClick={changeDataDir}>
                 Change…
               </button>
             </div>
@@ -160,6 +188,65 @@ export function Settings(): React.JSX.Element {
               />
               <button className="btn ghost" onClick={importPasted}>
                 Apply pasted JSON
+              </button>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Backups">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Ariadne copies your workspace — the JSON documents and every uploaded file — into a
+              dated folder once a day and again when you quit. Each day&apos;s backup lives in a
+              folder named by its ISO date (e.g. 2026-07-08).
+            </p>
+            <div className="data-dir-row">
+              <div>
+                <div className="field-label">BACKUP FOLDER</div>
+                <code className="data-dir-path" data-testid="backup-dir">
+                  {workspace?.settings.backupDir ?? `${dataDir}/backups (default)`}
+                </code>
+              </div>
+              <div className="settings-actions">
+                {workspace?.settings.backupDir !== null && (
+                  <button
+                    className="btn subtle"
+                    onClick={() => {
+                      apply((ws2) => updateSettings(ws2, { backupDir: null }));
+                    }}
+                  >
+                    Use default
+                  </button>
+                )}
+                <button
+                  className="btn ghost"
+                  aria-label="Change backup folder"
+                  onClick={chooseBackupDir}
+                >
+                  Change…
+                </button>
+              </div>
+            </div>
+            <div className="backup-keep-row">
+              <div>
+                <div className="field-label">DAYS TO KEEP</div>
+                <input
+                  type="number"
+                  className="inp backup-keep-input"
+                  min={1}
+                  max={BACKUP_KEEP_MAX}
+                  value={workspace?.settings.backupKeep ?? 10}
+                  aria-label="Backups to keep"
+                  onChange={(e) => {
+                    setBackupKeep(e.target.value);
+                  }}
+                />
+                <span className="settings-copy backup-keep-hint">
+                  daily backups (1–{BACKUP_KEEP_MAX}); older ones are deleted automatically
+                </span>
+              </div>
+              <button className="btn ghost" onClick={runBackupNow}>
+                Back up now
               </button>
             </div>
           </div>

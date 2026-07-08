@@ -99,15 +99,24 @@ export interface FileEntry {
   createdAt: IsoDate;
 }
 
+export const BACKUP_KEEP_DEFAULT = 10;
+export const BACKUP_KEEP_MAX = 100;
+
 export interface Settings {
   todoistToken: string;
   /** ISO datetime of the last successful Todoist import; informational. */
   lastTodoistImportAt: string | null;
+  /** Backup folder; null = <dataDir>/backups. */
+  backupDir: string | null;
+  /** Daily backup folders to keep (1–100). */
+  backupKeep: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   todoistToken: '',
   lastTodoistImportAt: null,
+  backupDir: null,
+  backupKeep: BACKUP_KEEP_DEFAULT,
 };
 
 /** The full in-memory domain state. */

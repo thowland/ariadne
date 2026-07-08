@@ -1803,3 +1803,79 @@ input.inp.full {
   max-width: 480px;
   overflow-wrap: anywhere;
 }
+
+/* ============ Calendar: fixed cells + day modal ============ */
+
+/* minmax(0,1fr) + min-width:0 stop long chip text from widening a column;
+   the fixed height stops full cells from outgrowing empty ones. */
+.cal-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.cal-cell {
+  min-width: 0;
+  height: 108px;
+  min-height: 108px;
+  overflow: hidden;
+}
+.cal-daynum.clickable {
+  padding: 0 2px;
+  border-radius: 5px;
+  text-align: left;
+  transition: background 0.12s;
+}
+.cal-daynum.clickable:hover {
+  background: rgba(20, 20, 15, 0.08);
+}
+.cal-more {
+  text-align: left;
+  padding: 0 5px;
+}
+.cal-more:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.day-modal {
+  width: min(520px, 94vw);
+}
+.day-header {
+  align-items: center;
+  padding: 16px 18px 12px;
+}
+.day-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.day-count {
+  font-size: 12px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.day-body {
+  padding: 8px 10px 14px;
+}
+
+/* ============ Backups ============ */
+
+.backup-keep-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.backup-keep-input {
+  width: 76px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+.backup-keep-hint {
+  margin-left: 9px;
+  font-size: 12px;
+}

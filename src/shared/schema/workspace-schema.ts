@@ -70,6 +70,13 @@ export const fileEntrySchema = z.object({
 export const settingsSchema = z.object({
   todoistToken: z.string().catch(''),
   lastTodoistImportAt: z.string().nullable().catch(null),
+  backupDir: z.string().min(1).nullable().catch(null),
+  backupKeep: z
+    .preprocess(
+      (v) => (typeof v === 'number' ? Math.min(100, Math.max(1, Math.round(v))) : v),
+      z.number().int().min(1).max(100),
+    )
+    .catch(10),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

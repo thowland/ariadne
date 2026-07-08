@@ -1,9 +1,10 @@
+import { seedWorkspace } from '@shared/domain/seed';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useStore } from '../app/store';
-import { loadTestWorkspace, setupTestApp } from '../test-utils';
+import { loadTestWorkspace, setupTestApp, TEST_TODAY } from '../test-utils';
 
 import { Calendar } from './Calendar';
 
@@ -59,5 +60,55 @@ describe('Calendar', () => {
       within(screen.getByTestId('calendar-grid')).getByTitle('Write migration runbook'),
     );
     expect(useStore.getState().modal?.type).toBe('task');
+  });
+});
+
+describe('Calendar — fixed cells & day view', () => {
+  function crowdedWorkspace() {
+    const base = seedWorkspace(TEST_TODAY);
+    const extra = Array.from({ length: 5 }, (_, i) => ({
+      ...base.tasks[0]!,
+      id: `crowd${String(i)}`,
+      title: `Crowded task ${String(i)} with an extremely long title that must not widen its column`,
+      projectId: 'p1',
+      status: 'Todo' as const,
+      completedAt: null,
+      dueDate: '2026-07-21',
+      dependsOn: [],
+    }));
+    return { ...base, tasks: [...base.tasks, ...extra] };
+  }
+
+  it('caps chips per cell and offers "+N more"', () => {
+    loadTestWorkspace(crowdedWorkspace());
+    render(<Calendar />);
+    const grid = screen.getByTestId('calendar-grid');
+    // 5 tasks due Jul 21 → 3 chips + "+2 more".
+    expect(within(grid).getAllByTitle(/Crowded task/)).toHaveLength(3);
+    expect(within(grid).getByRole('button', { name: '+2 more' })).toBeInTheDocument();
+  });
+
+  it('"+N more" and the day number open the single-day view', async () => {
+    loadTestWorkspace(crowdedWorkspace());
+    render(<Calendar />);
+    const grid = screen.getByTestId('calendar-grid');
+
+    await userEvent.click(within(grid).getByRole('button', { name: '+2 more' }));
+    expect(useStore.getState().modal).toEqual({ type: 'day', iso: '2026-07-21' });
+
+    useStore.getState().closeModal();
+    await userEvent.click(within(grid).getByTitle('View all 5 tasks due this day'));
+    expect(useStore.getState().modal).toEqual({ type: 'day', iso: '2026-07-21' });
+  });
+
+  it('day numbers are plain (not buttons) on empty days', () => {
+    render(<Calendar />);
+    const grid = screen.getByTestId('calendar-grid');
+    // Jul 25 has nothing due in the seed → no clickable number for it.
+    const buttons = within(grid).getAllByRole('button');
+    expect(buttons.some((b) => b.textContent === '25')).toBe(false);
+    expect(within(grid).getByText('25')).toBeInTheDocument();
+    // Jul 8 (today, 2 due) IS clickable.
+    expect(buttons.some((b) => b.textContent === '8')).toBe(true);
   });
 });

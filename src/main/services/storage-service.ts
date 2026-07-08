@@ -100,7 +100,6 @@ export class StorageService {
 
   /** Debounced write-through used by the renderer's auto-save. */
   scheduleSave(name: CollectionName, data: unknown): void {
-    this.backups.snapshotOnce();
     const existing = this.pending.get(name);
     if (existing !== undefined) clearTimeout(existing.timer);
     const timer = setTimeout(() => {

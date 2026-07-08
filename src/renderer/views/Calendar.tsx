@@ -22,8 +22,12 @@ const SCOPE_OPTIONS = [
 ] as const;
 
 /** Month grid + upcoming list (prototype viewCalendar). */
+/** Chips shown per fixed-height cell before truncating to "+N more". */
+const MAX_CHIPS = 3;
+
 export function Calendar(): React.JSX.Element {
-  const { workspace, today, scope, setScope, calMonth, setCalMonth, openTask } = useStore();
+  const { workspace, today, scope, setScope, calMonth, setCalMonth, openTask, openDay } =
+    useStore();
   const month = calMonth ?? monthKey(today);
 
   const scoped = tasksInScope(workspace?.tasks ?? [], workspace?.projects ?? [], scope);
@@ -83,13 +87,24 @@ export function Calendar(): React.JSX.Element {
                   key={i}
                   className={`cal-cell ${iso === null ? 'pad' : ''} ${isToday ? 'today' : ''} ${(i + 1) % 7 === 0 ? 'last-col' : ''}`}
                 >
-                  {iso !== null && (
-                    <div className={`cal-daynum ${isToday ? 'today' : ''}`}>
-                      {Number(iso.slice(-2))}
-                    </div>
-                  )}
+                  {iso !== null &&
+                    (list.length > 0 ? (
+                      <button
+                        className={`cal-daynum clickable ${isToday ? 'today' : ''}`}
+                        title={`View all ${String(list.length)} tasks due this day`}
+                        onClick={() => {
+                          openDay(iso);
+                        }}
+                      >
+                        {Number(iso.slice(-2))}
+                      </button>
+                    ) : (
+                      <div className={`cal-daynum ${isToday ? 'today' : ''}`}>
+                        {Number(iso.slice(-2))}
+                      </div>
+                    ))}
                   <div className="cal-chips">
-                    {list.slice(0, 4).map((t) => {
+                    {list.slice(0, MAX_CHIPS).map((t) => {
                       const pr = PRIORITY_COLORS[t.priority];
                       const done = t.status === 'Done';
                       return (
@@ -107,7 +122,16 @@ export function Calendar(): React.JSX.Element {
                         </button>
                       );
                     })}
-                    {list.length > 4 && <span className="cal-more">+{list.length - 4} more</span>}
+                    {iso !== null && list.length > MAX_CHIPS && (
+                      <button
+                        className="cal-more"
+                        onClick={() => {
+                          openDay(iso);
+                        }}
+                      >
+                        +{list.length - MAX_CHIPS} more
+                      </button>
+                    )}
                   </div>
                 </div>
               );

@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -248,5 +248,36 @@ test('reports render and settings can reset/clear the workspace', async () => {
   const second = await launch(userData);
   const win2 = await second.firstWindow();
   await expect(win2.getByTestId('home-headline')).toHaveText('5 tasks need your attention today');
+  await second.close();
+});
+
+test('backups: daily on startup, refreshed on quit, and on demand', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const backupDay = join(userData, 'data', 'backups', FAKE_TODAY);
+
+  // First run: the startup backup is skipped (no workspace yet, seeding
+  // happens on load), but quitting writes today's backup.
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByTitle('New project').click();
+  await expect(win.getByLabel('Project name')).toHaveValue('Untitled project');
+  await first.close();
+
+  expect(existsSync(join(backupDay, 'projects.json'))).toBe(true);
+  expect(existsSync(join(backupDay, 'blobs'))).toBe(true);
+  const backedUp = JSON.parse(readFileSync(join(backupDay, 'projects.json'), 'utf8')) as {
+    name: string;
+  }[];
+  expect(backedUp.some((p) => p.name === 'Untitled project')).toBe(true);
+
+  // Second run: "Back up now" refreshes the same day folder.
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await expect(win.getByTestId('backup-dir')).toContainText('backups (default)');
+  await win.getByRole('button', { name: 'Back up now' }).click();
+  await expect(win.getByText(/Backed up to/)).toBeVisible();
   await second.close();
 });

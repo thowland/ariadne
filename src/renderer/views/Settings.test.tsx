@@ -1,5 +1,5 @@
 import { seedWorkspace } from '@shared/domain/seed';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -127,7 +127,7 @@ describe('Settings', () => {
       relaunching: true,
     });
     renderSettings();
-    await userEvent.click(screen.getByRole('button', { name: 'Change…' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Change data folder' }));
     await vi.waitFor(() => {
       expect(useStore.getState().toast).toMatch(/Data migrated/);
     });
@@ -186,6 +186,68 @@ describe('Settings — Todoist import', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
     await vi.waitFor(() => {
       expect(useStore.getState().toast).toBe('Todoist is already in sync');
+    });
+  });
+});
+
+describe('Settings — Backups', () => {
+  it('shows the default folder, retention, and daily copy', async () => {
+    renderSettings();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('backup-dir')).toHaveTextContent('/tmp/data/backups (default)');
+    });
+    expect(screen.getByLabelText('Backups to keep')).toHaveValue(10);
+  });
+
+  it('changes and resets the backup folder', async () => {
+    vi.mocked(window.ariadne.chooseBackupDir).mockResolvedValue({ path: '/synced/backups' });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Change backup folder' }));
+    await vi.waitFor(() => {
+      expect(ws().settings.backupDir).toBe('/synced/backups');
+    });
+    expect(screen.getByTestId('backup-dir')).toHaveTextContent('/synced/backups');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use default' }));
+    expect(ws().settings.backupDir).toBeNull();
+  });
+
+  it('a cancelled folder dialog changes nothing', async () => {
+    renderSettings(); // default mock resolves { path: null }
+    await userEvent.click(screen.getByRole('button', { name: 'Change backup folder' }));
+    await vi.waitFor(() => {
+      expect(vi.mocked(window.ariadne.chooseBackupDir)).toHaveBeenCalled();
+    });
+    expect(ws().settings.backupDir).toBeNull();
+  });
+
+  it('clamps the retention count to 1..100', () => {
+    renderSettings();
+    const input = screen.getByLabelText('Backups to keep');
+    fireEvent.change(input, { target: { value: '250' } });
+    expect(ws().settings.backupKeep).toBe(100);
+
+    fireEvent.change(input, { target: { value: '25' } });
+    expect(ws().settings.backupKeep).toBe(25);
+
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(ws().settings.backupKeep).toBe(1);
+  });
+
+  it('Back up now reports the result', async () => {
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Back up now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Backed up to /tmp/data/backups/2026-07-08');
+    });
+
+    vi.mocked(window.ariadne.runBackupNow).mockResolvedValue({
+      ok: false,
+      error: 'Nothing to back up yet',
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Back up now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Nothing to back up yet');
     });
   });
 });

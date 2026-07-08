@@ -11,6 +11,7 @@ import { Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { STATUS_COLORS } from '../styles/colors';
 
+import { DayModal } from './DayModal';
 import { FileViewerModal } from './FileViewerModal';
 
 function FieldLabel({ text }: { text: string }): React.JSX.Element {
@@ -340,5 +341,6 @@ export function ModalHost(): React.JSX.Element | null {
   const modal = useStore((s) => s.modal);
   if (modal === null) return null;
   if (modal.type === 'file') return <FileViewerModal fileId={modal.id} />;
+  if (modal.type === 'day') return <DayModal iso={modal.iso} />;
   return <TaskModal taskId={modal.id} />;
 }

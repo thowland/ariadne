@@ -73,7 +73,8 @@ user edit → store.apply(pure mutation from shared/domain/mutate.ts)
 
 On disk: `<dataDir>/projects.json`, `tasks.json`, `files.json`, `settings.json`, plus
 `blobs/<fileId>.<ext>` for uploaded binaries (served to the renderer via the
-`ariadne-blob://` custom protocol, never over IPC) and `backups/` (rotating snapshots).
+`ariadne-blob://` custom protocol, never over IPC) and daily whole-workspace backups
+(JSON + blobs) in `<backupDir>/<YYYY-MM-DD>/` — location and retention are user settings.
 The data dir defaults to Electron `userData` but is user-configurable — never assume its
 location; go through `ConfigService`.
 

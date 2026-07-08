@@ -13,10 +13,23 @@ export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCt
 
 export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'settings';
 
-export type ModalState =
-  | { type: 'task'; id: string }
-  | { type: 'file'; id: string; back?: { type: 'task'; id: string } }
-  | null;
+export interface DayModalState {
+  type: 'day';
+  iso: IsoDate;
+}
+export interface TaskModalState {
+  type: 'task';
+  id: string;
+  /** Set when opened from the day view, to return there on close. */
+  back?: DayModalState;
+}
+export interface FileModalState {
+  type: 'file';
+  id: string;
+  /** Set when opened from a task, to return there on close. */
+  back?: TaskModalState;
+}
+export type ModalState = TaskModalState | FileModalState | DayModalState | null;
 
 export type FileMode = 'preview' | 'edit';
 
@@ -61,6 +74,8 @@ export interface AriadneStore {
   openProject: (id: string) => void;
   /** Opens the task editor modal over the current view. */
   openTask: (id: string) => void;
+  /** Opens the single-day view (calendar truncation). */
+  openDay: (iso: IsoDate) => void;
   /** Opens the file viewer; remembers an open task modal to return to. */
   openFile: (id: string, mode?: FileMode) => void;
   setFileMode: (mode: FileMode) => void;
@@ -140,8 +155,14 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   openTask: (id) => {
     if (get().workspace?.tasks.some((x) => x.id === id) === true) {
-      set({ modal: { type: 'task', id } });
+      const current = get().modal;
+      const back = current?.type === 'day' ? current : undefined;
+      set({ modal: { type: 'task', id, back } });
     }
+  },
+
+  openDay: (iso) => {
+    set({ modal: { type: 'day', iso } });
   },
 
   openFile: (id, mode = 'preview') => {
@@ -156,8 +177,8 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   closeModal: () => {
     const current = get().modal;
-    // Closing a file viewer opened from a task returns to that task.
-    if (current?.type === 'file' && current.back !== undefined) {
+    // Closing a stacked modal returns to what opened it (file → task → day).
+    if (current !== null && current.type !== 'day' && current.back !== undefined) {
       set({ modal: current.back });
     } else {
       set({ modal: null });

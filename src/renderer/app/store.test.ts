@@ -31,6 +31,8 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
     todoistFetch: vi
       .fn()
       .mockResolvedValue({ ok: false, error: 'Add your Todoist API token first' }),
+    runBackupNow: vi.fn().mockResolvedValue({ ok: true, path: '/tmp/data/backups/2026-07-08' }),
+    chooseBackupDir: vi.fn().mockResolvedValue({ path: null }),
     fakeToday: TODAY,
     ...overrides,
   };
@@ -192,7 +194,8 @@ describe('ui slice', () => {
     const tasks = useStore.getState().workspace?.tasks ?? [];
     expect(tasks[tasks.length - 1]?.projectId).toBe('p4');
     // The new task opens in the editor modal (prototype behavior).
-    expect(useStore.getState().modal?.id).toBe(tasks[tasks.length - 1]?.id);
+    const modal = useStore.getState().modal;
+    expect(modal?.type === 'task' && modal.id).toBe(tasks[tasks.length - 1]?.id);
     useStore.getState().closeModal();
 
     useStore.setState({ activeProjectId: null });

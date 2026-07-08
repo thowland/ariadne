@@ -10,6 +10,7 @@ import { COLLECTION_NAMES } from '@shared/types';
 import { dialog, ipcMain, shell } from 'electron';
 import { app } from 'electron';
 
+import type { BackupService } from './services/backup-service';
 import type { BlobService } from './services/blob-service';
 import type { ConfigService } from './services/config-service';
 import { ImportExportService } from './services/import-export-service';
@@ -22,6 +23,7 @@ import { TodoistService } from './services/todoist-service';
  */
 export function registerIpc(
   storage: StorageService,
+  backups: BackupService,
   blobs: BlobService,
   config: ConfigService,
   dataDir: string,
@@ -88,6 +90,20 @@ export function registerIpc(
   });
 
   ipcMain.handle(IPC.importFromText, (_event, text: string) => importExport.importFromText(text));
+
+  ipcMain.handle(IPC.backupRun, async () => {
+    await storage.flushAll();
+    return backups.runBackup();
+  });
+
+  ipcMain.handle(IPC.backupDirChoose, async () => {
+    const picked = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: backups.resolveConfig().backupDir,
+    });
+    const path = picked.filePaths[0];
+    return { path: picked.canceled || path === undefined ? null : path };
+  });
 
   ipcMain.handle(IPC.todoistFetch, (_event, token: string) =>
     todoist.fetchActiveTasks(typeof token === 'string' ? token : ''),

@@ -19,7 +19,9 @@ if (testUserData) {
 }
 
 let storage: StorageService | null = null;
+let backups: BackupService | null = null;
 let logger: LoggerService | null = null;
+let quitting = false;
 let mainWindow: BrowserWindow | null = null;
 
 // Single-user desktop app: a second launch focuses the existing window.
@@ -93,11 +95,22 @@ void app.whenReady().then(() => {
   logger = new LoggerService(app.getPath('userData'));
   logger.info(`Ariadne starting (v${app.getVersion()})`);
   const dataDir = config.resolveDataDir();
-  const backups = new BackupService(dataDir);
+  backups = new BackupService(dataDir);
   const blobs = new BlobService(dataDir);
   storage = new StorageService(dataDir, backups);
   storage.init();
-  registerIpc(storage, blobs, config, dataDir);
+  registerIpc(storage, backups, blobs, config, dataDir);
+
+  // Daily backup: at startup (before any edits this session) and re-checked
+  // hourly so a machine that never restarts still gets one per day.
+  backups.runIfNeededToday();
+  const backupTimer = setInterval(
+    () => {
+      backups?.runIfNeededToday();
+    },
+    60 * 60 * 1000,
+  );
+  backupTimer.unref();
 
   // Serve stored blobs to the renderer (img/object/fetch) without IPC copies.
   protocol.handle(BLOB_PROTOCOL, (request) => {
@@ -114,17 +127,26 @@ void app.whenReady().then(() => {
   });
 });
 
-// Auto-save is debounced in StorageService; make sure nothing pending is
-// lost when the app quits.
+// On quit: flush any debounced saves, then refresh today's backup so the
+// on-disk backup always reflects the state the user quit with.
 app.on('before-quit', (event) => {
-  if (storage !== null && storage.pendingCount() > 0) {
-    event.preventDefault();
-    const s = storage;
-    storage = null; // don't loop through this handler again
-    void s.flushAll().finally(() => {
+  if (quitting) return;
+  quitting = true;
+  event.preventDefault();
+  const s = storage;
+  const b = backups;
+  void (async () => {
+    try {
+      if (s !== null) await s.flushAll();
+      const result = b?.runBackup();
+      if (result !== undefined && !result.ok)
+        logger?.error(`quit backup failed: ${result.error ?? ''}`);
+    } catch (err) {
+      logger?.error(`quit flush failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    } finally {
       app.quit();
-    });
-  }
+    }
+  })();
 });
 
 app.on('window-all-closed', () => {

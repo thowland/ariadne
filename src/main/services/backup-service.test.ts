@@ -1,4 +1,12 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,62 +24,128 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function writeDocs(marker: string): void {
-  for (const doc of ['projects.json', 'tasks.json', 'files.json', 'settings.json']) {
+function writeWorkspace(marker: string): void {
+  for (const doc of ['workspace.json', 'projects.json', 'tasks.json', 'files.json']) {
     writeFileSync(join(dir, doc), JSON.stringify({ marker, doc }), 'utf8');
   }
+  mkdirSync(join(dir, 'blobs'), { recursive: true });
+  writeFileSync(join(dir, 'blobs', 'b1.pdf'), `blob-${marker}`, 'utf8');
 }
 
-function clockAt(iso: string): () => Date {
-  return () => new Date(iso);
+function writeSettings(settings: Record<string, unknown>): void {
+  writeFileSync(join(dir, 'settings.json'), JSON.stringify(settings), 'utf8');
+}
+
+function service(day = '2026-07-08'): BackupService {
+  return new BackupService(dir, () => day);
 }
 
 describe('BackupService', () => {
-  it('snapshots the documents once per instance', () => {
-    writeDocs('v1');
-    const svc = new BackupService(dir, clockAt('2026-07-08T09:00:00Z'));
-    svc.snapshotOnce();
-    svc.snapshotOnce(); // second call is a no-op
+  it('backs up documents and blobs into an ISO-dated day folder', () => {
+    writeWorkspace('v1');
+    writeSettings({});
+    const result = service().runBackup();
+    expect(result.ok).toBe(true);
+    expect(result.path).toBe(join(dir, 'backups', '2026-07-08'));
 
-    const snapshots = readdirSync(join(dir, 'backups'));
-    expect(snapshots).toHaveLength(1);
-    const files = readdirSync(join(dir, 'backups', snapshots[0]!));
-    expect(files.sort()).toEqual(['files.json', 'projects.json', 'settings.json', 'tasks.json']);
+    const day = join(dir, 'backups', '2026-07-08');
+    expect(readdirSync(day).sort()).toEqual([
+      'blobs',
+      'files.json',
+      'projects.json',
+      'settings.json',
+      'tasks.json',
+      'workspace.json',
+    ]);
+    expect(readFileSync(join(day, 'blobs', 'b1.pdf'), 'utf8')).toBe('blob-v1');
+    // No leftover tmp staging folder.
+    expect(readdirSync(join(dir, 'backups')).some((f) => f.endsWith('.tmp'))).toBe(false);
   });
 
-  it('does nothing when there are no documents yet', () => {
-    const svc = new BackupService(dir);
-    svc.snapshotOnce();
-    expect(readdirSync(dir)).toEqual([]);
+  it('a later run the same day refreshes that day folder (quit backup)', () => {
+    writeWorkspace('morning');
+    service().runBackup();
+    writeWorkspace('evening');
+    service().runBackup();
+
+    const day = join(dir, 'backups', '2026-07-08');
+    expect(JSON.parse(readFileSync(join(day, 'tasks.json'), 'utf8'))).toMatchObject({
+      marker: 'evening',
+    });
+    expect(readFileSync(join(day, 'blobs', 'b1.pdf'), 'utf8')).toBe('blob-evening');
+    expect(readdirSync(join(dir, 'backups'))).toEqual(['2026-07-08']);
   });
 
-  it('keeps only the 10 newest snapshots', () => {
-    writeDocs('v1');
-    for (let i = 0; i < 13; i++) {
-      const svc = new BackupService(
-        dir,
-        clockAt(`2026-07-${String(i + 1).padStart(2, '0')}T09:00:00Z`),
-      );
-      svc.snapshotOnce();
+  it('runIfNeededToday backs up once per calendar day', () => {
+    writeWorkspace('v1');
+    const svc = service();
+    svc.runIfNeededToday();
+    expect(svc.hasBackupForToday()).toBe(true);
+
+    // Mutate, run again same day: no refresh (only quit/manual refresh).
+    writeWorkspace('v2');
+    svc.runIfNeededToday();
+    const day = join(dir, 'backups', '2026-07-08');
+    expect(JSON.parse(readFileSync(join(day, 'tasks.json'), 'utf8'))).toMatchObject({
+      marker: 'v1',
+    });
+
+    // Next calendar day: a new folder appears.
+    service('2026-07-09').runIfNeededToday();
+    expect(existsSync(join(dir, 'backups', '2026-07-09'))).toBe(true);
+  });
+
+  it('respects a custom backup directory from settings', () => {
+    writeWorkspace('v1');
+    const custom = join(dir, 'my-sync', 'ariadne-backups');
+    writeSettings({ backupDir: custom });
+    const result = service().runBackup();
+    expect(result.path).toBe(join(custom, '2026-07-08'));
+    expect(existsSync(join(custom, '2026-07-08', 'projects.json'))).toBe(true);
+  });
+
+  it('prunes to the configured retention (and clamps it to 1..100)', () => {
+    writeWorkspace('v1');
+    writeSettings({ backupKeep: 3 });
+    for (let d = 1; d <= 6; d++) {
+      service(`2026-07-${String(d).padStart(2, '0')}`).runBackup();
     }
-    const snapshots = readdirSync(join(dir, 'backups')).sort();
-    expect(snapshots).toHaveLength(10);
-    // The three oldest (days 1-3) were pruned.
-    expect(snapshots[0]!.startsWith('2026-07-04')).toBe(true);
+    const days = readdirSync(join(dir, 'backups')).sort();
+    expect(days).toEqual(['2026-07-04', '2026-07-05', '2026-07-06']);
+
+    expect(service().resolveConfig().keep).toBe(3);
+    writeSettings({ backupKeep: 5000 });
+    expect(service().resolveConfig().keep).toBe(100);
+    writeSettings({ backupKeep: 0 });
+    expect(service().resolveConfig().keep).toBe(1);
+    writeSettings({});
+    expect(service().resolveConfig().keep).toBe(10);
   });
 
-  it('latestBackupOf returns the newest copy containing the document', () => {
-    writeDocs('old');
-    new BackupService(dir, clockAt('2026-07-01T09:00:00Z')).snapshotOnce();
-    writeDocs('new');
-    new BackupService(dir, clockAt('2026-07-02T09:00:00Z')).snapshotOnce();
-
-    const path = new BackupService(dir).latestBackupOf('tasks.json');
-    expect(path).not.toBeNull();
-    expect(JSON.parse(readFileSync(path!, 'utf8'))).toEqual({ marker: 'new', doc: 'tasks.json' });
+  it('ignores non-day folders when pruning and restoring', () => {
+    writeWorkspace('v1');
+    writeSettings({ backupKeep: 1 });
+    mkdirSync(join(dir, 'backups', 'keep-me-forever'), { recursive: true });
+    service('2026-07-01').runBackup();
+    service('2026-07-02').runBackup();
+    const entries = readdirSync(join(dir, 'backups')).sort();
+    expect(entries).toEqual(['2026-07-02', 'keep-me-forever']);
   });
 
-  it('latestBackupOf returns null with no backups', () => {
-    expect(new BackupService(dir).latestBackupOf('tasks.json')).toBeNull();
+  it('latestBackupOf returns the newest day containing the document', () => {
+    writeWorkspace('old');
+    service('2026-07-01').runBackup();
+    writeWorkspace('new');
+    service('2026-07-02').runBackup();
+
+    const path = service().latestBackupOf('tasks.json');
+    expect(path).toBe(join(dir, 'backups', '2026-07-02', 'tasks.json'));
+    expect(JSON.parse(readFileSync(path!, 'utf8'))).toMatchObject({ marker: 'new' });
+    expect(service().latestBackupOf('nonexistent.json')).toBeNull();
+  });
+
+  it('refuses to run before a workspace exists', () => {
+    expect(service().runBackup()).toMatchObject({ ok: false, error: 'Nothing to back up yet' });
+    expect(existsSync(join(dir, 'backups'))).toBe(false);
   });
 });

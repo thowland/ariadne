@@ -31,6 +31,8 @@ export function setupTestApp(
     todoistFetch: vi
       .fn()
       .mockResolvedValue({ ok: false, error: 'Add your Todoist API token first' }),
+    runBackupNow: vi.fn().mockResolvedValue({ ok: true, path: '/tmp/data/backups/2026-07-08' }),
+    chooseBackupDir: vi.fn().mockResolvedValue({ path: null }),
     fakeToday: TEST_TODAY,
     ...overrides,
   };
