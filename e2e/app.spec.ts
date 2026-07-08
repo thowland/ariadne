@@ -118,8 +118,8 @@ test('full task lifecycle: create project, add tasks, dependency, edit, restart'
   win = await second.firstWindow();
   const nav = win.getByRole('navigation', { name: 'Projects' });
   await nav.getByRole('button', { name: /Garage workshop/ }).click();
-  await expect(win.getByText('Install workbench')).toBeVisible();
   const row2 = win.locator('.trow', { hasText: 'Install workbench' });
+  await expect(row2).toBeVisible();
   await expect(row2.getByText('blocked')).toBeVisible();
 
   // Deleting the project asks for confirmation and cascades.
@@ -131,4 +131,29 @@ test('full task lifecycle: create project, add tasks, dependency, edit, restart'
   await expect(win.getByTestId('home-headline')).toBeVisible();
   await expect(nav.getByRole('button', { name: /Garage workshop/ })).toHaveCount(0);
   await second.close();
+});
+
+test('calendar and dependency map are wired end-to-end', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Calendar: July grid with today's chips; paging works.
+  await win.getByRole('button', { name: 'Calendar' }).click();
+  await expect(win.getByRole('heading', { name: 'July 2026' })).toBeVisible();
+  await expect(
+    win.getByTestId('calendar-grid').getByTitle('Write migration runbook'),
+  ).toBeVisible();
+  await win.getByRole('button', { name: 'Next month' }).click();
+  await expect(win.getByRole('heading', { name: 'August 2026' })).toBeVisible();
+
+  // Dependency map: open the migration project, click the cutover node.
+  const nav = win.getByRole('navigation', { name: 'Projects' });
+  await nav.getByRole('button', { name: /Q3 Platform Migration/ }).click();
+  await expect(win.getByTestId('dependency-map')).toBeVisible();
+  await win.getByTestId('dep-node-t5').click();
+  const dialog = win.getByRole('dialog', { name: 'Edit task' });
+  await expect(dialog.getByPlaceholder('Task title')).toHaveValue('Cutover & DNS switch');
+  await app.close();
 });

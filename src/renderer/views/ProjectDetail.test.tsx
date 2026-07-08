@@ -60,7 +60,8 @@ describe('ProjectDetail', () => {
     expect(input).toHaveValue('');
     const added = ws().tasks.find((t) => t.title === 'Buy more sandpaper');
     expect(added).toMatchObject({ projectId: 'p3', status: 'Todo', priority: 'Medium' });
-    expect(screen.getByText('Buy more sandpaper')).toBeInTheDocument();
+    // Appears in the task list (and possibly the dependency map as a lone node).
+    expect(screen.getAllByText('Buy more sandpaper').length).toBeGreaterThanOrEqual(1);
   });
 
   it('+ Add task creates an empty task and opens the editor', async () => {

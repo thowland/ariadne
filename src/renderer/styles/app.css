@@ -1162,3 +1162,119 @@ input.inp.full {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ============ Calendar ============ */
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cal-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  min-width: 180px;
+}
+.cal-nav {
+  padding: 6px 12px;
+  font-size: 15px;
+}
+
+.cal-grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  align-items: start;
+}
+
+.cal-dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border2);
+}
+.cal-dow {
+  padding: 9px 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--faint);
+  letter-spacing: 0.4px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal-cell {
+  min-height: 96px;
+  border-right: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+  padding: 6px;
+  background: var(--surface);
+}
+.cal-cell.last-col {
+  border-right: none;
+}
+.cal-cell.pad {
+  background: #fafaf8;
+}
+.cal-cell.today {
+  background: #f5f6fe;
+}
+.cal-daynum {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+.cal-daynum.today {
+  font-weight: 700;
+  color: var(--accent);
+}
+.cal-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cal-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  border-radius: 5px;
+  padding: 2px 5px;
+  width: 100%;
+  overflow: hidden;
+}
+.cal-chip.done {
+  background: #f0f0ee;
+  color: var(--faint);
+  text-decoration: line-through;
+}
+.cal-chip-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-more {
+  font-size: 10.5px;
+  color: var(--faint);
+  padding: 0 5px;
+}
+
+/* ============ Dependency map ============ */
+
+.dep-graph-scroll {
+  overflow: auto;
+  max-width: 100%;
+}
+.dep-node {
+  cursor: pointer;
+}

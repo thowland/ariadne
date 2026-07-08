@@ -48,6 +48,8 @@ export interface AriadneStore {
   toast: string | null;
   modal: ModalState;
   confirmState: ConfirmState | null;
+  /** Calendar month being viewed; null = the month containing today. */
+  calMonth: string | null;
 
   go: (view: ViewName) => void;
   openProject: (id: string) => void;
@@ -60,6 +62,7 @@ export interface AriadneStore {
   /** In-app confirm dialog; resolves true when the user confirms. */
   askConfirm: (message: string) => Promise<boolean>;
   resolveConfirm: (confirmed: boolean) => void;
+  setCalMonth: (month: string | null) => void;
   /** Sidebar "+" — create a project and jump to it. */
   newProject: () => void;
   /** Top bar "+ New task" — create in the active (or first) project and edit it. */
@@ -115,6 +118,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
   toast: null,
   modal: null,
   confirmState: null,
+  calMonth: null,
 
   go: (view) => {
     set({ view, q: '' });
@@ -151,6 +155,10 @@ export const useStore = create<AriadneStore>((set, get) => ({
     const pending = get().confirmState;
     set({ confirmState: null });
     pending?.resolve(confirmed);
+  },
+
+  setCalMonth: (month) => {
+    set({ calMonth: month });
   },
 
   showToast: (message) => {

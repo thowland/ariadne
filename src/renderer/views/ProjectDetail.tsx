@@ -3,6 +3,7 @@ import { byProjectListOrder } from '@shared/domain/sort';
 import { useState } from 'react';
 
 import { useStore } from '../app/store';
+import { DependencyMap } from '../components/DependencyMap';
 import { LinkListEditor } from '../components/LinkListEditor';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
@@ -128,7 +129,7 @@ export function ProjectDetail(): React.JSX.Element {
             headRight={<span className="card-hint">click a node to edit</span>}
           >
             <div className="card-pad">
-              <div className="card-empty">The dependency map arrives in Sprint 4.</div>
+              <DependencyMap tasks={tasks} />
             </div>
           </Card>
         </div>

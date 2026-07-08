@@ -26,7 +26,7 @@ describe('App shell', () => {
     await screen.findByTestId('home-headline');
 
     await userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
-    expect(screen.getByText('Calendar arrives in Sprint 4.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'July 2026' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Command Center/ }));
     expect(screen.getByTestId('home-headline')).toBeInTheDocument();

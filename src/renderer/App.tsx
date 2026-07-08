@@ -6,6 +6,7 @@ import { TopBar } from './chrome/TopBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Logo } from './components/Logo';
 import { ModalHost } from './modals/TaskModal';
+import { Calendar } from './views/Calendar';
 import { CommandCenter } from './views/CommandCenter';
 import { ProjectDetail } from './views/ProjectDetail';
 import { SearchResults } from './views/SearchResults';
@@ -29,7 +30,7 @@ function ViewBody(): React.JSX.Element {
     case 'project':
       return <ProjectDetail />;
     case 'calendar':
-      return <StubView name="Calendar" sprint={4} />;
+      return <Calendar />;
     case 'reports':
       return <StubView name="Reports" sprint={6} />;
     case 'settings':
