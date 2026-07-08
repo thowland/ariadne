@@ -40,14 +40,61 @@ type FetchLike = (
   json(): Promise<unknown>;
 }>;
 
+type SleepLike = (ms: number) => Promise<void>;
+
+const defaultSleep: SleepLike = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/** Transient statuses worth retrying (rate limit / upstream blips). */
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 3;
+const MAX_RETRY_DELAY_MS = 15_000;
+
 export class TodoistService {
-  constructor(private readonly fetchImpl: FetchLike = fetch) {}
+  constructor(
+    private readonly fetchImpl: FetchLike = fetch,
+    private readonly sleep: SleepLike = defaultSleep,
+  ) {}
+
+  /**
+   * Fetch one page, retrying transient failures with backoff. Todoist's
+   * error bodies carry a retry_after (seconds) hint, which wins over the
+   * default exponential delay when present.
+   */
+  private async fetchWithRetry(
+    url: string,
+    headers: Record<string, string>,
+  ): Promise<Awaited<ReturnType<FetchLike>>> {
+    let response = await this.fetchImpl(url, { headers });
+    for (let attempt = 1; attempt < MAX_ATTEMPTS && RETRYABLE.has(response.status); attempt++) {
+      let delayMs = 1000 * 2 ** (attempt - 1);
+      try {
+        const body = (await response.json()) as { error_extra?: { retry_after?: unknown } };
+        const hinted = body.error_extra?.retry_after;
+        if (typeof hinted === 'number' && hinted > 0) delayMs = hinted * 1000;
+      } catch {
+        // No parseable hint — keep the default backoff.
+      }
+      await this.sleep(Math.min(delayMs, MAX_RETRY_DELAY_MS));
+      response = await this.fetchImpl(url, { headers });
+    }
+    return response;
+  }
 
   async fetchActiveTasks(token: string): Promise<TodoistFetchResult> {
     if (token.trim() === '') return { ok: false, error: 'Add your Todoist API token first' };
 
     const items: TodoistItem[] = [];
     let cursor: string | null = null;
+    // Some CDN edges throttle or challenge requests with no User-Agent
+    // (Node's fetch sends none by default) — identify ourselves.
+    const headers = {
+      Authorization: `Bearer ${token.trim()}`,
+      'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/wdogsystems/ariadne)',
+      Accept: 'application/json',
+    };
 
     for (let page = 0; page < MAX_PAGES; page++) {
       const url =
@@ -55,9 +102,7 @@ export class TodoistService {
         (cursor !== null ? `&cursor=${encodeURIComponent(cursor)}` : '');
       let response;
       try {
-        response = await this.fetchImpl(url, {
-          headers: { Authorization: `Bearer ${token.trim()}` },
-        });
+        response = await this.fetchWithRetry(url, headers);
       } catch {
         return { ok: false, error: 'Could not reach Todoist — check your connection' };
       }
@@ -68,6 +113,12 @@ export class TodoistService {
         return {
           ok: false,
           error: 'Todoist retired this API version — please update Ariadne',
+        };
+      }
+      if (RETRYABLE.has(response.status)) {
+        return {
+          ok: false,
+          error: `Todoist is temporarily unavailable (HTTP ${String(response.status)}) — try again in a minute`,
         };
       }
       if (!response.ok) {

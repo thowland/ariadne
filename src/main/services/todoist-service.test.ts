@@ -31,14 +31,27 @@ const TASK_FIXTURE = [
 /** v1 responses are cursor-paginated: { results, next_cursor }. */
 const API_FIXTURE = { results: TASK_FIXTURE, next_cursor: null };
 
+const EXPECTED_HEADERS = {
+  Authorization: 'Bearer t',
+  'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/wdogsystems/ariadne)',
+  Accept: 'application/json',
+};
+
+const instantSleep = (): Promise<void> => Promise.resolve();
+
+function page(
+  body: unknown,
+  status = 200,
+): { ok: boolean; status: number; json(): Promise<unknown> } {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  };
+}
+
 function serviceWith(status: number, body: unknown): TodoistService {
-  return new TodoistService(
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(body),
-    }),
-  );
+  return new TodoistService(vi.fn().mockResolvedValue(page(body, status)), instantSleep);
 }
 
 describe('TodoistService', () => {
@@ -71,16 +84,46 @@ describe('TodoistService', () => {
     ]);
   });
 
-  it('sends the bearer token to the unified v1 endpoint', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ results: [], next_cursor: null }),
-    });
-    await new TodoistService(fetchImpl).fetchActiveTasks('  abc123  ');
+  it('sends the bearer token, User-Agent, and Accept to the v1 endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(page({ results: [], next_cursor: null }));
+    await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('  abc123  ');
     expect(fetchImpl).toHaveBeenCalledWith('https://api.todoist.com/api/v1/tasks?limit=200', {
-      headers: { Authorization: 'Bearer abc123' },
+      headers: { ...EXPECTED_HEADERS, Authorization: 'Bearer abc123' },
     });
+  });
+
+  it('retries transient failures and succeeds when the service recovers', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(page({ error: 'unavailable' }, 503))
+      .mockResolvedValueOnce(
+        page({ results: [{ id: 'r1', content: 'Recovered', priority: 1 }], next_cursor: null }),
+      );
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.items.map((i) => i.todoistId)).toEqual(['r1']);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('honors the retry_after hint between attempts', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(page({ error_extra: { retry_after: 4 } }, 429))
+      .mockResolvedValueOnce(page({ results: [], next_cursor: null }));
+    await new TodoistService(fetchImpl, sleep).fetchActiveTasks('t');
+    expect(sleep).toHaveBeenCalledWith(4000);
+  });
+
+  it('gives up after three attempts with a temporarily-unavailable message', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(page({ error: 'down' }, 503));
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
+    expect(result).toMatchObject({
+      ok: false,
+      error: 'Todoist is temporarily unavailable (HTTP 503) — try again in a minute',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it('follows next_cursor across pages', async () => {
@@ -104,14 +147,14 @@ describe('TodoistService', () => {
             next_cursor: null,
           }),
       });
-    const result = await new TodoistService(fetchImpl).fetchActiveTasks('t');
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.items.map((i) => i.todoistId)).toEqual(['a1', 'b2']);
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
       'https://api.todoist.com/api/v1/tasks?limit=200&cursor=CURSOR%2F2%3D%3D',
-      { headers: { Authorization: 'Bearer t' } },
+      { headers: EXPECTED_HEADERS },
     );
   });
 
@@ -139,14 +182,17 @@ describe('TodoistService', () => {
     });
     expect(await serviceWith(500, {}).fetchActiveTasks('t')).toMatchObject({
       ok: false,
-      error: 'Todoist error (HTTP 500)',
+      error: 'Todoist is temporarily unavailable (HTTP 500) — try again in a minute',
     });
     // A retired API version (what REST v2 now returns) gets a clear message.
     expect(await serviceWith(410, {}).fetchActiveTasks('t')).toMatchObject({
       ok: false,
       error: expect.stringContaining('retired this API version') as string,
     });
-    const offline = new TodoistService(vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+    const offline = new TodoistService(
+      vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
+      instantSleep,
+    );
     expect(await offline.fetchActiveTasks('t')).toMatchObject({
       ok: false,
       error: expect.stringContaining('Could not reach Todoist') as string,
