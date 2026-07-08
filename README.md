@@ -1,90 +1,223 @@
 # Ariadne
 
 A single-user, local-first personal project & task tracker, built as an Electron
-desktop application (React + TypeScript + Vite). _Ariadne's thread_ — the line that
-guides you through the labyrinth of long-running work.
+desktop application (React 18 + TypeScript + Vite via electron-vite). _Ariadne's
+thread_ — the line that guides you through the labyrinth of long-running work.
 
-All data lives on your local filesystem as human-readable JSON plus ordinary files for
-attachments. No accounts, no cloud, no database.
+All data lives on your local filesystem as human-readable JSON plus ordinary files
+for attachments. No accounts, no cloud, no database, no login.
 
-## Documentation
+**Current release: v1.3.0** — see `CHANGELOG.md` for what shipped when.
 
-- `docs/TECHNICAL_SPEC.md` — object model, services, architecture (engineering source of truth)
-- `docs/IMPLEMENTATION_PLAN.md` — sprint plan and quality gates
-- `design/` — the original design handoff: `README.md` (design spec + tokens),
-  `Throughline.dc.html` (annotated prototype source — the behavior oracle),
-  `Ariadne.html` (runnable prototype; open in a browser)
+## What it does
 
-## Installing
+- **Command Center** — a daily review: stat cards, an ambient overdue banner, focus
+  sections (Overdue, Due today, Blocked, Due this week, High priority · later), and a
+  portfolio column with per-project progress and next-due labels.
+- **Projects & tasks** — per-project workspace (notes, links, tags, quick-add task
+  list) and a full task editor: status/priority/due, subtasks, "Blocked by"
+  dependencies, attachments, links. Everything auto-saves; there is no Save button.
+- **Dependency map** — a layered SVG graph of each project's task chains.
+- **Calendar** — month grid with priority-colored chips, uniform cells with a
+  single-day drill-in modal, and an Upcoming list.
+- **Document library** — per-project markdown notes (sanitized live preview/edit),
+  file uploads (PDF/CSV/images preview inline), task attachments.
+- **Reports** — weekly status, portfolio roll-up, date-ranged retrospective, and
+  at-risk, all filterable by Work/Home/tag (work reports can never leak personal
+  projects) and copyable as plain text.
+- **Tags** — prefix autocomplete everywhere, click-to-search, and Settings-based
+  rename/merge/delete.
+- **Todoist** — push upcoming tasks (the primary direction: into #Home/#Work with
+  @project labels) and one-way import into a Todoist Inbox project.
+- **Data ownership** — configurable data folder, daily + on-quit backups with
+  retention, JSON export/import (accepts the original design-prototype exports),
+  atomic writes with corrupt-file recovery.
 
-Build the desktop packages for the platform you are on (artifacts land in
-`release/`), or run from source with `npm run dev`.
+## Getting started
+
+Requires Node ≥ 18.18. This repo pins tool majors that still support Node 18
+(Vite 6, Vitest 3, ESLint 9, electron-vite 3) — don't bump those without checking
+engine ranges.
 
 ```sh
-npm run package:linux          # AppImage + deb (run on Linux)
-npm run package:mac            # DMG + zip for this Mac's architecture (run on macOS)
-npm run package:mac:universal  # single DMG for both Apple Silicon and Intel
+npm ci          # fresh install (see "Shared folders" below before reusing a checkout)
+npm run dev     # launch the app with hot reload
 ```
 
-### Building for macOS
+On a headless machine, anything that opens the app needs a display server:
+`xvfb-run -a <command>`.
 
-macOS packages **must be built on a Mac** — DMG creation and code signing use
-Apple's tooling, and Apple Silicon refuses to launch apps without at least an
-ad-hoc signature, which only macOS can produce. On the Mac:
+## Quality pipeline
 
-```sh
-git clone <this repo> && cd ariadne   # a fresh checkout — see warning below
-npm ci
-npm run package:mac
-open release/Ariadne-*.dmg
-```
-
-Requirements: Node ≥ 18.18 and the Xcode Command Line Tools
-(`xcode-select --install`). Without an Apple Developer certificate the app is
-ad-hoc signed: it runs fine, but the first launch needs right-click → Open (or
-System Settings → Privacy & Security → Open Anyway) to pass Gatekeeper. With a
-Developer ID certificate in your keychain, electron-builder picks it up
-automatically and signs properly.
-
-> **Warning — shared folders:** `node_modules/` contains platform-specific
-> binaries (the Electron runtime itself). If this repo lives in a folder shared
-> between a Linux VM and the Mac, do **not** run `npm ci`/builds from both
-> sides in the same checkout — use a separate clone per OS, or delete
-> `node_modules/`, `out/`, and `release/` when switching.
-
-Your data lives in the app's data folder (shown in Settings → Data, changeable
-to any directory, e.g. a synced one) as plain JSON plus a `blobs/` folder of
-attachments; `backups/` holds rotating snapshots.
-
-## Development
-
-Requires Node ≥ 18.18.
+Every change lands through the same gate — these are hard requirements, not
+suggestions:
 
 ```sh
-npm install          # once
-npm run dev          # launch the app with hot reload
-```
-
-### Quality pipeline
-
-```sh
-npm test                 # unit/integration tests (Vitest)
+npm test                 # full unit/integration suite (Vitest)
 npx vitest run <path>    # a single test file
-npm run test:coverage    # tests + enforced ≥80% coverage thresholds
+npx vitest -t "pattern"  # tests matching a name
+npm run test:coverage    # coverage with ENFORCED >=80% global thresholds
 npm run test:e2e         # Playwright driving the built Electron app
 npm run lint             # ESLint over the whole repo (lint:fix to autofix)
 npm run format:check     # Prettier (format to write)
 npm run typecheck        # tsc project checks (node + web)
-npm run verify           # all of the above except e2e — the sprint gate
+npm run verify           # typecheck + lint + format + coverage — run before committing
 ```
 
-On a headless machine, run the E2E suite under Xvfb: `xvfb-run -a npm run test:e2e`.
+Coverage thresholds live in `vitest.config.ts` and are never lowered. Obsolete tests
+are deleted, never skipped. E2E runs use a throwaway data dir and pin the date via
+`ARIADNE_FAKE_TODAY` (the seed dataset assumes `2026-07-08`).
 
-### Building
+## Architecture
+
+Three strictly isolated Electron layers:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ MAIN (Node)      src/main/                                       │
+│   index.ts       bootstrap, window, ariadne-blob:// protocol,    │
+│                  single-instance lock, backup scheduling         │
+│   ipc.ts         ipcMain.handle registrations → services (glue)  │
+│   services/      Config, Storage, Blob, Backup, ImportExport,    │
+│                  Todoist (+push), Logger — all unit-tested       │
+│                  against real temp dirs / mocked HTTP            │
+├──────────────────────────────────────────────────────────────────┤
+│ PRELOAD          src/preload/index.ts                            │
+│   exposes window.ariadne implementing AriadneApi                 │
+│   (typed in src/shared/ipc-contract.ts) — nothing else leaks     │
+├──────────────────────────────────────────────────────────────────┤
+│ RENDERER (React) src/renderer/                                   │
+│   app/store.ts   Zustand store: data slice + ui slice            │
+│   views/ modals/ components/ — thin shells over shared/          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**The one load-bearing rule:** all domain behavior lives in `src/shared/` as pure,
+synchronous, dependency-free TypeScript — no Electron, DOM, or fs imports. Main
+services and React components stay thin. This is what makes the 80% coverage gate
+cheap and refactors safe.
+
+Data flow (auto-save everywhere):
+
+```
+user edit → store.apply(pure mutation from shared/domain/mutate.ts)
+          → Zustand data slice updates (renderer is authoritative in memory)
+          → changed collections sent over IPC
+          → StorageService debounces (~300ms) and writes atomically
+            (write .tmp → rename) to JSON in the data directory
+```
+
+On disk (`Settings → Data` shows the location; user-configurable):
+
+```
+<dataDir>/
+  workspace.json                # { schemaVersion }
+  projects.json  tasks.json  files.json  settings.json
+  blobs/<fileId>.<ext>          # uploaded files (served via ariadne-blob://)
+  backups/<YYYY-MM-DD>/         # daily + on-quit whole-workspace backups
+```
+
+### Module map
+
+| Where                             | What                                                                                           |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                     |
+| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration                          |
+| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                   |
+| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                |
+| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+import), csv, seed, clock, id  |
+| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                     |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP — each with a `.test.ts` twin          |
+| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)            |
+| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Settings, SearchResults; Task/File/Day modals |
+| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags      |
+
+## Adding a feature (the recipe)
+
+Work domain-first — this order is what keeps the gates green:
+
+1. **Domain** — add pure logic to `src/shared/domain/` (a new module or new
+   mutations in `mutate.ts` returning `{ workspace, changed }` with structural
+   sharing). Write its tests first or alongside; this layer should land near 100%
+   covered. If the change persists new data, extend `types.ts` and the zod schemas
+   (`shared/schema/workspace-schema.ts`) — use `.catch()` defaults so old
+   workspaces load cleanly.
+2. **Main service** (only if the feature touches disk/network/OS) — add a service
+   class in `src/main/services/` with injectable dependencies (fetch, sleep, clock,
+   temp dirs) and test it against real temp directories or mocked HTTP.
+3. **IPC** — add the channel to `shared/ipc-contract.ts` (name + types + the
+   `AriadneApi` method), register the handler in `src/main/ipc.ts` (thin glue),
+   mirror it in `src/preload/index.ts`, and extend the API mocks in
+   `src/renderer/test-utils.tsx` **and** `src/renderer/app/store.test.ts`.
+4. **UI** — views/components call `store.apply(mutation)` and `getApi()`; no
+   business logic in components. Reuse `Card`, `TaskRow`, `SegmentedControl`,
+   `ConfirmDialog` (destructive actions always confirm), toasts via `showToast`.
+5. **Tests at each layer** you touched, then an E2E flow in `e2e/app.spec.ts` if
+   the feature spans process boundaries or must survive a restart.
+6. **Gate**: `npm run format && npm run verify && xvfb-run -a npm run test:e2e`,
+   update `CHANGELOG.md`, bump the version for user-visible features, commit, tag.
+
+Recent commits are worked examples of exactly this layering: `[v1.1.0]` (backups —
+setting + service + IPC + Settings UI + E2E) and `[v1.3.0]` (Todoist push — domain
+candidates + HTTP service + IPC + UI preview).
+
+Gotchas that bite:
+
+- `today` is always a parameter; only shells call `todayIso()`
+  (`shared/domain/clock.ts`). Never call "now" inside `shared/`.
+- Mutations that remove files must surface `removedBlobIds`, and callers must
+  invoke `api.deleteBlobs(...)` — blob bytes are not cleaned up magically.
+- Task status cycle is `Todo → Doing → Waiting → Done → Todo`; `Dropped` only via
+  the select. `completedAt` is non-null iff `Done` (the mutation layer enforces it).
+- "Blocked" is derived, never stored; dependency cycles are tolerated — keep graph
+  logic visited-set safe.
+- Modal state is a back-stack (`day → task → file`); open/close through the store.
+- Don't put `.trow` (a flex style) on table rows; tables have `.portfolio-row`.
+
+## Integrations
+
+Todoist uses the **unified API v1** (`api.todoist.com/api/v1/…`) — REST v2 is
+retired upstream and answers 410. The client sends a User-Agent, paginates with
+cursors, retries transient failures with backoff honoring `retry_after`, and makes
+creates idempotent via `X-Request-Id`. Push/import dedupe on a `todoist:<id>`
+marker line in task notes. The token is stored plaintext in `settings.json` by
+decision D10 (portability).
+
+## Packaging
 
 ```sh
-npm run build            # electron-vite production build (out/)
-npm run start            # preview the production build
+npm run package:linux          # AppImage + deb (run on Linux) → release/
+npm run package:mac            # DMG + zip for this Mac's architecture (run on macOS)
+npm run package:mac:universal  # single DMG for Apple Silicon + Intel
 ```
 
-Packaging/installers arrive in Sprint 8 (electron-builder).
+macOS packages **must be built on a Mac** (DMG + signing need Apple tooling; the
+build is ad-hoc signed without a Developer ID cert — first launch needs
+right-click → Open). `npm overrides` pins `@noble/hashes` to 1.x for
+electron-builder; keep it when updating.
+
+### Shared folders — read this
+
+`node_modules/` contains platform-specific binaries (the Electron runtime, rollup's
+native module). If this repo lives in a folder shared between a Linux VM and a Mac,
+**use a separate clone per OS**. If a cross-OS install clobbers a checkout anyway:
+`node node_modules/electron/install.js` restores the Electron binary and
+`npm i --no-save @rollup/rollup-<platform>` restores rollup's native module.
+
+## Releasing
+
+1. `npm run format && npm run verify && xvfb-run -a npm run test:e2e` — all green.
+2. Update `CHANGELOG.md`; bump `version` in `package.json`.
+3. Commit, `git tag vX.Y.Z`, build packages per platform.
+
+## Documentation map
+
+- `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
+  **decision table (D1–D10)**: record any deliberate behavior deviation there.
+- `docs/IMPLEMENTATION_PLAN.md` — the original 9-sprint delivery plan and its exit
+  gates (now history; the gates still apply to every change).
+- `design/` — the design handoff: `README.md` (design tokens + screen specs),
+  `Throughline.dc.html` (the annotated prototype the app was built from),
+  `Ariadne.html` (runnable prototype, login `admin`/`admin`).
+- `CHANGELOG.md` — user-facing history per release.
+- `CLAUDE.md` — working notes for AI-assisted maintenance.

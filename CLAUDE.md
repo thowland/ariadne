@@ -4,93 +4,85 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Ariadne — a single-user, local-first personal project & task tracker, delivered as an
-Electron desktop app (Electron + React 18 + TypeScript + Vite via `electron-vite`).
-It is being rebuilt from an HTML prototype; implementation follows a fixed sprint plan.
+Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
+(Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
+the app is at **v1.3.0** and in maintenance: bug fixes, small features, and dependency
+upkeep. The user daily-drives the **macOS build**; development happens on a Linux
+arm64 VM.
 
-**Read these before writing code:**
-
-- `docs/TECHNICAL_SPEC.md` — the engineering source of truth: object model, derived-value
-  semantics, services, IPC contract, persistence design, and the §1 decision table
-  (deliberate deviations from the prototype, e.g. no login/auth, real clock, cascade
-  deletes).
-- `docs/IMPLEMENTATION_PLAN.md` — sprint scopes (0–8) and the mandatory sprint exit gate.
-- `design/Throughline.dc.html` — the annotated prototype. **This is the behavior oracle**:
-  when behavior is ambiguous, check the prototype source before inventing anything.
-  `design/README.md` documents the data model, screens, and exact design tokens
-  (colors, type scale, spacing); `design/Ariadne.html` is a runnable build of the
-  prototype (open in a browser, login `admin`/`admin`).
-
-Behavior deviations from the prototype must be recorded as a new row in the spec's §1
-decision table, not made silently.
+Read `README.md` first — it holds the architecture, the module map, and the
+step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
+source of truth for domain semantics and the decision table (D1–D10); record any
+deliberate behavior change as a new decision row there. `CHANGELOG.md` tracks
+releases.
 
 ## Commands
 
-Script names are contracted in the implementation plan (scaffolding lands in Sprint 0):
+- `npm run dev` — run the app (`xvfb-run -a` on this headless VM)
+- `npm test` / `npx vitest run <path>` / `npx vitest -t "name"` — unit suite
+- `npm run verify` — typecheck + lint + format:check + coverage (≥80% enforced,
+  never lowered); run `npm run format` first, since Prettier-clean is part of it
+- `xvfb-run -a npm run test:e2e` — Playwright against the built app
+- `npm run package:linux` / `package:mac` (mac only on a Mac) — installers
 
-- `npm run dev` — launch the app in dev mode; `npm run build` / `npm run start` for prod
-- `npm test` — full Vitest suite; single test: `npx vitest run path/to/file.test.ts`
-  (or `npx vitest -t "name pattern"`)
-- `npm run test:coverage` — coverage with **enforced ≥80% global thresholds**
-  (lines/statements/branches/functions); thresholds live in `vitest.config.ts` and are
-  never lowered
-- `npm run test:e2e` — Playwright driving Electron (`_electron.launch`); uses a temp data
-  dir and pins the date via the `ARIADNE_FAKE_TODAY` env var
-- `npm run lint` / `npm run lint:fix`, `npm run format:check`, `npm run typecheck`
-- `npm run verify` — runs the whole gate (tests, coverage, lint, format, typecheck);
-  required before a sprint-ending commit
+## The gate (unchanged from delivery, applies to every change)
 
-## Sprint process (hard requirements)
+Entire suite green (not just new tests) → coverage ≥80% → lint/format/typecheck
+clean → E2E green → commit. Obsolete tests are deleted, never skipped. For
+user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
+`vX.Y.Z`. Fixes ship as plain commits; features get a `[vX.Y.0]` commit + tag.
 
-Every sprint ends only when: the **entire** test suite passes (not just new tests),
-coverage ≥ 80%, lint/format/typecheck clean across all files, and the work is committed
-(final commit tagged `[sprint-N]`). Obsolete tests are deleted, never skipped. No scope
-creep — mid-sprint ideas go to spec §11 (Open Items).
+## Maintenance rules of thumb
 
-## Architecture (big picture)
+- **Bugs**: reproduce with a failing test at the lowest layer that can express it
+  (domain > service > component > E2E), then fix. If it was a visual bug, verify
+  with a Playwright screenshot under xvfb before claiming victory.
+- **Features**: follow the README recipe — domain-first, pure logic in
+  `src/shared/` (no Electron/DOM/fs/now() there), thin services and UI. New IPC
+  channels touch four places: `shared/ipc-contract.ts`, `main/ipc.ts`,
+  `preload/index.ts`, and the API mocks in `renderer/test-utils.tsx` +
+  `renderer/app/store.test.ts` (typecheck fails until the mocks match).
+- **Persisted-schema changes**: extend `types.ts` + `DEFAULT_SETTINGS` + zod
+  schemas with `.catch()`/clamped defaults so existing workspaces load silently;
+  never require a migration step for additive fields.
+- **Destructive UI** always goes through `askConfirm` (never `window.confirm`),
+  and the confirm dialog must never autofocus its destructive button.
+- Domain semantics you must not break: status cycle `Todo→Doing→Waiting→Done→Todo`
+  (Dropped via select only); `completedAt` non-null iff Done; blocked is derived
+  and cycle-tolerant; deletes cascade (tasks scrub `dependsOn`, projects remove
+  files+blobs — surface `removedBlobIds` and call `api.deleteBlobs`); work/home
+  report scoping must never leak; `todoist:<id>` note markers drive push/import
+  dedupe.
 
-Three-layer Electron app with strict isolation (`contextIsolation`, `sandbox`, no
-`nodeIntegration`); the renderer is a plain React SPA that talks to the main process only
-through the typed IPC contract (`shared/ipc-contract.ts`) exposed as `window.ariadne` by
-the preload bridge.
+## Environment gotchas (this VM)
 
-The load-bearing design rule: **all domain behavior lives in `src/shared/` as pure,
-synchronous, dependency-free TypeScript** (no Electron, DOM, or fs imports) — types, zod
-schemas, derived values (`derive.ts`), the full mutation command surface (`mutate.ts`),
-sorting/search/reports/calendar/dep-graph algorithms, seed data. Main-process services
-and React views are thin shells around it. UI components must not contain business logic
-that could live in `shared/`; this is also what makes the 80% coverage gate cheap.
+- **Node 18.19 on linux-arm64** — tool majors are pinned to Node-18-compatible
+  ranges (Vite 6, Vitest 3, ESLint 9, electron-vite 3, @vitejs/plugin-react 4);
+  check `engines` before bumping any of them.
+- Headless: every app/E2E/screenshot run needs `xvfb-run -a`.
+- The repo lives in a folder **shared with the user's Mac**; if they ran npm there,
+  platform binaries get swapped. Repair: `node node_modules/electron/install.js`
+  and `npm i --no-save @rollup/rollup-linux-arm64-gnu`. Never assume node_modules
+  is healthy after a failed launch — check `node_modules/electron/dist` first.
+- `mkdirSync` on `/proc/...` paths **hangs** on this VM's filesystem — never use
+  /proc paths in tests; use a file-as-directory to provoke fs errors.
+- npm's optional-deps bug can drop native modules on any `npm install`; prefer
+  `npm ci` after lockfile changes.
+- `npm overrides` pins `@noble/hashes@^1` (electron-builder 26 requires it via
+  CJS); keep it when touching dependencies.
 
-State & persistence flow (auto-save everywhere, no Save buttons):
+## External services
 
-```
-user edit → store.apply(pure mutation from shared/domain/mutate.ts)
-         → Zustand data slice updates (renderer is authoritative in memory)
-         → persistence subscriber sends changed collections over IPC
-         → main StorageService debounces (~300ms) and writes atomically
-           (write .tmp → rename) to human-readable JSON in the data dir
-```
+Todoist: unified API v1 only (`api.todoist.com/api/v1/…`; REST v2 returns 410 for
+everyone). The client already handles pagination, User-Agent, retry/backoff with
+`retry_after`, and idempotent creates (`X-Request-Id`). If Todoist errors change
+shape, `src/main/services/todoist-service.ts` is the only file that speaks HTTP.
+Live token-authenticated verification can only happen on the user's Mac — say so
+rather than claiming end-to-end verification.
 
-On disk: `<dataDir>/projects.json`, `tasks.json`, `files.json`, `settings.json`, plus
-`blobs/<fileId>.<ext>` for uploaded binaries (served to the renderer via the
-`ariadne-blob://` custom protocol, never over IPC) and daily whole-workspace backups
-(JSON + blobs) in `<backupDir>/<YYYY-MM-DD>/` — location and retention are user settings.
-The data dir defaults to Electron `userData` but is user-configurable — never assume its
-location; go through `ConfigService`.
+## Visual reviews
 
-Time is injected: nothing in `shared/` calls "now" — `today` is always a parameter
-(`shared/domain/clock.ts` is the single caller boundary). Tests pin dates; the prototype's
-seed data assumes `2026-07-08`.
-
-## Domain gotchas (from the spec/prototype)
-
-- Task status cycle (click circle): `Todo → Doing → Waiting → Done → Todo`; `Dropped` only
-  via the select. `completedAt` is non-null iff status is `Done` (mutation layer enforces).
-- "Blocked" is derived, never stored: open task with any open `dependsOn` sibling;
-  dependency cycles are tolerated (all graph/blocked logic must be visited-set safe).
-- Deletes cascade: task deletion scrubs `dependsOn` references everywhere; project
-  deletion removes its tasks, files, and blobs.
-- Work/Home `scope` filters Command Center and Calendar; report filtering (`all | work |
-home | tag:<tag>`) must never leak home projects into work reports (explicitly tested).
-- Import must accept both native exports and prototype exports (legacy `project.docs[]` →
-  `kind:'ref'` FileEntries; `_blobs` data-URLs → files in `blobs/`).
+The user likes screenshot-based reviews. Capture via Playwright under xvfb
+(`ARIADNE_FAKE_TODAY=2026-07-08` + temp `ARIADNE_TEST_USER_DATA` for the seeded
+demo state), inspect the PNGs yourself first, then update the existing review
+artifact (republish the same scratchpad HTML path to keep its URL).
