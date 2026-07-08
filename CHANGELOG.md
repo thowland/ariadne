@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — 2026-07-08
+
+- **Tag autocomplete**: typing in any tag field (projects and tasks) suggests
+  existing tags matching the typed prefix — pick with ↑/↓ + Enter or click;
+  Enter on unmatched text still creates a new tag.
+- **Tag management** (Settings → Tags): every tag with its project/task usage
+  counts; rename inline (renaming onto an existing tag merges after a
+  confirm), or delete a tag from everything.
+- **Click-to-search**: clicking any tag chip runs a workspace-wide search for
+  that tag across projects and tasks.
+- Fix: the confirm dialog no longer focuses its destructive button, so the
+  keystroke that triggered a confirm can never accept it in the same press.
+
 ## 1.1.0 — 2026-07-08
 
 - **Calendar**: month cells are now a consistent fixed size regardless of how

@@ -281,3 +281,40 @@ test('backups: daily on startup, refreshed on quit, and on demand', async () => 
   await expect(win.getByText(/Backed up to/)).toBeVisible();
   await second.close();
 });
+
+test('tags: autocomplete while typing, chip click searches, settings management', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Autocomplete: typing "in" in the migration project suggests #infra... no,
+  // infra is already on p1 — it suggests nothing there; use p3 instead.
+  const nav = win.getByRole('navigation', { name: 'Projects' });
+  await nav.getByRole('button', { name: /Refinish boat table/ }).click();
+  await win.getByPlaceholder('+ tag').fill('in');
+  const suggestions = win.getByRole('listbox', { name: 'Tag suggestions' });
+  await expect(suggestions.getByText('#infra')).toBeVisible();
+  await suggestions.getByText('#infra').click();
+  await expect(win.getByTitle('Search for #infra')).toBeVisible();
+
+  // Chip click → search results across projects and tasks with that tag.
+  await win.getByTitle('Search for #infra').click();
+  await expect(win.getByTestId('search-summary')).toContainText('matching “infra”');
+  await expect(win.getByTestId('project-card-p1')).toBeVisible(); // tagged infra
+  await expect(win.getByTestId('project-card-p3')).toBeVisible(); // just tagged
+
+  // Settings: merge #infra into #q3, then it disappears from the list.
+  await win.getByPlaceholder('Search tasks & projects…').fill('');
+  await win.getByRole('button', { name: 'Settings' }).click();
+  const list = win.getByTestId('tag-manage-list');
+  const infraRow = list.locator('.tag-manage-row', { hasText: '#infra' });
+  await infraRow.getByRole('button', { name: 'Rename…' }).click();
+  await win.getByLabel('New name for infra').fill('q3');
+  await win.getByLabel('New name for infra').press('Enter');
+  const dialog = win.getByRole('alertdialog', { name: 'Confirm' });
+  await expect(dialog).toContainText('Merge #infra into existing tag #q3?');
+  await dialog.getByRole('button', { name: 'Delete' }).click();
+  await expect(list.locator('.tag-manage-row', { hasText: '#infra' })).toHaveCount(0);
+  await app.close();
+});

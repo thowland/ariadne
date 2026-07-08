@@ -1,5 +1,6 @@
 import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
+import { deleteTag, renameTag, tagUsage } from '@shared/domain/tags';
 import { mergeTodoistImport } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
 import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
@@ -15,6 +16,7 @@ export function Settings(): React.JSX.Element {
   const { workspace, today, apply, askConfirm, showToast, go } = useStore();
   const [dataDir, setDataDir] = useState('…');
   const [importText, setImportText] = useState('');
+  const [renaming, setRenaming] = useState<{ tag: string; value: string } | null>(null);
 
   useEffect(() => {
     void getApi()
@@ -98,6 +100,36 @@ export function Settings(): React.JSX.Element {
             : 'Todoist is already in sync',
         );
       });
+  };
+
+  const tags = workspace !== null ? tagUsage(workspace) : [];
+
+  const commitRename = (): void => {
+    if (renaming === null) return;
+    const from = renaming.tag;
+    const to = renaming.value.trim().replace(/^#/, '');
+    setRenaming(null);
+    if (to === '' || to.toLowerCase() === from.toLowerCase()) return;
+    const mergesInto = tags.some((u) => u.tag.toLowerCase() === to.toLowerCase());
+    const doIt = (): void => {
+      apply((ws2) => renameTag(ws2, from, to));
+      showToast(mergesInto ? `Merged #${from} into #${to}` : `Renamed #${from} to #${to}`);
+    };
+    if (mergesInto) {
+      void askConfirm(`Merge #${from} into existing tag #${to}?`).then((ok) => {
+        if (ok) doIt();
+      });
+    } else {
+      doIt();
+    }
+  };
+
+  const removeTag = (tag: string, uses: number): void => {
+    void askConfirm(`Remove #${tag} from ${uses} item${uses === 1 ? '' : 's'}?`).then((ok) => {
+      if (!ok) return;
+      apply((ws2) => deleteTag(ws2, tag));
+      showToast(`Deleted #${tag}`);
+    });
   };
 
   const runBackupNow = (): void => {
@@ -190,6 +222,66 @@ export function Settings(): React.JSX.Element {
                 Apply pasted JSON
               </button>
             </div>
+          </div>
+        </Card>
+
+        <Card title="Tags" count={tags.length}>
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Every tag in use across projects and tasks. Rename to clean up variants — renaming
+              onto an existing tag merges them — or delete a tag everywhere.
+            </p>
+            {tags.length > 0 ? (
+              <div className="tag-manage-list" data-testid="tag-manage-list">
+                {tags.map((u) => (
+                  <div key={u.tag} className="tag-manage-row">
+                    {renaming?.tag === u.tag ? (
+                      <input
+                        className="inp tag-rename-input"
+                        value={renaming.value}
+                        aria-label={`New name for ${u.tag}`}
+                        autoFocus
+                        onChange={(e) => {
+                          setRenaming({ tag: u.tag, value: e.target.value });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename();
+                          if (e.key === 'Escape') setRenaming(null);
+                        }}
+                        onBlur={commitRename}
+                      />
+                    ) : (
+                      <span className="tag-chip tag-manage-chip">#{u.tag}</span>
+                    )}
+                    <span className="tag-manage-counts">
+                      {u.projects > 0 && `${u.projects} project${u.projects === 1 ? '' : 's'}`}
+                      {u.projects > 0 && u.tasks > 0 && ' · '}
+                      {u.tasks > 0 && `${u.tasks} task${u.tasks === 1 ? '' : 's'}`}
+                    </span>
+                    <div className="spacer" />
+                    <button
+                      className="btn subtle"
+                      onClick={() => {
+                        setRenaming({ tag: u.tag, value: u.tag });
+                      }}
+                    >
+                      Rename…
+                    </button>
+                    <button
+                      className="btn subtle tag-delete"
+                      aria-label={`Delete tag ${u.tag}`}
+                      onClick={() => {
+                        removeTag(u.tag, u.projects + u.tasks);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card-empty">No tags yet.</div>
+            )}
           </div>
         </Card>
 
