@@ -18,6 +18,7 @@ export const IPC = {
   importFromFile: 'import:fromFile',
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
+  todoistFetch: 'todoist:fetch',
 } as const;
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
@@ -74,6 +75,9 @@ export interface DataDirChooseResponse {
   relaunching: boolean;
 }
 
+export type TodoistFetchResponse =
+  { ok: true; items: import('./domain/todoist').TodoistItem[] } | { ok: false; error: string };
+
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
   saveCollections(payload: WorkspaceSavePayload): Promise<void>;
@@ -86,6 +90,7 @@ export interface AriadneApi {
   importFromFile(): Promise<ImportResponse>;
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
+  todoistFetch(token: string): Promise<TodoistFetchResponse>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
 }

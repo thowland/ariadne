@@ -28,6 +28,9 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
     chooseDataDir: vi
       .fn()
       .mockResolvedValue({ mode: 'unchanged', path: '/tmp/data', relaunching: false }),
+    todoistFetch: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Add your Todoist API token first' }),
     fakeToday: TODAY,
     ...overrides,
   };

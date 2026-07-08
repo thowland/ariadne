@@ -20,6 +20,7 @@ const api: AriadneApi = {
   importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
   importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
   chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
+  todoistFetch: (token: string) => ipcRenderer.invoke(IPC.todoistFetch, token),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
 

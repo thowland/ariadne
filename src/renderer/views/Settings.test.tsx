@@ -134,3 +134,58 @@ describe('Settings', () => {
     expect(screen.getByTestId('data-dir')).toHaveTextContent('/somewhere/synced');
   });
 });
+
+describe('Settings — Todoist import', () => {
+  it('saves the token and imports into the inbox with a toast', async () => {
+    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          todoistId: '9001',
+          title: 'Call plumber',
+          dueDate: '2026-07-09',
+          priority: 'High',
+          notes: '',
+        },
+      ],
+    });
+    renderSettings();
+
+    await userEvent.type(screen.getByLabelText('Todoist API token'), 'tok123');
+    expect(ws().settings.todoistToken).toBe('tok123');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Imported 1 task from Todoist');
+    });
+    expect(vi.mocked(window.ariadne.todoistFetch)).toHaveBeenCalledWith('tok123');
+    expect(ws().projects.some((p) => p.id === 'todoist-inbox')).toBe(true);
+    expect(ws().tasks.some((t) => t.title === 'Call plumber')).toBe(true);
+    expect(ws().settings.lastTodoistImportAt).not.toBeNull();
+    expect(screen.getByTestId('todoist-last-import')).toBeInTheDocument();
+  });
+
+  it('surfaces fetch errors and leaves the workspace untouched', async () => {
+    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({
+      ok: false,
+      error: 'Todoist rejected the token — check it in Settings',
+    });
+    renderSettings();
+    const before = ws().tasks.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toMatch(/rejected the token/);
+    });
+    expect(ws().tasks).toHaveLength(before);
+    expect(ws().settings.lastTodoistImportAt).toBeNull();
+  });
+
+  it('reports an in-sync workspace on an empty diff', async () => {
+    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({ ok: true, items: [] });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Todoist is already in sync');
+    });
+  });
+});

@@ -14,6 +14,7 @@ import type { BlobService } from './services/blob-service';
 import type { ConfigService } from './services/config-service';
 import { ImportExportService } from './services/import-export-service';
 import type { StorageService } from './services/storage-service';
+import { TodoistService } from './services/todoist-service';
 
 /**
  * Thin glue: ipcMain.handle registrations → services. No logic beyond
@@ -26,6 +27,7 @@ export function registerIpc(
   dataDir: string,
 ): void {
   const importExport = new ImportExportService(storage, blobs);
+  const todoist = new TodoistService();
 
   ipcMain.handle(IPC.workspaceLoad, async (): Promise<WorkspaceLoadResponse> => {
     const loaded = await storage.loadWorkspace();
@@ -86,6 +88,10 @@ export function registerIpc(
   });
 
   ipcMain.handle(IPC.importFromText, (_event, text: string) => importExport.importFromText(text));
+
+  ipcMain.handle(IPC.todoistFetch, (_event, token: string) =>
+    todoist.fetchActiveTasks(typeof token === 'string' ? token : ''),
+  );
 
   ipcMain.handle(IPC.dataDirChoose, async () => {
     const picked = await dialog.showOpenDialog({

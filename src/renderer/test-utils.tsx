@@ -28,6 +28,9 @@ export function setupTestApp(
     chooseDataDir: vi
       .fn()
       .mockResolvedValue({ mode: 'unchanged', path: '/tmp/data', relaunching: false }),
+    todoistFetch: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Add your Todoist API token first' }),
     fakeToday: TEST_TODAY,
     ...overrides,
   };

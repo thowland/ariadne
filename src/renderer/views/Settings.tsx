@@ -1,5 +1,6 @@
-import { clearAll, replaceWorkspace } from '@shared/domain/mutate';
+import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
+import { mergeTodoistImport } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
 import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
@@ -78,6 +79,27 @@ export function Settings(): React.JSX.Element {
     });
   };
 
+  const runTodoistImport = (): void => {
+    const token = workspace?.settings.todoistToken ?? '';
+    void getApi()
+      .todoistFetch(token)
+      .then((res) => {
+        if (!res.ok) {
+          showToast(res.error);
+          return;
+        }
+        const result = apply((ws2, ctx) => mergeTodoistImport(ws2, ctx, res.items));
+        if (result === null) return;
+        apply((ws2) => updateSettings(ws2, { lastTodoistImportAt: new Date().toISOString() }));
+        showToast(
+          result.added > 0 || result.updated > 0
+            ? `Imported ${result.added} task${result.added === 1 ? '' : 's'} from Todoist` +
+                (result.updated > 0 ? ` (${result.updated} updated)` : '')
+            : 'Todoist is already in sync',
+        );
+      });
+  };
+
   const changeDataDir = (): void => {
     void getApi()
       .chooseDataDir()
@@ -146,9 +168,34 @@ export function Settings(): React.JSX.Element {
         <Card title="Integrations · Todoist">
           <div className="card-pad settings-section">
             <p className="settings-copy">
-              Store your Todoist API token to import tasks captured on your phone. One-way import
-              arrives in Sprint 7.
+              Store your Todoist API token to import tasks captured on your phone. Import is one-way
+              (Todoist → Ariadne) into a “Todoist Inbox” project; re-importing updates due dates and
+              priorities of open tasks and never deletes anything.
             </p>
+            <div className="todoist-row">
+              <div className="todoist-token">
+                <div className="field-label">TODOIST API TOKEN</div>
+                <input
+                  className="inp full"
+                  type="password"
+                  value={workspace?.settings.todoistToken ?? ''}
+                  placeholder="0123abcd…"
+                  aria-label="Todoist API token"
+                  onChange={(e) => {
+                    apply((ws2) => updateSettings(ws2, { todoistToken: e.target.value }));
+                  }}
+                />
+              </div>
+              <button className="btn primary" onClick={runTodoistImport}>
+                Import now
+              </button>
+            </div>
+            {workspace?.settings.lastTodoistImportAt !== null &&
+              workspace?.settings.lastTodoistImportAt !== undefined && (
+                <p className="settings-copy" data-testid="todoist-last-import">
+                  Last import: {new Date(workspace.settings.lastTodoistImportAt).toLocaleString()}
+                </p>
+              )}
           </div>
         </Card>
 

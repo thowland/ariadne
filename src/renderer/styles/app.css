@@ -1779,3 +1779,16 @@ input.inp.full {
   font-size: 12.5px;
   font-weight: 600;
 }
+
+/* ============ Todoist ============ */
+
+.todoist-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.todoist-token {
+  flex: 1;
+  min-width: 220px;
+}
