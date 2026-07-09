@@ -11,6 +11,7 @@ import { Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { STATUS_COLORS } from '../styles/colors';
 
+import { AiImportWizard } from './AiImportWizard';
 import { DayModal } from './DayModal';
 import { FileViewerModal } from './FileViewerModal';
 
@@ -342,5 +343,6 @@ export function ModalHost(): React.JSX.Element | null {
   if (modal === null) return null;
   if (modal.type === 'file') return <FileViewerModal fileId={modal.id} />;
   if (modal.type === 'day') return <DayModal iso={modal.iso} />;
+  if (modal.type === 'aiImport') return <AiImportWizard />;
   return <TaskModal taskId={modal.id} />;
 }

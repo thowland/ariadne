@@ -1857,6 +1857,57 @@ input.inp.full {
   padding: 8px 10px 14px;
 }
 
+/* ---------- AI import wizard ---------- */
+.ai-import-modal {
+  width: min(560px, 94vw);
+}
+.ai-import-modal .modal-header {
+  align-items: center;
+  padding: 16px 18px 12px;
+}
+.ai-import-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ai-import-text {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.ai-import-notes {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+.ai-import-actions {
+  justify-content: flex-end;
+}
+.ai-import-busy {
+  padding: 28px 0;
+  text-align: center;
+  color: var(--faint);
+}
+.ai-import-error {
+  color: #c23b2b;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-import-progress {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--faint);
+}
+.ai-import-done {
+  padding: 18px 0 6px;
+  font-size: 14px;
+}
+
 /* ============ Backups ============ */
 
 .backup-keep-row {

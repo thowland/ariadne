@@ -83,6 +83,7 @@ export const settingsSchema = z.object({
       z.number().int().min(1).max(60),
     )
     .catch(7),
+  anthropicApiKey: z.string().catch(''),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

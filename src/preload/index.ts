@@ -1,4 +1,9 @@
-import type { AriadneApi, DownloadRequest, WorkspaceSavePayload } from '@shared/ipc-contract';
+import type {
+  AiExtractRequest,
+  AriadneApi,
+  DownloadRequest,
+  WorkspaceSavePayload,
+} from '@shared/ipc-contract';
 import { IPC } from '@shared/ipc-contract';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -25,6 +30,7 @@ const api: AriadneApi = {
     ipcRenderer.invoke(IPC.todoistPush, { token, items }),
   runBackupNow: () => ipcRenderer.invoke(IPC.backupRun),
   chooseBackupDir: () => ipcRenderer.invoke(IPC.backupDirChoose),
+  aiExtract: (request: AiExtractRequest) => ipcRenderer.invoke(IPC.aiExtract, request),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
 

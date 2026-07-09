@@ -318,3 +318,30 @@ test('tags: autocomplete while typing, chip click searches, settings management'
   await expect(list.locator('.tag-manage-row', { hasText: '#infra' })).toHaveCount(0);
   await app.close();
 });
+
+test('AI import wizard opens, gates on the API key, and cancels cleanly', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByText('Command Center').first()).toBeVisible();
+
+  // Open from the top bar; without a key, extraction is refused inline.
+  await win.getByRole('button', { name: 'AI import…' }).click();
+  const wizard = win.getByRole('dialog', { name: 'AI task import' });
+  await expect(wizard).toBeVisible();
+  await wizard.getByLabel('Text to extract tasks from').fill('call the vet tomorrow');
+  await wizard.getByRole('button', { name: 'Extract tasks' }).click();
+  await expect(wizard.getByRole('alert')).toContainText('Anthropic API key');
+
+  // The inline shortcut lands on Settings with the key field.
+  await wizard.getByRole('button', { name: 'Open Settings' }).click();
+  await expect(win.getByLabel('Anthropic API key')).toBeVisible();
+  await win.getByLabel('Anthropic API key').fill('sk-ant-test');
+
+  // Re-open via the Settings card; cancel closes without side effects.
+  await win.getByRole('button', { name: 'Import tasks…' }).click();
+  await expect(win.getByRole('dialog', { name: 'AI task import' })).toBeVisible();
+  await win.getByRole('button', { name: 'Cancel' }).click();
+  await expect(win.getByRole('dialog', { name: 'AI task import' })).toHaveCount(0);
+  await app.close();
+});

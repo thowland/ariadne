@@ -34,6 +34,9 @@ export function setupTestApp(
     todoistPush: vi.fn().mockResolvedValue({ ok: true, pushed: [], failed: 0 }),
     runBackupNow: vi.fn().mockResolvedValue({ ok: true, path: '/tmp/data/backups/2026-07-08' }),
     chooseBackupDir: vi.fn().mockResolvedValue({ path: null }),
+    aiExtract: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Add your Anthropic API key in Settings first' }),
     fakeToday: TEST_TODAY,
     ...overrides,
   };

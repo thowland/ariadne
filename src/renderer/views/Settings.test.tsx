@@ -376,3 +376,14 @@ describe('Settings — Todoist push', () => {
     expect(window.ariadne.todoistPush).not.toHaveBeenCalled();
   });
 });
+
+describe('Settings — Claude AI', () => {
+  it('saves the Anthropic API key and opens the import wizard', async () => {
+    renderSettings();
+    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-abc');
+    expect(ws().settings.anthropicApiKey).toBe('sk-ant-abc');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Import tasks…' }));
+    expect(useStore.getState().modal).toEqual({ type: 'aiImport' });
+  });
+});

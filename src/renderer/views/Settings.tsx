@@ -17,7 +17,7 @@ import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
 /** Settings: data management, integrations, reference (prototype viewSettings, minus Account — no auth). */
 export function Settings(): React.JSX.Element {
-  const { workspace, today, apply, askConfirm, showToast, go } = useStore();
+  const { workspace, today, apply, askConfirm, showToast, go, openAiImport } = useStore();
   const [dataDir, setDataDir] = useState('…');
   const [importText, setImportText] = useState('');
   const [renaming, setRenaming] = useState<{ tag: string; value: string } | null>(null);
@@ -438,6 +438,39 @@ export function Settings(): React.JSX.Element {
                   Last import: {new Date(workspace.settings.lastTodoistImportAt).toLocaleString()}
                 </p>
               )}
+          </div>
+        </Card>
+
+        <Card title="Integrations · Claude AI">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Store an Anthropic API key to enable AI task import: paste any text (meeting notes,
+              emails) and Claude extracts the action items for you to review, one by one. The key is
+              kept in plain text in your local settings file, like the Todoist token.
+            </p>
+            <div className="todoist-row">
+              <div className="todoist-token">
+                <div className="field-label">ANTHROPIC API KEY</div>
+                <input
+                  className="inp full"
+                  type="password"
+                  value={workspace?.settings.anthropicApiKey ?? ''}
+                  placeholder="sk-ant-…"
+                  aria-label="Anthropic API key"
+                  onChange={(e) => {
+                    apply((ws2) => updateSettings(ws2, { anthropicApiKey: e.target.value }));
+                  }}
+                />
+              </div>
+              <button className="btn primary" onClick={openAiImport}>
+                Import tasks…
+              </button>
+            </div>
+            <p className="settings-copy">
+              Create a key at console.anthropic.com → API keys. Extraction uses Claude Sonnet; the
+              pasted text is sent to Anthropic for that one request and nothing else leaves your
+              machine.
+            </p>
           </div>
         </Card>
 

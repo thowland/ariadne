@@ -112,6 +112,8 @@ export interface Settings {
   backupKeep: number;
   /** Push-to-Todoist window: tasks due within the next N days (1–60). */
   todoistPushDays: number;
+  /** Anthropic API key for the AI task import (spec D12); plaintext like D10. */
+  anthropicApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -120,6 +122,7 @@ export const DEFAULT_SETTINGS: Settings = {
   backupDir: null,
   backupKeep: BACKUP_KEEP_DEFAULT,
   todoistPushDays: 7,
+  anthropicApiKey: '',
 };
 
 /** The full in-memory domain state. */

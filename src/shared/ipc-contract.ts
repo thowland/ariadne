@@ -22,6 +22,7 @@ export const IPC = {
   todoistPush: 'todoist:push',
   backupRun: 'backup:run',
   backupDirChoose: 'backupDir:choose',
+  aiExtract: 'ai:extract',
 } as const;
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
@@ -85,6 +86,16 @@ export type TodoistPushResponse =
 export type TodoistFetchResponse =
   { ok: true; items: import('./domain/todoist').TodoistItem[] } | { ok: false; error: string };
 
+export interface AiExtractRequest {
+  apiKey: string;
+  text: string;
+  /** Existing project names, so the model can suggest a mapping. */
+  projectNames: string[];
+}
+
+export type AiExtractResponse =
+  { ok: true; tasks: import('./domain/ai-import').ExtractedTask[] } | { ok: false; error: string };
+
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
   saveCollections(payload: WorkspaceSavePayload): Promise<void>;
@@ -104,6 +115,7 @@ export interface AriadneApi {
   ): Promise<TodoistPushResponse>;
   runBackupNow(): Promise<{ ok: boolean; path?: string; error?: string }>;
   chooseBackupDir(): Promise<{ path: string | null }>;
+  aiExtract(request: AiExtractRequest): Promise<AiExtractResponse>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
 }

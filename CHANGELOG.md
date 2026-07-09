@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.0 — 2026-07-09
+
+- **AI task import**: paste any chunk of text (meeting notes, emails, a brain
+  dump) and Claude extracts the action items — with due dates resolved to real
+  dates, priorities, and a suggested project. A wizard walks through each
+  candidate so you can edit, re-assign, confirm, or skip it before it becomes
+  a task. Tasks that don't map to an existing project are filed under a new
+  "AI Imported" placeholder project until you re-file them.
+- New **Integrations · Claude AI** card in Settings for the Anthropic API key
+  (stored locally in plain text, like the Todoist token); "AI import…" button
+  in the top bar. Extraction uses `claude-sonnet-5` via the official
+  Anthropic SDK in the main process — the key never reaches the renderer.
+
 ## 1.4.0 — 2026-07-08
 
 - **Sidebar**: reorder projects by dragging and dropping them; the order

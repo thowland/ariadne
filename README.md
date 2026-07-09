@@ -125,9 +125,9 @@ On disk (`Settings → Data` shows the location; user-configurable):
 | `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration                          |
 | `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                   |
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                |
-| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+import), csv, seed, clock, id  |
+| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+import), ai-import, csv, seed  |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                     |
-| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP — each with a `.test.ts` twin          |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction — `.test.ts` twins  |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)            |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Settings, SearchResults; Task/File/Day modals |
 | `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags      |
@@ -182,6 +182,15 @@ cursors, retries transient failures with backoff honoring `retry_after`, and mak
 creates idempotent via `X-Request-Id`. Push/import dedupe on a `todoist:<id>`
 marker line in task notes. The token is stored plaintext in `settings.json` by
 decision D10 (portability).
+
+AI task import (D12) calls the Anthropic API through the official
+`@anthropic-ai/sdk` from the **main process only** (`ai-extract-service.ts`),
+model `claude-sonnet-5`, with structured outputs pinning the response to a JSON
+schema; `shared/domain/ai-import.ts` re-validates leniently (`parseExtraction`),
+maps project hints, and creates confirmed tasks — unmapped ones under the
+on-demand `AI Imported` placeholder project (`ai-import`). Service tests inject
+a fake `fetch` into the real SDK client (`{ fetch, maxRetries: 0 }`) so the
+production request/error path is exercised offline.
 
 ## Packaging
 

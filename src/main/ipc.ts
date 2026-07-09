@@ -10,6 +10,7 @@ import { COLLECTION_NAMES } from '@shared/types';
 import { dialog, ipcMain, shell } from 'electron';
 import { app } from 'electron';
 
+import { AiExtractService } from './services/ai-extract-service';
 import type { BackupService } from './services/backup-service';
 import type { BlobService } from './services/blob-service';
 import type { ConfigService } from './services/config-service';
@@ -31,6 +32,7 @@ export function registerIpc(
   const importExport = new ImportExportService(storage, blobs);
   const todoist = new TodoistService();
   const todoistPush = new TodoistPushService(todoist);
+  const aiExtract = new AiExtractService();
 
   ipcMain.handle(IPC.workspaceLoad, async (): Promise<WorkspaceLoadResponse> => {
     const loaded = await storage.loadWorkspace();
@@ -116,6 +118,19 @@ export function registerIpc(
       _event,
       payload: { token: string; items: import('@shared/domain/todoist').TodoistPushCandidate[] },
     ) => todoistPush.pushTasks(payload.token, payload.items),
+  );
+
+  ipcMain.handle(
+    IPC.aiExtract,
+    (_event, request: { apiKey?: unknown; text?: unknown; projectNames?: unknown }) =>
+      aiExtract.extractTasks(
+        typeof request.apiKey === 'string' ? request.apiKey : '',
+        typeof request.text === 'string' ? request.text : '',
+        Array.isArray(request.projectNames)
+          ? request.projectNames.filter((n): n is string => typeof n === 'string')
+          : [],
+        todayIso(process.env.ARIADNE_FAKE_TODAY),
+      ),
   );
 
   ipcMain.handle(IPC.dataDirChoose, async () => {

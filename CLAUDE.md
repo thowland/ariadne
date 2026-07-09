@@ -80,6 +80,12 @@ shape, `src/main/services/todoist-service.ts` is the only file that speaks HTTP.
 Live token-authenticated verification can only happen on the user's Mac — say so
 rather than claiming end-to-end verification.
 
+Claude AI import: `src/main/services/ai-extract-service.ts` is the only file that
+talks to Anthropic (official `@anthropic-ai/sdk`, model `claude-sonnet-5`,
+structured outputs). Anything touching Claude models/API must read the
+`claude-api` skill first — model IDs and API shapes drift. Same Mac-only caveat
+for live-key verification. Tests inject `{ fetch, maxRetries: 0 }` into the SDK.
+
 ## Visual reviews
 
 The user likes screenshot-based reviews. Capture via Playwright under xvfb

@@ -29,7 +29,11 @@ export interface FileModalState {
   /** Set when opened from a task, to return there on close. */
   back?: TaskModalState;
 }
-export type ModalState = TaskModalState | FileModalState | DayModalState | null;
+export interface AiImportModalState {
+  type: 'aiImport';
+}
+export type ModalState =
+  TaskModalState | FileModalState | DayModalState | AiImportModalState | null;
 
 export type FileMode = 'preview' | 'edit';
 
@@ -76,6 +80,8 @@ export interface AriadneStore {
   openTask: (id: string) => void;
   /** Opens the single-day view (calendar truncation). */
   openDay: (iso: IsoDate) => void;
+  /** Opens the AI task import wizard. */
+  openAiImport: () => void;
   /** Opens the file viewer; remembers an open task modal to return to. */
   openFile: (id: string, mode?: FileMode) => void;
   setFileMode: (mode: FileMode) => void;
@@ -165,6 +171,10 @@ export const useStore = create<AriadneStore>((set, get) => ({
     set({ modal: { type: 'day', iso } });
   },
 
+  openAiImport: () => {
+    set({ modal: { type: 'aiImport' } });
+  },
+
   openFile: (id, mode = 'preview') => {
     const current = get().modal;
     const back = current?.type === 'task' ? current : undefined;
@@ -178,7 +188,11 @@ export const useStore = create<AriadneStore>((set, get) => ({
   closeModal: () => {
     const current = get().modal;
     // Closing a stacked modal returns to what opened it (file → task → day).
-    if (current !== null && current.type !== 'day' && current.back !== undefined) {
+    if (
+      current !== null &&
+      (current.type === 'task' || current.type === 'file') &&
+      current.back !== undefined
+    ) {
       set({ modal: current.back });
     } else {
       set({ modal: null });

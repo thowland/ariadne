@@ -61,6 +61,12 @@ describe('TopBar', () => {
     render(<TopBar />);
     expect(screen.getByText('Search results')).toBeInTheDocument();
   });
+
+  it('AI import button opens the wizard modal', async () => {
+    render(<TopBar />);
+    await userEvent.click(screen.getByRole('button', { name: 'AI import…' }));
+    expect(useStore.getState().modal).toEqual({ type: 'aiImport' });
+  });
 });
 
 describe('Sidebar — drag to reorder projects', () => {

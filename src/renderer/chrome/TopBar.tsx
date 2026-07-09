@@ -13,8 +13,18 @@ const VIEW_TITLES: Record<ViewName, string> = {
 };
 
 export function TopBar(): React.JSX.Element {
-  const { workspace, today, view, activeProjectId, q, setQuery, setScope, go, newTaskGlobal } =
-    useStore();
+  const {
+    workspace,
+    today,
+    view,
+    activeProjectId,
+    q,
+    setQuery,
+    setScope,
+    go,
+    newTaskGlobal,
+    openAiImport,
+  } = useStore();
   const searching = q.trim() !== '';
   const overdue = (workspace?.tasks ?? []).filter((t) => isOverdue(t, today)).length;
 
@@ -51,6 +61,9 @@ export function TopBar(): React.JSX.Element {
           setQuery(e.target.value);
         }}
       />
+      <button className="btn ghost" title="Extract tasks from pasted text" onClick={openAiImport}>
+        AI import…
+      </button>
       <button className="btn primary" onClick={newTaskGlobal}>
         + New task
       </button>
