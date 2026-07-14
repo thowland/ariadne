@@ -1,0 +1,6 @@
+#!/bin/sh
+# electron-builder's bundled makensis is x86-64-only; on this arm64 VM we
+# delegate to the system NSIS (sudo apt-get install nsis), which knows its
+# own NSISDIR. electron-builder finds this wrapper via
+# ELECTRON_BUILDER_NSIS_DIR (set by scripts/package-win.sh).
+exec /usr/bin/makensis "$@"

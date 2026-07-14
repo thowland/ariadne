@@ -198,12 +198,23 @@ production request/error path is exercised offline.
 npm run package:linux          # AppImage + deb (run on Linux) → release/
 npm run package:mac            # DMG + zip for this Mac's architecture (run on macOS)
 npm run package:mac:universal  # single DMG for Apple Silicon + Intel
+npm run package:win            # Windows x64 NSIS installer (cross-built on Linux) → release/
 ```
 
 macOS packages **must be built on a Mac** (DMG + signing need Apple tooling; the
 build is ad-hoc signed without a Developer ID cert — first launch needs
 right-click → Open). `npm overrides` pins `@noble/hashes` to 1.x for
 electron-builder; keep it when updating.
+
+The Windows installer cross-builds on Linux, including the arm64 dev VM — that
+path needs the system NSIS (`sudo apt-get install nsis`) plus two shims wired
+up by `scripts/package-win.sh`: an `ELECTRON_BUILDER_NSIS_DIR` toolchain dir
+(`scripts/nsis-linux-arm64/`, see its README) and a patched
+`app-builder-lib` (`patches/`, applied by the `postinstall` hook) that
+extracts the uninstaller in pure JS instead of running the installer under
+wine. The installer is unsigned, so SmartScreen warns on first run
+("More info" → "Run anyway"); the app installs per-user, data in
+`%APPDATA%\Ariadne`.
 
 ### Shared folders — read this
 

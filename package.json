@@ -10,6 +10,7 @@
     "node": ">=18.18"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
@@ -29,6 +30,7 @@
     "package:dir": "electron-vite build && electron-builder --dir --publish never",
     "package:linux": "electron-vite build && electron-builder --linux --publish never",
     "package:mac": "electron-vite build && electron-builder --mac --publish never",
+    "package:win": "electron-vite build && bash scripts/package-win.sh",
     "package:mac:universal": "electron-vite build && electron-builder --mac --universal --publish never"
   },
   "dependencies": {
@@ -61,6 +63,7 @@
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "jsdom": "^25.0.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.18.0",

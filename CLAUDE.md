@@ -23,7 +23,9 @@ releases.
 - `npm run verify` — typecheck + lint + format:check + coverage (≥80% enforced,
   never lowered); run `npm run format` first, since Prettier-clean is part of it
 - `xvfb-run -a npm run test:e2e` — Playwright against the built app
-- `npm run package:linux` / `package:mac` (mac only on a Mac) — installers
+- `npm run package:linux` / `package:mac` (mac only on a Mac) / `package:win`
+  (cross-builds on this VM: needs `apt` NSIS + the `patches/` +
+  `scripts/nsis-linux-arm64/` shims — see README "Packaging") — installers
 
 ## The gate (unchanged from delivery, applies to every change)
 

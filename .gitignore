@@ -4,7 +4,9 @@ node_modules/
 # Build output (electron-vite / Vite / TypeScript)
 dist/
 out/
-build/
+build/*
+# … but the packaging icon is a source asset, not build output
+!build/icon.png
 *.tsbuildinfo
 
 # Packaging output (electron-builder)
