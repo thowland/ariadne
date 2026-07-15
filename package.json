@@ -99,6 +99,27 @@
       "icon": "build/icon.png",
       "darkModeSupport": true
     },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 240
+        },
+        {
+          "x": 410,
+          "y": 240,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 270,
+          "y": 90,
+          "type": "file",
+          "path": "docs/DISTRIBUTION_README.md",
+          "name": "README.txt"
+        }
+      ]
+    },
     "win": {
       "target": [
         "nsis"

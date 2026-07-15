@@ -23,4 +23,9 @@ if [ "$(uname -sm)" = "Linux aarch64" ]; then
   export ELECTRON_BUILDER_NSIS_DIR="$PWD/scripts/nsis-linux-arm64"
 fi
 
-exec npx electron-builder --win --x64 --publish never
+npx electron-builder --win --x64 --publish never
+
+# Ship the end-user guide next to the installer (the DMG embeds it via
+# build.dmg.contents; NSIS has no equivalent, so send both files together).
+cp docs/DISTRIBUTION_README.md release/README.txt
+echo "Wrote release/README.txt — send it alongside the installer."

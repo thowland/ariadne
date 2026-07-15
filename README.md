@@ -206,6 +206,13 @@ build is ad-hoc signed without a Developer ID cert — first launch needs
 right-click → Open). `npm overrides` pins `@noble/hashes` to 1.x for
 electron-builder; keep it when updating.
 
+An end-user guide, `docs/DISTRIBUTION_README.md`, ships with the packages:
+the DMG embeds it as `README.txt` (via `build.dmg.contents`), and
+`package:win` copies it to `release/README.txt` to send alongside the
+installer. The mac **zip** target can't carry extra files — add it to the
+archive by hand if you distribute that way. Keep the guide in sync with
+user-visible behavior changes (backups, integrations, data paths).
+
 The Windows installer cross-builds on Linux, including the arm64 dev VM — that
 path needs the system NSIS (`sudo apt-get install nsis`) plus two shims wired
 up by `scripts/package-win.sh`: an `ELECTRON_BUILDER_NSIS_DIR` toolchain dir
