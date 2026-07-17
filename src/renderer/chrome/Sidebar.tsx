@@ -1,5 +1,5 @@
-import { isOpen, isOverdue } from '@shared/domain/derive';
-import { moveProject } from '@shared/domain/mutate';
+import { isArchived, isOpen, isOverdue } from '@shared/domain/derive';
+import { moveProject, updateProject } from '@shared/domain/mutate';
 import { useState } from 'react';
 
 import { useStore } from '../app/store';
@@ -11,17 +11,48 @@ const NAV: readonly (readonly [ViewName, string])[] = [
   ['home', 'Command Center'],
   ['calendar', 'Calendar'],
   ['reports', 'Reports'],
+  ['files', 'Files'],
+  ['tags', 'Tags'],
   ['settings', 'Settings'],
 ];
 
 export function Sidebar(): React.JSX.Element {
-  const { workspace, today, view, activeProjectId, q, go, openProject, newProject, apply } =
-    useStore();
+  const {
+    workspace,
+    today,
+    view,
+    activeProjectId,
+    q,
+    go,
+    openProject,
+    newProject,
+    apply,
+    showToast,
+  } = useStore();
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [archiveOver, setArchiveOver] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const tasks = workspace?.tasks ?? [];
   const searching = q.trim() !== '';
-  const overdueTotal = tasks.filter((t) => isOverdue(t, today)).length;
+  const projects = workspace?.projects ?? [];
+  const activeProjects = projects.filter((p) => !isArchived(p));
+  const archivedProjects = projects.filter(isArchived);
+  const activeIds = new Set(activeProjects.map((p) => p.id));
+  const overdueTotal = tasks.filter(
+    (t) => activeIds.has(t.projectId) && isOverdue(t, today),
+  ).length;
+
+  const archiveDragged = (): void => {
+    if (dragId !== null) {
+      const name = projects.find((p) => p.id === dragId)?.name ?? 'Project';
+      apply((ws) => updateProject(ws, dragId, { archived: true }));
+      showToast(`${name} archived`);
+    }
+    setDragId(null);
+    setDragOverId(null);
+    setArchiveOver(false);
+  };
 
   return (
     <aside className="sidebar scr">
@@ -52,7 +83,7 @@ export function Sidebar(): React.JSX.Element {
         </button>
       </div>
       <nav className="nav-list" aria-label="Projects">
-        {(workspace?.projects ?? []).map((p, index) => {
+        {activeProjects.map((p) => {
           const projectTasks = tasks.filter((t) => t.projectId === p.id);
           const open = projectTasks.filter(isOpen).length;
           const overdue = projectTasks.filter((t) => isOverdue(t, today)).length;
@@ -81,7 +112,15 @@ export function Sidebar(): React.JSX.Element {
               onDrop={(e) => {
                 e.preventDefault();
                 if (dragId !== null && dragId !== p.id) {
-                  apply((ws) => moveProject(ws, dragId, index));
+                  // The visible list is filtered, so resolve the target's
+                  // index in the full projects array inside the mutation.
+                  apply((ws) =>
+                    moveProject(
+                      ws,
+                      dragId,
+                      ws.projects.findIndex((x) => x.id === p.id),
+                    ),
+                  );
                 }
                 setDragId(null);
                 setDragOverId(null);
@@ -89,6 +128,7 @@ export function Sidebar(): React.JSX.Element {
               onDragEnd={() => {
                 setDragId(null);
                 setDragOverId(null);
+                setArchiveOver(false);
               }}
               onClick={() => {
                 openProject(p.id);
@@ -105,6 +145,58 @@ export function Sidebar(): React.JSX.Element {
           );
         })}
       </nav>
+      {(archivedProjects.length > 0 || dragId !== null) && (
+        <>
+          <div
+            className={`sidebar-section archive-section ${archiveOver && dragId !== null ? 'drag-over' : ''}`}
+            data-testid="archive-drop"
+            onDragOver={(e) => {
+              if (dragId !== null) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setArchiveOver(true);
+              }
+            }}
+            onDragLeave={() => {
+              setArchiveOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              archiveDragged();
+            }}
+          >
+            <button
+              className="label archive-toggle"
+              onClick={() => {
+                setShowArchived((s) => !s);
+              }}
+            >
+              {dragId !== null
+                ? 'DROP TO ARCHIVE'
+                : `ARCHIVED (${archivedProjects.length}) ${showArchived ? '▾' : '▸'}`}
+            </button>
+          </div>
+          {showArchived && dragId === null && (
+            <nav className="nav-list" aria-label="Archived projects">
+              {archivedProjects.map((p) => {
+                const active = view === 'project' && activeProjectId === p.id && !searching;
+                return (
+                  <button
+                    key={p.id}
+                    className={`navitem archived ${active ? 'active' : ''}`}
+                    onClick={() => {
+                      openProject(p.id);
+                    }}
+                  >
+                    <Dot color={p.color} size={8} />
+                    <span className="nav-label">{p.name}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+        </>
+      )}
     </aside>
   );
 }

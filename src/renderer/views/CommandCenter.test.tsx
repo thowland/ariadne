@@ -39,6 +39,32 @@ describe('CommandCenter', () => {
     expect(screen.getAllByTestId(/^project-card-/)).toHaveLength(6);
   });
 
+  it('orders sections overdue → today → week → later → blocked', () => {
+    render(<CommandCenter />);
+    const ids = screen.getAllByTestId(/^focus-/).map((el) => el.getAttribute('data-testid'));
+    expect(ids).toEqual([
+      'focus-overdue',
+      'focus-due-today',
+      'focus-due-this-week',
+      'focus-high-priority-later',
+      'focus-blocked',
+    ]);
+  });
+
+  it('excludes archived projects from stats, sections, and the portfolio', () => {
+    const ws = seedWorkspace(TEST_TODAY);
+    ws.projects = ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p));
+    loadTestWorkspace(ws);
+    render(<CommandCenter />);
+    expect(screen.getAllByTestId(/^project-card-/)).toHaveLength(5);
+    expect(screen.getByTestId('stat-active-projects')).toHaveTextContent('5');
+    // p1's overdue "Migrate auth service" no longer counts or shows.
+    expect(screen.getByTestId('stat-overdue')).toHaveTextContent('2');
+    expect(
+      within(screen.getByTestId('focus-overdue')).queryByText('Migrate auth service'),
+    ).not.toBeInTheDocument();
+  });
+
   it('lists the right tasks in the overdue section', () => {
     render(<CommandCenter />);
     const overdue = screen.getByTestId('focus-overdue');

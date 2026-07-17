@@ -23,6 +23,30 @@ describe('Reports', () => {
     expect(within(p1).getByText('Cutover & DNS switch')).toBeInTheDocument();
   });
 
+  it('done-this-week lines show a neutral date, never "overdue"', () => {
+    render(<Reports />);
+    // "Strip old varnish" completed 5 days ago but was due Jul 2.
+    const p3 = screen.getByTestId('weekly-p3');
+    const line = within(p3).getByText('Strip old varnish').closest('.report-line');
+    expect(line).not.toBeNull();
+    expect(within(line as HTMLElement).queryByText(/overdue/)).not.toBeInTheDocument();
+    expect(within(line as HTMLElement).getByText('Jul 2')).toBeInTheDocument();
+  });
+
+  it('archived projects drop out of reports and the tag filter still works', async () => {
+    const w = useStore.getState().workspace!;
+    useStore.setState({
+      workspace: {
+        ...w,
+        projects: w.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p)),
+      },
+    });
+    render(<Reports />);
+    expect(screen.queryByTestId('weekly-p1')).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'work');
+    expect(screen.queryByTestId('weekly-p1')).not.toBeInTheDocument();
+  });
+
   it('work-only filter never shows home projects (and vice versa)', async () => {
     render(<Reports />);
     await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'work');

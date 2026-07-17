@@ -112,11 +112,15 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
                   patch({ projectId: e.target.value });
                 }}
               >
-                {workspace.projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
+                {workspace.projects
+                  // Archived projects aren't move targets, but the current
+                  // home must stay listed so the select shows it.
+                  .filter((p) => p.archived !== true || p.id === task.projectId)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>

@@ -175,7 +175,7 @@ export function collectTodoistPushCandidates(
     const distance = dayDiff(task.dueDate, today);
     if (distance < 0 || distance > days) continue;
     const project = projectsById.get(task.projectId);
-    if (project === undefined) continue;
+    if (project === undefined || project.archived === true) continue;
     candidates.push({
       taskId: task.id,
       content: task.title || 'Untitled task',

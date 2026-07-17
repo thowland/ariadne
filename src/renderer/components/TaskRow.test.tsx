@@ -50,6 +50,14 @@ describe('TaskRow', () => {
     expect(screen.getByText(done.title)).toHaveClass('done');
   });
 
+  it('never labels a Done task overdue — neutral date instead', () => {
+    // Seed: "Strip old varnish" is Done with a due date 6 days back (Jul 2).
+    const done = useStore.getState().workspace!.tasks.find((t) => t.title === 'Strip old varnish')!;
+    render(<TaskRow task={done} />);
+    expect(screen.queryByText(/overdue/)).not.toBeInTheDocument();
+    expect(screen.getByText('Jul 2')).toBeInTheDocument();
+  });
+
   it('cycles status via the circle without opening the task', async () => {
     render(<TaskRow task={task('t3')} />);
     await userEvent.click(screen.getByTitle('Advance status (Todo)'));

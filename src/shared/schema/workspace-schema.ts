@@ -34,6 +34,8 @@ export const projectSchema = z.object({
   status: z.string().catch('Active'),
   notes: z.string().catch(''),
   links: z.array(linkRefSchema).catch([]),
+  // Optional so pre-1.6 documents round-trip byte-identical.
+  archived: z.boolean().optional().catch(false),
   createdAt: isoDate,
 });
 

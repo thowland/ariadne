@@ -1,6 +1,6 @@
 import { isoAdd } from '@shared/domain/dates';
 import { fmtShort } from '@shared/domain/dates';
-import { allProjectTags, relativeDueLabel } from '@shared/domain/derive';
+import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
 import type { ReportFilter, RiskRow, WeeklyBlock } from '@shared/domain/reports';
 import {
   atRiskReport,
@@ -30,7 +30,7 @@ const TYPE_OPTIONS = [
 
 function ReportLine({ task }: { task: Task }): React.JSX.Element {
   const { today, openTask } = useStore();
-  const rel = relativeDueLabel(task.dueDate, today);
+  const rel = taskDueLabel(task, today);
   return (
     <div
       className="report-line"

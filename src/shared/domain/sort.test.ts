@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Task } from '../types';
 
-import { byDue, byProjectListOrder } from './sort';
+import { byDue, byProjectListOrder, inPinnedOrder } from './sort';
 
 function task(patch: Partial<Task>): Task {
   return {
@@ -58,5 +58,26 @@ describe('byProjectListOrder', () => {
       'done',
       'dropped',
     ]);
+  });
+});
+
+describe('inPinnedOrder', () => {
+  it('keeps the pinned order even when statuses change', () => {
+    const list = [
+      task({ id: 'a', status: 'Done' }), // was Doing when pinned first
+      task({ id: 'b', status: 'Todo' }),
+      task({ id: 'c', status: 'Doing' }),
+    ];
+    expect(inPinnedOrder(list, ['a', 'b', 'c']).map((t) => t.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('appends tasks that are not pinned yet, in workspace order', () => {
+    const list = [task({ id: 'new2' }), task({ id: 'b' }), task({ id: 'new1' }), task({ id: 'a' })];
+    expect(inPinnedOrder(list, ['a', 'b']).map((t) => t.id)).toEqual(['a', 'b', 'new2', 'new1']);
+  });
+
+  it('drops pinned ids whose tasks are gone', () => {
+    const list = [task({ id: 'b' })];
+    expect(inPinnedOrder(list, ['deleted', 'b']).map((t) => t.id)).toEqual(['b']);
   });
 });

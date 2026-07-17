@@ -28,6 +28,16 @@ describe('filterProjects', () => {
     expect(filterProjects(ws.projects, 'tag:infra').map((p) => p.id)).toEqual(['p1']);
     expect(filterProjects(ws.projects, 'tag:nonexistent')).toEqual([]);
   });
+
+  it('archived projects never report, under any filter', () => {
+    const projects = ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p));
+    expect(filterProjects(projects, 'all').some((p) => p.id === 'p1')).toBe(false);
+    expect(filterProjects(projects, 'work').some((p) => p.id === 'p1')).toBe(false);
+    expect(filterProjects(projects, 'tag:infra')).toEqual([]);
+    // And through a report builder: p1's blocks disappear from weekly status.
+    const archivedWs = { ...ws, projects };
+    expect(weeklyStatus(archivedWs, 'all', TODAY).some((b) => b.project.id === 'p1')).toBe(false);
+  });
 });
 
 describe('weeklyStatus', () => {

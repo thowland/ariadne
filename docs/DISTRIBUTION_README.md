@@ -42,7 +42,13 @@ projects and tasks you see are demo data. When you are ready to start fresh:
 - **At risk** means a task is overdue, or directly waiting on an overdue
   task (it will tell you which one).
 - The **Command Center** (home screen) groups what matters now: Overdue,
-  Due today, Blocked, Due this week, and High priority · later.
+  Due today, Due this week, High priority · later, and Blocked.
+- **Archiving**: when a project is finished (or parked), tick **Archive this
+  project** on its page — or drag it onto the **DROP TO ARCHIVE** zone that
+  appears at the bottom of the sidebar while dragging. Archived projects
+  vanish from the sidebar, Command Center, calendar, and reports, but
+  nothing is deleted: open the sidebar's **ARCHIVED** section and un-tick
+  the box to bring one back.
 - The **search box** in the top bar searches all tasks and projects as you
   type. **Escape** closes any dialog.
 - **Calendar** shows tasks by due date; click a day for its list.
@@ -51,7 +57,10 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   **Copy report** button that puts a plain-text version on the clipboard.
 - Each project has a **Files & documents** card: create markdown notes
   in-app or upload files (PDF, CSV, DOCX, XLSX, PPTX, RTF, images). Images,
-  PDFs, and CSVs preview inside Ariadne.
+  PDFs, and CSVs preview inside Ariadne. The **Files** view in the sidebar
+  lists every file across all projects in one place.
+- The **Tags** view in the sidebar shows every tag you use, with counts —
+  click one to search for everything carrying it.
 
 ## Where your data lives
 

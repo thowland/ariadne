@@ -162,6 +162,15 @@ describe('collectTodoistPushCandidates', () => {
     expect(accountant?.priority).toBe(4);
   });
 
+  it('never pushes tasks from archived projects', () => {
+    const ws = seedWorkspace(TODAY);
+    const before = collectTodoistPushCandidates(ws, TODAY, 2);
+    expect(before.some((c) => c.labels.includes('Q3-Platform-Migration'))).toBe(true);
+    ws.projects = ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p));
+    const after = collectTodoistPushCandidates(ws, TODAY, 2);
+    expect(after.some((c) => c.labels.includes('Q3-Platform-Migration'))).toBe(false);
+  });
+
   it('titles empty tasks "Untitled task"', () => {
     const ws = seedWorkspace(TODAY);
     ws.tasks = [

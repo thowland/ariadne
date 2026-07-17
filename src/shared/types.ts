@@ -53,6 +53,13 @@ export interface Project {
   status: string;
   notes: string;
   links: LinkRef[];
+  /**
+   * Archived projects are parked: hidden from the sidebar, Command Center,
+   * calendar, reports, and pickers, but kept (with all their tasks/files)
+   * and reachable from the sidebar's Archived section and search.
+   * Optional so pre-1.6 workspaces and fixtures need no migration.
+   */
+  archived?: boolean;
   createdAt: IsoDate;
 }
 

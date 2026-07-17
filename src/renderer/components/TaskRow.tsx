@@ -1,4 +1,4 @@
-import { isBlocked, relativeDueLabel } from '@shared/domain/derive';
+import { isBlocked, taskDueLabel } from '@shared/domain/derive';
 import { cycleTaskStatus } from '@shared/domain/mutate';
 import type { Task } from '@shared/types';
 
@@ -21,7 +21,7 @@ export function TaskRow({
   const { workspace, today, apply, openTask } = useStore();
   const st = STATUS_COLORS[task.status];
   const done = task.status === 'Done' || task.status === 'Dropped';
-  const rel = relativeDueLabel(task.dueDate, today);
+  const rel = taskDueLabel(task, today);
   const project = workspace?.projects.find((p) => p.id === task.projectId);
   const byId = new Map((workspace?.tasks ?? []).map((t) => [t.id, t]));
   const blocked = isBlocked(task, byId);

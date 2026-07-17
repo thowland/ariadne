@@ -1,7 +1,14 @@
 import type { IsoDate, Project, Task, Workspace } from '../types';
 
 import { dayDiff, fmtLong, fmtShort } from './dates';
-import { indexTasks, isOpen, isOverdue, overdueDependency, relativeDueLabel } from './derive';
+import {
+  indexTasks,
+  isArchived,
+  isOpen,
+  isOverdue,
+  overdueDependency,
+  relativeDueLabel,
+} from './derive';
 import { byDue } from './sort';
 
 /**
@@ -12,8 +19,10 @@ import { byDue } from './sort';
 
 export type ReportFilter = 'all' | 'work' | 'home' | `tag:${string}`;
 
+/** Archived projects never report — they are parked, not in flight. */
 export function filterProjects(projects: readonly Project[], filter: ReportFilter): Project[] {
   return projects.filter((p) => {
+    if (isArchived(p)) return false;
     if (filter === 'all') return true;
     if (filter === 'work' || filter === 'home') return p.category === filter;
     return p.tags.includes(filter.slice(4));

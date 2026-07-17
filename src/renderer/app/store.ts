@@ -11,7 +11,7 @@ import { getApi } from './api';
 
 export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCtx) => R;
 
-export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'settings';
+export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'files' | 'tags' | 'settings';
 
 export interface DayModalState {
   type: 'day';
@@ -242,7 +242,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
     const { workspace, activeProjectId } = get();
     // Validate the active project still exists before targeting it.
     const active = workspace?.projects.find((p) => p.id === activeProjectId);
-    const pid = active?.id ?? workspace?.projects[0]?.id;
+    const pid = active?.id ?? workspace?.projects.find((p) => p.archived !== true)?.id;
     if (pid === undefined) {
       get().newProject();
       return;

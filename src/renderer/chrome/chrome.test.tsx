@@ -32,6 +32,32 @@ describe('Sidebar', () => {
     expect(screen.getByRole('button', { name: /2025 Taxes/ })).toHaveClass('active');
     expect(useStore.getState().activeProjectId).toBe('p4');
   });
+
+  it('navigates to the Files and Tags views', async () => {
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole('button', { name: 'Files' }));
+    expect(useStore.getState().view).toBe('files');
+    await userEvent.click(screen.getByRole('button', { name: 'Tags' }));
+    expect(useStore.getState().view).toBe('tags');
+  });
+
+  it('hides archived projects behind a collapsible Archived section', async () => {
+    const ws = useStore.getState().workspace!;
+    useStore.setState({
+      workspace: {
+        ...ws,
+        projects: ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p)),
+      },
+    });
+    render(<Sidebar />);
+    // Out of the main list; overdue badge drops p1's overdue task (3 → 2).
+    expect(screen.queryByRole('button', { name: /Q3 Platform Migration/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Command Center/ })).toHaveTextContent('2');
+
+    await userEvent.click(screen.getByRole('button', { name: /ARCHIVED \(1\)/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Q3 Platform Migration/ }));
+    expect(useStore.getState().activeProjectId).toBe('p1');
+  });
 });
 
 describe('TopBar', () => {
@@ -111,5 +137,22 @@ describe('Sidebar — drag to reorder projects', () => {
     const other = screen.getByRole('button', { name: /Refinish boat table/ });
     fireEvent.drop(other, { dataTransfer }); // no active drag → no move
     expect(projectOrder()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+  });
+
+  it('dropping a project on the archive zone archives it', () => {
+    render(<Sidebar />);
+    const source = screen.getByRole('button', { name: /Home network upgrade/ });
+    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: () => undefined };
+
+    fireEvent.dragStart(source, { dataTransfer });
+    const zone = screen.getByTestId('archive-drop');
+    expect(zone).toHaveTextContent('DROP TO ARCHIVE');
+    fireEvent.dragOver(zone, { dataTransfer });
+    expect(zone).toHaveClass('drag-over');
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(useStore.getState().workspace?.projects.find((p) => p.id === 'p6')?.archived).toBe(true);
+    expect(screen.queryByRole('button', { name: /Home network upgrade/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId('archive-drop')).toHaveTextContent('ARCHIVED (1)');
   });
 });

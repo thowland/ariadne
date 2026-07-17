@@ -345,3 +345,52 @@ test('AI import wizard opens, gates on the API key, and cancels cleanly', async 
   await expect(win.getByRole('dialog', { name: 'AI task import' })).toHaveCount(0);
   await app.close();
 });
+
+test('archive lifecycle, files library, and tags view', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Files library lists every project's files; a row opens the viewer.
+  await win.getByRole('button', { name: 'Files', exact: true }).click();
+  await expect(win.getByTestId('files-headline')).toHaveText('5 files across 3 projects');
+  await win.getByText('Migration overview.md').click();
+  await expect(win.getByRole('dialog', { name: 'File viewer' })).toBeVisible();
+  await win.keyboard.press('Escape');
+
+  // Tags view shows workspace tags; clicking one searches for it.
+  await win.getByRole('button', { name: 'Tags', exact: true }).click();
+  await expect(win.getByTestId('tags-cloud')).toBeVisible();
+  await win.getByText('#woodworking').click();
+  await expect(win.getByTestId('search-summary')).toContainText('matching “woodworking”');
+  await win.getByPlaceholder('Search tasks & projects…').fill('');
+
+  // Archive p3 from its detail screen: gone from sidebar list + portfolio,
+  // reachable through the ARCHIVED section, and restorable from there.
+  const projectNav = win.getByRole('navigation', { name: 'Projects' });
+  await projectNav.getByRole('button', { name: /Refinish boat table/ }).click();
+  await win.getByLabel('Archive this project').check();
+  await expect(projectNav.getByRole('button', { name: /Refinish boat table/ })).toHaveCount(0);
+  await win.getByRole('button', { name: 'Command Center' }).click();
+  await expect(win.getByTestId('project-card-p3')).toHaveCount(0);
+
+  // Survives a restart, then restore via the archived section.
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await expect(win2.getByTestId('project-card-p3')).toHaveCount(0);
+  await win2.getByRole('button', { name: /ARCHIVED \(1\)/ }).click();
+  await win2
+    .getByRole('navigation', { name: 'Archived projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+  await win2.getByLabel('Archive this project').uncheck();
+  await expect(
+    win2.getByRole('navigation', { name: 'Projects' }).getByRole('button', {
+      name: /Refinish boat table/,
+    }),
+  ).toBeVisible();
+  await second.close();
+});

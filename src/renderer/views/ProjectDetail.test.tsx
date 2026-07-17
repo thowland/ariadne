@@ -53,6 +53,45 @@ describe('ProjectDetail', () => {
     expect(ws().projects.find((p) => p.id === 'p3')?.tags).toEqual(['teak']);
   });
 
+  it('keeps the task order pinned while statuses cycle', async () => {
+    render(<ProjectDetail />);
+    const titles = () =>
+      screen
+        .getAllByTitle(/Advance status/)
+        .map((btn) => btn.closest('.trow')?.querySelector('.trow-title')?.textContent);
+    const before = titles();
+    expect(before[0]).toBe('Sand to 220 grit'); // Doing sorts first on entry
+
+    // Doing → Waiting used to demote the row below every Todo; now it stays put.
+    await userEvent.click(screen.getByTitle('Advance status (Doing)'));
+    expect(ws().tasks.find((t) => t.title === 'Sand to 220 grit')?.status).toBe('Waiting');
+    expect(titles()).toEqual(before);
+
+    // …and further into Done, still pinned in place.
+    await userEvent.click(screen.getByTitle('Advance status (Waiting)'));
+    expect(titles()).toEqual(before);
+  });
+
+  it('quick-added tasks append at the end of the pinned order', async () => {
+    render(<ProjectDetail />);
+    const input = screen.getByPlaceholderText('Add a task and press Enter…');
+    await userEvent.type(input, 'Buff the finish{Enter}');
+    const titles = screen
+      .getAllByTitle(/Advance status/)
+      .map((btn) => btn.closest('.trow')?.querySelector('.trow-title')?.textContent);
+    expect(titles[titles.length - 1]).toBe('Buff the finish');
+  });
+
+  it('archives and restores the project via the checkbox', async () => {
+    render(<ProjectDetail />);
+    const box = screen.getByLabelText('Archive this project');
+    expect(box).not.toBeChecked();
+    await userEvent.click(box);
+    expect(ws().projects.find((p) => p.id === 'p3')?.archived).toBe(true);
+    await userEvent.click(box);
+    expect(ws().projects.find((p) => p.id === 'p3')?.archived).toBe(false);
+  });
+
   it('quick-adds a task with Enter', async () => {
     render(<ProjectDetail />);
     const input = screen.getByPlaceholderText('Add a task and press Enter…');

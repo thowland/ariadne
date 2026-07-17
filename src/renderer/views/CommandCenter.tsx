@@ -75,9 +75,9 @@ export function CommandCenter(): React.JSX.Element {
   const sections = [
     { key: 'overdue', title: 'Overdue', tasks: overdue, accent: '#d94c3a' },
     { key: 'today', title: 'Due today', tasks: dueToday, accent: '#c23b2b' },
-    { key: 'blocked', title: 'Blocked', tasks: blocked, accent: '#d69220' },
     { key: 'week', title: 'Due this week', tasks: soon, accent: '#4f5bd5' },
     { key: 'later', title: 'High priority · later', tasks: urgentLater, accent: '#a8710f' },
+    { key: 'blocked', title: 'Blocked', tasks: blocked, accent: '#d69220' },
   ].filter((s) => s.tasks.length > 0);
 
   return (

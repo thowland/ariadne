@@ -5,6 +5,7 @@ import type { Project, Task } from '../types';
 import {
   allProjectTags,
   indexTasks,
+  isArchived,
   isBlocked,
   isDueThisWeek,
   isDueToday,
@@ -17,6 +18,7 @@ import {
   projectProgress,
   projectsInScope,
   relativeDueLabel,
+  taskDueLabel,
   tasksInScope,
 } from './derive';
 
@@ -187,6 +189,28 @@ describe('relativeDueLabel', () => {
   });
 });
 
+describe('taskDueLabel', () => {
+  it('matches relativeDueLabel for open tasks', () => {
+    expect(taskDueLabel(task({ dueDate: '2026-07-05' }), TODAY)).toEqual({
+      text: '3d overdue',
+      color: '#d94c3a',
+    });
+    expect(taskDueLabel(task({ dueDate: TODAY }), TODAY).text).toBe('Today');
+  });
+
+  it('never reads Done/Dropped tasks as overdue — neutral date instead', () => {
+    expect(
+      taskDueLabel(task({ dueDate: '2026-07-05', status: 'Done', completedAt: TODAY }), TODAY),
+    ).toEqual({ text: 'Jul 5', color: '#9a9a92' });
+    expect(taskDueLabel(task({ dueDate: '2026-07-05', status: 'Dropped' }), TODAY).text).toBe(
+      'Jul 5',
+    );
+    expect(
+      taskDueLabel(task({ dueDate: null, status: 'Done', completedAt: TODAY }), TODAY).text,
+    ).toBe('');
+  });
+});
+
 describe('nextDueTask', () => {
   it('returns the open task with the earliest due date', () => {
     const soon = task({ id: 'soon', dueDate: '2026-07-10' });
@@ -217,6 +241,16 @@ describe('scope filtering', () => {
     expect(tasksInScope([tw, th], [work, home], 'all')).toHaveLength(2);
     expect(tasksInScope([tw, th], [work, home], 'work')).toEqual([tw]);
     expect(tasksInScope([tw, th], [work, home], 'home')).toEqual([th]);
+  });
+
+  it('archived projects and their tasks are out of every scope', () => {
+    const parked = project({ id: 'a', category: 'work', archived: true });
+    const ta = task({ id: 'ta', projectId: 'a' });
+    expect(isArchived(parked)).toBe(true);
+    expect(isArchived(work)).toBe(false);
+    expect(projectsInScope([work, parked], 'all')).toEqual([work]);
+    expect(projectsInScope([work, parked], 'work')).toEqual([work]);
+    expect(tasksInScope([tw, ta], [work, parked], 'all')).toEqual([tw]);
   });
 });
 

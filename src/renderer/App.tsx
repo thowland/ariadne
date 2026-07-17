@@ -8,10 +8,12 @@ import { Logo } from './components/Logo';
 import { ModalHost } from './modals/TaskModal';
 import { Calendar } from './views/Calendar';
 import { CommandCenter } from './views/CommandCenter';
+import { FilesLibrary } from './views/FilesLibrary';
 import { ProjectDetail } from './views/ProjectDetail';
 import { Reports } from './views/Reports';
 import { SearchResults } from './views/SearchResults';
 import { Settings } from './views/Settings';
+import { TagsView } from './views/TagsView';
 
 function ViewBody(): React.JSX.Element {
   const { view, q } = useStore();
@@ -25,6 +27,10 @@ function ViewBody(): React.JSX.Element {
       return <Calendar />;
     case 'reports':
       return <Reports />;
+    case 'files':
+      return <FilesLibrary />;
+    case 'tags':
+      return <TagsView />;
     case 'settings':
       return <Settings />;
   }

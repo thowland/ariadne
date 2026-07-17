@@ -4,8 +4,8 @@ import {
   deleteProject,
   updateProject,
 } from '@shared/domain/mutate';
-import { byProjectListOrder } from '@shared/domain/sort';
-import { useState } from 'react';
+import { byProjectListOrder, inPinnedOrder } from '@shared/domain/sort';
+import { useRef, useState } from 'react';
 
 import { getApi } from '../app/api';
 import { uploadFiles } from '../app/files';
@@ -22,6 +22,9 @@ export function ProjectDetail(): React.JSX.Element {
   const { workspace, activeProjectId, apply, openTask, openFile, go, askConfirm, showToast } =
     useStore();
   const [quickTitle, setQuickTitle] = useState('');
+  // The visual task order is pinned per visit so clicking the status circle
+  // never reshuffles the list; it re-sorts on the next visit to the project.
+  const pinnedRef = useRef<{ projectId: string; ids: string[] } | null>(null);
 
   const project = workspace?.projects.find((p) => p.id === activeProjectId);
   if (project === undefined) {
@@ -30,7 +33,14 @@ export function ProjectDetail(): React.JSX.Element {
 
   const tasks = (workspace?.tasks ?? []).filter((t) => t.projectId === project.id);
   const files = (workspace?.files ?? []).filter((f) => f.projectId === project.id);
-  const sorted = [...tasks].sort(byProjectListOrder);
+  if (pinnedRef.current?.projectId !== project.id) {
+    pinnedRef.current = {
+      projectId: project.id,
+      ids: [...tasks].sort(byProjectListOrder).map((t) => t.id),
+    };
+  }
+  const sorted = inPinnedOrder(tasks, pinnedRef.current.ids);
+  pinnedRef.current.ids = sorted.map((t) => t.id);
   const done = tasks.filter((t) => t.status === 'Done').length;
   const total = tasks.filter((t) => t.status !== 'Dropped').length;
 
@@ -92,6 +102,19 @@ export function ProjectDetail(): React.JSX.Element {
             <span className="project-done-count">
               {done} / {total} done
             </span>
+            <label className="archive-check">
+              <input
+                type="checkbox"
+                checked={project.archived === true}
+                aria-label="Archive this project"
+                onChange={(e) => {
+                  const archived = e.target.checked;
+                  apply((ws) => updateProject(ws, project.id, { archived }));
+                  showToast(archived ? 'Project archived' : 'Project restored');
+                }}
+              />
+              Archive this project
+            </label>
             <TagEditor
               tags={project.tags}
               onChange={(tags) => {

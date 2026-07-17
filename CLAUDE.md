@@ -54,7 +54,9 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
   and cycle-tolerant; deletes cascade (tasks scrub `dependsOn`, projects remove
   files+blobs — surface `removedBlobIds` and call `api.deleteBlobs`); work/home
   report scoping must never leak; `todoist:<id>` note markers drive push/import
-  dedupe.
+  dedupe; archived projects (D13) stay out of every active surface (sidebar,
+  Command Center, calendar, reports, Todoist push, project picker) but remain
+  intact and searchable.
 
 ## Environment gotchas (this VM)
 

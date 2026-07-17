@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.6.0 — 2026-07-17
+
+- **Archive projects**: an "Archive this project" checkbox on the project
+  screen, or drag a project onto the sidebar's **DROP TO ARCHIVE** zone.
+  Archived projects (and their tasks) disappear from the sidebar, Command
+  Center, calendar, reports, Todoist push, and the task editor's project
+  picker — but keep everything and come back via the sidebar's collapsible
+  **ARCHIVED** section (or search) and un-checking the box.
+- **Files library**: a new **Files** view (between Reports and Settings)
+  lists every file across all projects and tasks, grouped by project, for
+  quick browsing — rows open the regular viewer.
+- **Tags view**: a new **Tags** view shows every tag in the workspace with
+  usage counts; clicking one searches for it, just like clicking a tag chip
+  on a project or task. Rename/merge/delete stay in Settings.
+- **Stable task order while working a project**: clicking the status circle
+  no longer reshuffles the project task list; the order is pinned for the
+  visit and re-sorts (Doing → Todo → Waiting → Done) next time you open the
+  project. New tasks append at the bottom.
+- **Done can't be overdue**: completed/dropped tasks now show their old due
+  date as a neutral gray date instead of a red "overdue" label — in project
+  task lists and the weekly status report alike.
+- **Command Center order**: focus sections now run Overdue → Due today →
+  Due this week → High priority · later → Blocked.
+
 ## 1.5.0 — 2026-07-09
 
 - **AI task import**: paste any chunk of text (meeting notes, emails, a brain

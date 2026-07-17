@@ -104,6 +104,17 @@ export function relativeDueLabel(dueDate: IsoDate | null, today: IsoDate): DueLa
   return { text: fmtShort(dueDate), color: COLOR_LATER };
 }
 
+/**
+ * Due label for a task row. Done/Dropped tasks can't be overdue (or due at
+ * all): their due date renders as a neutral calendar date instead of the
+ * red/amber relative label.
+ */
+export function taskDueLabel(t: Task, today: IsoDate): DueLabel {
+  if (isOpen(t)) return relativeDueLabel(t.dueDate, today);
+  if (t.dueDate === null) return { text: '', color: COLOR_NONE };
+  return { text: fmtShort(t.dueDate), color: COLOR_NONE };
+}
+
 /** The open task with the earliest due date, if any. */
 export function nextDueTask(tasks: readonly Task[]): Task | null {
   let best: Task | null = null;
@@ -121,11 +132,19 @@ export function allProjectTags(projects: readonly Project[]): string[] {
   return [...s].sort();
 }
 
-/** Filter helpers for the global Work/Home/All scope. */
+export function isArchived(p: Project): boolean {
+  return p.archived === true;
+}
+
+/**
+ * Filter helpers for the global Work/Home/All scope. Archived projects are
+ * out of scope everywhere: they (and their tasks) never appear in the
+ * Command Center, calendar, or day views.
+ */
 export type Scope = 'all' | 'work' | 'home';
 
 export function projectsInScope(projects: readonly Project[], scope: Scope): Project[] {
-  return projects.filter((p) => scope === 'all' || p.category === scope);
+  return projects.filter((p) => !isArchived(p) && (scope === 'all' || p.category === scope));
 }
 
 export function tasksInScope(
@@ -133,7 +152,6 @@ export function tasksInScope(
   projects: readonly Project[],
   scope: Scope,
 ): Task[] {
-  if (scope === 'all') return [...tasks];
   const inScope = new Set(projectsInScope(projects, scope).map((p) => p.id));
   return tasks.filter((t) => inScope.has(t.projectId));
 }

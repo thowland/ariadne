@@ -109,6 +109,25 @@ describe('TaskModal', () => {
     expect(task('t3').dependsOn).toEqual([]);
   });
 
+  it('hides archived projects from the project picker (unless it is the current home)', () => {
+    const w = ws();
+    useStore.setState({
+      workspace: {
+        ...w,
+        projects: w.projects.map((p) =>
+          p.id === 'p6' || p.id === 'p1' ? { ...p, archived: true } : p,
+        ),
+      },
+    });
+    openModal('t3'); // t3 lives in the now-archived p1
+    const select = screen.getByLabelText('Project');
+    const names = within(select)
+      .getAllByRole('option')
+      .map((o) => o.textContent);
+    expect(names).toContain('Q3 Platform Migration'); // current home stays listed
+    expect(names).not.toContain('Home network upgrade');
+  });
+
   it('cycles status from the header circle', async () => {
     openModal('t3'); // Todo
     await userEvent.click(screen.getByTitle('Advance status'));

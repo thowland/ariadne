@@ -49,6 +49,18 @@ describe('document schemas', () => {
     });
   });
 
+  it('keeps archived flags, leaves them absent for pre-1.6 documents, defaults junk', () => {
+    const base = { id: 'p1', createdAt: TODAY };
+    const parsed = projectsFileSchema.parse([
+      base,
+      { ...base, id: 'p2', archived: true },
+      { ...base, id: 'p3', archived: 'yes' },
+    ]);
+    expect(parsed[0]).not.toHaveProperty('archived');
+    expect(parsed[1]?.archived).toBe(true);
+    expect(parsed[2]?.archived).toBe(false);
+  });
+
   it('rejects entities without ids or valid createdAt', () => {
     expect(tasksFileSchema.safeParse([{ projectId: 'p1', createdAt: TODAY }]).success).toBe(false);
     expect(tasksFileSchema.safeParse([{ id: 't1', projectId: 'p1' }]).success).toBe(false);

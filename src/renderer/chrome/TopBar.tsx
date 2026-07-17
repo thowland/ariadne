@@ -1,5 +1,5 @@
 import { fmtLong } from '@shared/domain/dates';
-import { isOverdue } from '@shared/domain/derive';
+import { isOverdue, tasksInScope } from '@shared/domain/derive';
 
 import { useStore } from '../app/store';
 import type { ViewName } from '../app/store';
@@ -8,6 +8,8 @@ const VIEW_TITLES: Record<ViewName, string> = {
   home: 'Command Center',
   calendar: 'Calendar',
   reports: 'Reports',
+  files: 'Files',
+  tags: 'Tags',
   settings: 'Settings',
   project: 'Project',
 };
@@ -26,7 +28,10 @@ export function TopBar(): React.JSX.Element {
     openAiImport,
   } = useStore();
   const searching = q.trim() !== '';
-  const overdue = (workspace?.tasks ?? []).filter((t) => isOverdue(t, today)).length;
+  // Scope 'all' still excludes archived projects' tasks.
+  const overdue = tasksInScope(workspace?.tasks ?? [], workspace?.projects ?? [], 'all').filter(
+    (t) => isOverdue(t, today),
+  ).length;
 
   const title = searching
     ? 'Search results'
