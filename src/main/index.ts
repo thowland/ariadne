@@ -35,9 +35,12 @@ app.on('second-instance', () => {
   }
 });
 
-// Must run before app ready.
+// Must run before app ready. corsEnabled lets renderer fetch() reach the
+// scheme at all (Chromium ≥ Electron 39 blocks cross-origin fetches to
+// schemes outside its CORS-enabled list); the handler must then answer
+// with Access-Control-Allow-Origin.
 protocol.registerSchemesAsPrivileged([
-  { scheme: BLOB_PROTOCOL, privileges: { stream: true, supportFetchAPI: true } },
+  { scheme: BLOB_PROTOCOL, privileges: { stream: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
 
 function createWindow(config: ConfigService): void {
@@ -113,11 +116,15 @@ void app.whenReady().then(() => {
   backupTimer.unref();
 
   // Serve stored blobs to the renderer (img/object/fetch) without IPC copies.
-  protocol.handle(BLOB_PROTOCOL, (request) => {
+  protocol.handle(BLOB_PROTOCOL, async (request) => {
+    const cors = { 'Access-Control-Allow-Origin': '*' };
     const fileId = new URL(request.url).host;
     const path = blobs.find(fileId);
-    if (path === null) return new Response('Not found', { status: 404 });
-    return net.fetch(pathToFileURL(path).toString());
+    if (path === null) return new Response('Not found', { status: 404, headers: cors });
+    const res = await net.fetch(pathToFileURL(path).toString());
+    const headers = new Headers(res.headers);
+    headers.set('Access-Control-Allow-Origin', '*');
+    return new Response(res.body, { status: res.status, headers });
   });
 
   createWindow(config);

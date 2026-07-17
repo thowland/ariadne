@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.1 — 2026-07-17
+
+- **Security**: Electron upgraded 33.4.11 → 39.8.10, clearing all high-severity
+  `npm audit` advisories (ASAR integrity bypass, several use-after-frees, IPC
+  spoofing, and more). 39.8.10 is the newest major installable on the Node 18
+  dev VM — Electron 40+ requires Node ≥ 22.
+- Fixed the `ariadne-blob://` protocol under the new Chromium: renderer
+  `fetch()` of uploaded files (CSV previews) is now CORS-enabled; image and
+  PDF previews were unaffected. No user-facing behavior change.
+
 ## 1.6.0 — 2026-07-17
 
 - **Archive projects**: an "Archive this project" checkbox on the project

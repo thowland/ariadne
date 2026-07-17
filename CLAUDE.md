@@ -62,7 +62,10 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
 
 - **Node 18.19 on linux-arm64** — tool majors are pinned to Node-18-compatible
   ranges (Vite 6, Vitest 3, ESLint 9, electron-vite 3, @vitejs/plugin-react 4);
-  check `engines` before bumping any of them.
+  check `engines` before bumping any of them. **Electron is capped at 39.x**:
+  the electron@40+ npm package requires Node ≥ 22.12. When bumping Electron,
+  re-test blob previews — Chromium keeps tightening custom-scheme fetch (the
+  39 bump needed `corsEnabled` + ACAO headers on `ariadne-blob://`).
 - Headless: every app/E2E/screenshot run needs `xvfb-run -a`.
 - The repo lives in a folder **shared with the user's Mac**; if they ran npm there,
   platform binaries get swapped. Repair: `node node_modules/electron/install.js`
