@@ -14,8 +14,13 @@ click **More info**, then **Run anyway**. It installs per-user (no admin
 rights needed) and adds Ariadne to the Start menu.
 
 **macOS** — open the DMG and drag **Ariadne** into **Applications**. The app
-is not notarized, so the first launch needs a **right-click → Open** instead
-of a double-click.
+is not notarized, so macOS will balk at the first launch:
+
+- **macOS 14 or earlier**: right-click the app → **Open** (instead of a
+  double-click), then confirm.
+- **macOS 15 (Sequoia) or later**: double-click it once and dismiss the
+  warning, then go to **System Settings → Privacy & Security**, scroll down,
+  and click **Open Anyway**.
 
 **Linux** — make the AppImage executable (`chmod +x`) and run it, or install
 the `.deb`.

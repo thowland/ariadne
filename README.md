@@ -205,10 +205,45 @@ npm run package:mac:universal  # single DMG for Apple Silicon + Intel
 npm run package:win            # Windows x64 NSIS installer (cross-built on Linux) → release/
 ```
 
-macOS packages **must be built on a Mac** (DMG + signing need Apple tooling; the
-build is ad-hoc signed without a Developer ID cert — first launch needs
-right-click → Open). `npm overrides` pins `@noble/hashes` to 1.x for
-electron-builder; keep it when updating.
+macOS packages **must be built on a Mac** (DMG + signing need Apple tooling).
+Notarization is **explicitly off** (`build.mac.notarize: false`) — the app is
+for personal use, so Apple credentials aren't required to package. Signing uses
+whatever identity electron-builder auto-discovers in the keychain (an Xcode
+"Apple Development" cert, or ad-hoc with none); either way the app launches
+fine on the build machine but shows Gatekeeper's "unidentified developer"
+friction on anyone else's Mac — on macOS ≤ 14 right-click → Open, on macOS 15+
+System Settings → Privacy & Security → "Open Anyway" after the first blocked
+launch. To share an unnotarized build, prefer forcing ad-hoc signing
+(`CSC_IDENTITY_AUTO_DISCOVERY=false npm run package:mac`) — a Development cert
+is no better for recipients and expires yearly. `npm overrides` pins
+`@noble/hashes` to 1.x for electron-builder; keep it when updating.
+
+#### Notarizing (when the time comes)
+
+To distribute DMGs without the Gatekeeper friction (all steps on the Mac):
+
+1. Join the Apple Developer Program (developer.apple.com, $99/yr). The Team ID
+   will match the suffix of the existing cert identity.
+2. Create a **Developer ID Application** certificate (Xcode → Settings →
+   Accounts → Manage Certificates → “+”) so it lands in the keychain —
+   electron-builder auto-picks it over a Development cert.
+3. Create an app-specific password: account.apple.com → Sign-In & Security →
+   App-Specific Passwords.
+4. In `package.json` `build.mac`, set `"notarize": true` and add
+   `"hardenedRuntime": true` (notarization requires it; electron-builder
+   applies Electron's JIT entitlements automatically).
+5. Package with credentials in the environment:
+
+   ```sh
+   export APPLE_ID="<apple id email>"
+   export APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   export APPLE_TEAM_ID="<team id>"
+   npm run package:mac
+   ```
+
+   electron-builder signs with the Developer ID cert, submits to Apple's
+   notary service (first run can take several minutes), and staples the
+   ticket. Verify with `spctl -a -vv release/mac-arm64/Ariadne.app`.
 
 An end-user guide, `docs/DISTRIBUTION_README.md`, ships with the packages:
 the DMG embeds it as `README.txt` (via `build.dmg.contents`), and
