@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+# Churns between the shared Mac/Linux checkouts; stays local-only
+package-lock.json
 
 # Build output (electron-vite / Vite / TypeScript)
 dist/
