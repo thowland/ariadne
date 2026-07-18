@@ -102,6 +102,13 @@ export function ProjectDetail(): React.JSX.Element {
             <span className="project-done-count">
               {done} / {total} done
             </span>
+            <TagEditor
+              tags={project.tags}
+              onChange={(tags) => {
+                apply((ws) => updateProject(ws, project.id, { tags }));
+              }}
+            />
+            <div className="spacer" />
             <label className="archive-check">
               <input
                 type="checkbox"
@@ -115,12 +122,6 @@ export function ProjectDetail(): React.JSX.Element {
               />
               Archive this project
             </label>
-            <TagEditor
-              tags={project.tags}
-              onChange={(tags) => {
-                apply((ws) => updateProject(ws, project.id, { tags }));
-              }}
-            />
           </div>
         </div>
         <div className="project-actions">
