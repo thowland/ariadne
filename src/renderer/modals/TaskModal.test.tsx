@@ -1,6 +1,8 @@
+import { seedWorkspace } from '@shared/domain/seed';
+import { markTasksPushed } from '@shared/domain/todoist';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '../app/store';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -167,5 +169,73 @@ describe('TaskModal', () => {
     useStore.setState({ modal: { type: 'task', id: 'ghost' } });
     render(<ModalHost />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('TaskModal · send to Todoist', () => {
+  it('pushes just this task, marks it, and flips the footer to the linked note', async () => {
+    vi.mocked(window.ariadne.todoistPush).mockImplementation((_token, items) =>
+      Promise.resolve({
+        ok: true,
+        pushed: items.map((i) => ({ taskId: i.taskId, todoistId: `td-${i.taskId}` })),
+        failed: 0,
+      }),
+    );
+    openModal('t2');
+    await userEvent.click(screen.getByRole('button', { name: 'Send to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Sent to Todoist');
+    });
+    expect(task('t2').notes).toContain('todoist:td-t2');
+    expect(screen.getByTestId('todoist-linked')).toHaveTextContent('In Todoist ✓');
+    expect(screen.queryByRole('button', { name: 'Send to Todoist' })).not.toBeInTheDocument();
+
+    const items = vi.mocked(window.ariadne.todoistPush).mock.calls[0]?.[1];
+    expect(items).toHaveLength(1);
+    expect(items?.[0]).toMatchObject({
+      taskId: 't2',
+      content: 'Provision new k8s cluster',
+      targetProject: 'Work',
+      labels: ['Q3-Platform-Migration', 'ariadne'],
+    });
+  });
+
+  it('surfaces push errors and leaves the task unmarked', async () => {
+    vi.mocked(window.ariadne.todoistPush).mockResolvedValue({
+      ok: false,
+      error: 'Add your Todoist API token first',
+    });
+    openModal('t2');
+    await userEvent.click(screen.getByRole('button', { name: 'Send to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Add your Todoist API token first');
+    });
+    expect(task('t2').notes).not.toContain('todoist:');
+    expect(screen.getByRole('button', { name: 'Send to Todoist' })).toBeEnabled();
+
+    // ok-but-rejected: Todoist accepted the request yet created nothing.
+    vi.mocked(window.ariadne.todoistPush).mockResolvedValue({ ok: true, pushed: [], failed: 1 });
+    await userEvent.click(screen.getByRole('button', { name: 'Send to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Todoist did not accept the task — try again');
+    });
+    expect(task('t2').notes).not.toContain('todoist:');
+  });
+
+  it('explains why a closed task cannot be sent, without calling Todoist', async () => {
+    openModal('t1'); // Done
+    await userEvent.click(screen.getByRole('button', { name: 'Send to Todoist' }));
+    expect(useStore.getState().toast).toBe('Only open tasks can be sent to Todoist');
+    expect(window.ariadne.todoistPush).not.toHaveBeenCalled();
+  });
+
+  it('shows the linked note instead of the button for tasks already in Todoist', () => {
+    const marked = markTasksPushed(seedWorkspace(TEST_TODAY), [
+      { taskId: 't2', todoistId: '999' },
+    ]).workspace;
+    loadTestWorkspace(marked);
+    openModal('t2');
+    expect(screen.getByTestId('todoist-linked')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send to Todoist' })).not.toBeInTheDocument();
   });
 });

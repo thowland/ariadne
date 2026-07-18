@@ -1,8 +1,15 @@
 import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
+import type { SingleTaskPushBlock } from '@shared/domain/todoist';
+import {
+  markTasksPushed,
+  todoistMarkerOf,
+  todoistPushCandidateForTask,
+} from '@shared/domain/todoist';
 import type { Subtask, TaskPriority, TaskStatus } from '@shared/types';
 import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { getApi } from '../app/api';
 import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
 import { FileRow } from '../components/FileRow';
@@ -19,6 +26,14 @@ function FieldLabel({ text }: { text: string }): React.JSX.Element {
   return <div className="field-label">{text.toUpperCase()}</div>;
 }
 
+const PUSH_BLOCK_MESSAGES: Record<SingleTaskPushBlock, string> = {
+  missing: 'Task no longer exists',
+  'already-linked': 'This task is already in Todoist',
+  'from-todoist': 'This task came from Todoist — it is already there',
+  closed: 'Only open tasks can be sent to Todoist',
+  'archived-project': 'Tasks in archived projects stay out of Todoist',
+};
+
 /**
  * The full task editor (prototype taskModal). Every edit auto-saves; there is
  * no explicit save. Escape and backdrop click close (Escape is handled
@@ -27,6 +42,7 @@ function FieldLabel({ text }: { text: string }): React.JSX.Element {
 export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | null {
   const { workspace, apply, closeModal, openFile, askConfirm, showToast } = useStore();
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const [sendingToTodoist, setSendingToTodoist] = useState(false);
 
   const task = workspace?.tasks.find((t) => t.id === taskId);
 
@@ -64,6 +80,32 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
       closeModal();
       showToast('Task deleted');
     });
+  };
+
+  const todoistLinked = todoistMarkerOf(task) !== null;
+
+  const sendToTodoist = (): void => {
+    const single = todoistPushCandidateForTask(workspace, task.id);
+    if (!single.ok) {
+      showToast(PUSH_BLOCK_MESSAGES[single.reason]);
+      return;
+    }
+    setSendingToTodoist(true);
+    void getApi()
+      .todoistPush(workspace.settings.todoistToken, [single.candidate])
+      .then((res) => {
+        if (!res.ok) {
+          showToast(res.error);
+        } else if (res.pushed.length === 0) {
+          showToast('Todoist did not accept the task — try again');
+        } else {
+          apply((ws) => markTasksPushed(ws, res.pushed));
+          showToast('Sent to Todoist');
+        }
+      })
+      .finally(() => {
+        setSendingToTodoist(false);
+      });
   };
 
   return (
@@ -328,6 +370,19 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               {project !== undefined ? `in ${project.name}` : ''}
             </span>
             <div className="spacer" />
+            {todoistLinked ? (
+              <span
+                className="modal-footnote"
+                data-testid="todoist-linked"
+                title="This task has a todoist:<id> marker in its notes"
+              >
+                In Todoist ✓
+              </span>
+            ) : (
+              <button className="btn ghost" disabled={sendingToTodoist} onClick={sendToTodoist}>
+                {sendingToTodoist ? 'Sending…' : 'Send to Todoist'}
+              </button>
+            )}
             <button className="btn danger" onClick={remove}>
               Delete task
             </button>

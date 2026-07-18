@@ -1,4 +1,4 @@
-import type { Task, Workspace } from '../types';
+import type { Project, Task, Workspace } from '../types';
 
 import { dayDiff } from './dates';
 import type { MutationCtx, MutationResult } from './mutate';
@@ -146,13 +146,26 @@ export interface TodoistPushCandidate {
   taskId: string;
   content: string;
   description: string;
-  dueDate: string;
+  /** Null for an undated task sent individually; bulk pushes always date. */
+  dueDate: string | null;
   /** Todoist priority number, 4 = urgent. */
   priority: number;
   /** Todoist project to file under: the Ariadne category (#Home / #Work). */
   targetProject: 'Home' | 'Work';
   /** Todoist labels: @<project-name-slug> plus @ariadne. */
   labels: string[];
+}
+
+function candidateOf(task: Task, project: Project): TodoistPushCandidate {
+  return {
+    taskId: task.id,
+    content: task.title || 'Untitled task',
+    description: task.notes,
+    dueDate: task.dueDate,
+    priority: PRIORITY_TO_TODOIST[task.priority],
+    targetProject: project.category === 'home' ? 'Home' : 'Work',
+    labels: [todoistLabelFor(project.name), 'ariadne'],
+  };
 }
 
 /**
@@ -176,17 +189,39 @@ export function collectTodoistPushCandidates(
     if (distance < 0 || distance > days) continue;
     const project = projectsById.get(task.projectId);
     if (project === undefined || project.archived === true) continue;
-    candidates.push({
-      taskId: task.id,
-      content: task.title || 'Untitled task',
-      description: task.notes,
-      dueDate: task.dueDate,
-      priority: PRIORITY_TO_TODOIST[task.priority],
-      targetProject: project.category === 'home' ? 'Home' : 'Work',
-      labels: [todoistLabelFor(project.name), 'ariadne'],
-    });
+    candidates.push(candidateOf(task, project));
   }
-  return candidates.sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+  return candidates.sort((a, b) => {
+    const ad = a.dueDate ?? '';
+    const bd = b.dueDate ?? '';
+    return ad < bd ? -1 : ad > bd ? 1 : 0;
+  });
+}
+
+export type SingleTaskPushBlock =
+  'missing' | 'already-linked' | 'from-todoist' | 'closed' | 'archived-project';
+
+export type SingleTaskPush =
+  { ok: true; candidate: TodoistPushCandidate } | { ok: false; reason: SingleTaskPushBlock };
+
+/**
+ * Build the push candidate for one explicitly chosen task. Unlike the bulk
+ * push there is no due-date window — an undated task is fine — but the same
+ * hard rules hold: never re-push a linked task (todoist:<id> marker), never
+ * push Todoist's own imports back, and closed tasks / archived projects (D13)
+ * stay out.
+ */
+export function todoistPushCandidateForTask(ws: Workspace, taskId: string): SingleTaskPush {
+  const task = ws.tasks.find((t) => t.id === taskId);
+  if (task === undefined) return { ok: false, reason: 'missing' };
+  if (todoistMarkerOf(task) !== null) return { ok: false, reason: 'already-linked' };
+  if (task.projectId === TODOIST_INBOX_ID) return { ok: false, reason: 'from-todoist' };
+  if (task.status === 'Done' || task.status === 'Dropped') return { ok: false, reason: 'closed' };
+  const project = ws.projects.find((p) => p.id === task.projectId);
+  if (project === undefined || project.archived === true) {
+    return { ok: false, reason: 'archived-project' };
+  }
+  return { ok: true, candidate: candidateOf(task, project) };
 }
 
 /** Record the created Todoist ids so the tasks are never pushed twice. */

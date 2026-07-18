@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.9.0 — 2026-07-18
+
+- **Send a single task to Todoist**: the task editor's footer gains a
+  **Send to Todoist** button. Unlike the bulk push in Settings there is no
+  due-date window — undated and overdue tasks can be sent, since you picked
+  the task yourself. The same safety rails apply: already-sent/imported tasks
+  (`todoist:<id>` marker), Todoist Inbox tasks, closed tasks, and archived
+  projects are refused with an explanation. Once a task is linked, the footer
+  shows "In Todoist ✓" instead of the button, and it will never be pushed
+  twice.
+
 ## 1.8.0 — 2026-07-17
 
 - **Project-card visualizations** (Command Center portfolio): each card now

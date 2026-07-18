@@ -333,7 +333,8 @@ export class TodoistPushService {
               content: item.content,
               description: item.description,
               project_id: projectId,
-              due_date: item.dueDate,
+              // Undated single-task pushes must omit due_date entirely.
+              ...(item.dueDate !== null ? { due_date: item.dueDate } : {}),
               priority: item.priority,
               labels: item.labels,
             }),

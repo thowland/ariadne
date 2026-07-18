@@ -10,6 +10,7 @@ import {
   TODOIST_INBOX_ID,
   todoistLabelFor,
   todoistMarkerOf,
+  todoistPushCandidateForTask,
 } from './todoist';
 
 const TODAY = '2026-07-08';
@@ -186,6 +187,71 @@ describe('collectTodoistPushCandidates', () => {
     ];
     const candidates = collectTodoistPushCandidates(ws, TODAY, 1);
     expect(candidates[0]?.content).toBe('Untitled task');
+  });
+});
+
+describe('todoistPushCandidateForTask', () => {
+  it('builds a candidate for an open task with category project and labels', () => {
+    const r = todoistPushCandidateForTask(seedWorkspace(TODAY), 't6');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.candidate).toMatchObject({
+      taskId: 't6',
+      content: 'Write migration runbook',
+      dueDate: TODAY,
+      priority: 2, // Medium
+      targetProject: 'Work',
+      labels: ['Q3-Platform-Migration', 'ariadne'],
+    });
+  });
+
+  it('has no due-date window: undated and overdue tasks are pushable', () => {
+    const ws = seedWorkspace(TODAY);
+    // t3 "Migrate auth service" is overdue (-1d) — excluded from the bulk
+    // push, but an explicit single send is allowed.
+    const overdue = todoistPushCandidateForTask(ws, 't3');
+    expect(overdue.ok).toBe(true);
+
+    ws.tasks = ws.tasks.map((t) => (t.id === 't3' ? { ...t, dueDate: null } : t));
+    const undated = todoistPushCandidateForTask(ws, 't3');
+    expect(undated.ok).toBe(true);
+    if (undated.ok) expect(undated.candidate.dueDate).toBeNull();
+  });
+
+  it('blocks already-linked tasks, Todoist imports, closed tasks, and archived projects', () => {
+    const ws = seedWorkspace(TODAY);
+
+    const marked = markTasksPushed(ws, [{ taskId: 't6', todoistId: '555' }]).workspace;
+    expect(todoistPushCandidateForTask(marked, 't6')).toEqual({
+      ok: false,
+      reason: 'already-linked',
+    });
+
+    // An unmarked task living in the Todoist Inbox never goes back.
+    const imported = mergeTodoistImport(ws, ctx(), [item()]).workspace;
+    const inboxTask = imported.tasks.find((t) => t.projectId === TODOIST_INBOX_ID);
+    const stripped = {
+      ...imported,
+      tasks: imported.tasks.map((t) => (t.id === inboxTask?.id ? { ...t, notes: '' } : t)),
+    };
+    expect(todoistPushCandidateForTask(stripped, inboxTask?.id ?? '')).toEqual({
+      ok: false,
+      reason: 'from-todoist',
+    });
+
+    // t1 "Audit legacy service dependencies" is Done.
+    expect(todoistPushCandidateForTask(ws, 't1')).toEqual({ ok: false, reason: 'closed' });
+
+    const archived = {
+      ...ws,
+      projects: ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p)),
+    };
+    expect(todoistPushCandidateForTask(archived, 't6')).toEqual({
+      ok: false,
+      reason: 'archived-project',
+    });
+
+    expect(todoistPushCandidateForTask(ws, 'ghost')).toEqual({ ok: false, reason: 'missing' });
   });
 });
 

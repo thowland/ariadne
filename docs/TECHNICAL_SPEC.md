@@ -30,6 +30,7 @@ Confirmed decisions that diverge from or refine the prototype:
 | D13 | **Archived projects** (v1.6): `Project.archived?: boolean` (optional-additive; absent in pre-1.6 documents). Archived projects and their tasks are excluded from the sidebar project list & overdue badges, all Command Center surfaces, the calendar/day views, every report, Todoist push candidates, and the task editor's project picker (except as the task's current home). They stay fully intact — reachable via the sidebar's collapsible ARCHIVED section and search — and deleting/restoring is symmetric via `updateProject`.                                                                                                         |
 | D15 | **Weeks run Sunday–Saturday** (v1.7): "Due this week" on the Command Center (stat card + focus section) means _this calendar week_ — today through Saturday — not a rolling 7 days; "High priority · later" mirrors the same boundary so every dated open task lands in exactly one focus section. The calendar's week view and the retrospective's Last-week preset / weekly chart buckets use the same Sun–Sat weeks (`weekStart`/`weekEnd` in `shared/domain/dates.ts`). The weekly status report's done/planned windows deliberately stay rolling 7-day (a "what moved lately" report, not a calendar page), as does the Todoist push window. |
 | D14 | **Pinned project task order** (v1.6): the project task list sorts Doing → Todo → Waiting → Done → Dropped only when the view is (re-)entered; while the user stays on the project, the visual order is pinned (`inPinnedOrder`) so status-circle clicks never reshuffle rows. New tasks append at the bottom. Relatedly, Done/Dropped tasks never render an "overdue" due label (`taskDueLabel`): a closed task shows its due date as a neutral calendar date.                                                                                                                                                                                    |
+| D16 | **Single-task Todoist push** (v1.9): `todoistPushCandidateForTask` builds a push candidate for one explicitly chosen task from the task editor. Unlike the bulk push there is **no due-date window** — undated (due_date omitted from the create) and overdue tasks are sendable, because the user picked the task deliberately. The hard exclusions stay: `todoist:<id>`-marked tasks, Todoist Inbox tasks, Done/Dropped tasks, and archived projects (D13) are refused with a toasted reason. A linked task's editor shows "In Todoist ✓" instead of the button.                                                                                |
 
 Non-goals for v1: multi-user, cloud sync, mobile, two-way Todoist sync, embedded office
 document editing, hardened security boundaries.
@@ -432,6 +433,13 @@ created by name) with labels `@<project-name-slug>` and `@ariadne`, mapped prior
 date, and notes as the description. Each create carries an `X-Request-Id` so retries are
 idempotent; created ids are recorded as `todoist:<id>` note markers so tasks are never
 pushed twice (and the importer already dedupes on the same marker).
+
+**Single-task push (v1.9):** the task editor's footer offers **Send to Todoist** for one
+explicitly chosen task. Same pipeline and marker dedupe as the bulk push, but no due-date
+window — undated and overdue tasks are allowed (the user picked the task deliberately).
+Blocked cases (already marked, lives in the Todoist Inbox, Done/Dropped, archived project)
+toast the reason; a marked task shows an inert "In Todoist ✓" note instead of the button
+(see D16).
 
 ## 10. Testing Strategy & Quality Gates
 

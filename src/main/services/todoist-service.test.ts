@@ -261,6 +261,19 @@ describe('TodoistPushService', () => {
     });
   });
 
+  it('omits due_date entirely for an undated candidate', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        page({ results: [{ id: 'proj-work', name: 'Work' }], next_cursor: null }),
+      )
+      .mockResolvedValueOnce(page({ id: 'new-task-1' }));
+    const result = await pushService(fetchImpl).pushTasks('tok', [{ ...CANDIDATE, dueDate: null }]);
+    expect(result).toMatchObject({ ok: true, failed: 0 });
+    const [, init] = fetchImpl.mock.calls[1] as [string, { body: string }];
+    expect(JSON.parse(init.body)).not.toHaveProperty('due_date');
+  });
+
   it('creates the #Home/#Work project when missing (case-insensitive match)', async () => {
     const fetchImpl = vi
       .fn()
