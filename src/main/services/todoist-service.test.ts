@@ -2,34 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { TodoistPushService, TodoistService } from './todoist-service';
 
-/** Task shapes recorded from the Todoist unified API v1 /tasks endpoint. */
-const TASK_FIXTURE = [
-  {
-    id: '7654321',
-    content: 'Call plumber about kitchen sink',
-    description: 'Mention the warranty',
-    priority: 3,
-    due: { date: '2026-07-09', string: 'tomorrow' },
-  },
-  {
-    id: '7654322',
-    content: 'Pick up dry cleaning',
-    description: '',
-    priority: 1,
-    due: null,
-  },
-  {
-    id: 7654323, // numeric ids appear in older exports
-    content: 'Renew car registration',
-    priority: 4,
-    due: { date: '2026-07-14T09:00:00' }, // datetime form
-  },
-  { id: '7654324', content: '', priority: 2 }, // junk: no title
+/** Item shapes from the v1 /tasks/completed/by_completion_date endpoint. */
+const COMPLETED_FIXTURE = [
+  // Noon UTC keeps the local calendar date stable in any test timezone.
+  { id: '7654321', content: 'Call plumber', completed_at: '2026-07-07T12:00:00Z' },
+  { id: 7654322, completed_at: '2026-07-06T12:00:00.000000Z' }, // numeric id
+  { task_id: 'sync99', completed_at: null }, // sync-shaped entry, no timestamp
+  { completed_at: '2026-07-05T12:00:00Z' }, // junk: no id
   'not-an-object',
 ];
 
-/** v1 responses are cursor-paginated: { results, next_cursor }. */
-const API_FIXTURE = { results: TASK_FIXTURE, next_cursor: null };
+/** Documented response shape: { items, next_cursor }. */
+const API_FIXTURE = { items: COMPLETED_FIXTURE, next_cursor: null };
+
+const SINCE = '2026-06-08T12:00:00.000Z';
+const UNTIL = '2026-07-08T12:00:00.000Z';
+const WINDOW = `since=${encodeURIComponent(SINCE)}&until=${encodeURIComponent(UNTIL)}`;
 
 const EXPECTED_HEADERS = {
   Authorization: 'Bearer t',
@@ -55,41 +43,24 @@ function serviceWith(status: number, body: unknown): TodoistService {
 }
 
 describe('TodoistService', () => {
-  it('maps API tasks to normalized items', async () => {
-    const result = await serviceWith(200, API_FIXTURE).fetchActiveTasks('token123');
+  it('maps completed items to { todoistId, completedDate }, skipping junk', async () => {
+    const result = await serviceWith(200, API_FIXTURE).fetchCompleted('token123', SINCE, UNTIL);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.items).toEqual([
-      {
-        todoistId: '7654321',
-        title: 'Call plumber about kitchen sink',
-        dueDate: '2026-07-09',
-        priority: 'High',
-        notes: 'Mention the warranty',
-      },
-      {
-        todoistId: '7654322',
-        title: 'Pick up dry cleaning',
-        dueDate: null,
-        priority: 'Low',
-        notes: '',
-      },
-      {
-        todoistId: '7654323',
-        title: 'Renew car registration',
-        dueDate: '2026-07-14',
-        priority: 'Critical',
-        notes: '',
-      },
+      { todoistId: '7654321', completedDate: '2026-07-07' },
+      { todoistId: '7654322', completedDate: '2026-07-06' },
+      { todoistId: 'sync99', completedDate: null },
     ]);
   });
 
-  it('sends the bearer token, User-Agent, and Accept to the v1 endpoint', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(page({ results: [], next_cursor: null }));
-    await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('  abc123  ');
-    expect(fetchImpl).toHaveBeenCalledWith('https://api.todoist.com/api/v1/tasks?limit=200', {
-      headers: { ...EXPECTED_HEADERS, Authorization: 'Bearer abc123' },
-    });
+  it('sends the bearer token, User-Agent, and the window to the completed endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(page({ items: [], next_cursor: null }));
+    await new TodoistService(fetchImpl, instantSleep).fetchCompleted('  abc123  ', SINCE, UNTIL);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `https://api.todoist.com/api/v1/tasks/completed/by_completion_date?${WINDOW}&limit=200`,
+      { headers: { ...EXPECTED_HEADERS, Authorization: 'Bearer abc123' } },
+    );
   });
 
   it('retries transient failures and succeeds when the service recovers', async () => {
@@ -97,9 +68,13 @@ describe('TodoistService', () => {
       .fn()
       .mockResolvedValueOnce(page({ error: 'unavailable' }, 503))
       .mockResolvedValueOnce(
-        page({ results: [{ id: 'r1', content: 'Recovered', priority: 1 }], next_cursor: null }),
+        page({ items: [{ id: 'r1', completed_at: null }], next_cursor: null }),
       );
-    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchCompleted(
+      't',
+      SINCE,
+      UNTIL,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.items.map((i) => i.todoistId)).toEqual(['r1']);
@@ -111,14 +86,18 @@ describe('TodoistService', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(page({ error_extra: { retry_after: 4 } }, 429))
-      .mockResolvedValueOnce(page({ results: [], next_cursor: null }));
-    await new TodoistService(fetchImpl, sleep).fetchActiveTasks('t');
+      .mockResolvedValueOnce(page({ items: [], next_cursor: null }));
+    await new TodoistService(fetchImpl, sleep).fetchCompleted('t', SINCE, UNTIL);
     expect(sleep).toHaveBeenCalledWith(4000);
   });
 
   it('gives up after three attempts with a temporarily-unavailable message', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(page({ error: 'down' }, 503));
-    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchCompleted(
+      't',
+      SINCE,
+      UNTIL,
+    );
     expect(result).toMatchObject({
       ok: false,
       error: 'Todoist is temporarily unavailable (HTTP 503) — try again in a minute',
@@ -129,63 +108,55 @@ describe('TodoistService', () => {
   it('follows next_cursor across pages', async () => {
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            results: [{ id: 'a1', content: 'Page one task', priority: 1 }],
-            next_cursor: 'CURSOR/2==',
-          }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            results: [{ id: 'b2', content: 'Page two task', priority: 1 }],
-            next_cursor: null,
-          }),
-      });
-    const result = await new TodoistService(fetchImpl, instantSleep).fetchActiveTasks('t');
+      .mockResolvedValueOnce(
+        page({ items: [{ id: 'a1', completed_at: null }], next_cursor: 'CURSOR/2==' }),
+      )
+      .mockResolvedValueOnce(
+        page({ items: [{ id: 'b2', completed_at: null }], next_cursor: null }),
+      );
+    const result = await new TodoistService(fetchImpl, instantSleep).fetchCompleted(
+      't',
+      SINCE,
+      UNTIL,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.items.map((i) => i.todoistId)).toEqual(['a1', 'b2']);
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
-      'https://api.todoist.com/api/v1/tasks?limit=200&cursor=CURSOR%2F2%3D%3D',
+      `https://api.todoist.com/api/v1/tasks/completed/by_completion_date?${WINDOW}&limit=200&cursor=CURSOR%2F2%3D%3D`,
       { headers: EXPECTED_HEADERS },
     );
   });
 
-  it('still accepts a bare-array response (legacy shape)', async () => {
-    const result = await serviceWith(200, [
-      { id: 'x', content: 'Legacy', priority: 2 },
-    ]).fetchActiveTasks('t');
+  it('accepts a { results } page shape defensively', async () => {
+    const result = await serviceWith(200, {
+      results: [{ id: 'x', completed_at: '2026-07-01T12:00:00Z' }],
+      next_cursor: null,
+    }).fetchCompleted('t', SINCE, UNTIL);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ todoistId: 'x', priority: 'Medium' });
+    expect(result.items).toEqual([{ todoistId: 'x', completedDate: '2026-07-01' }]);
   });
 
   it('rejects an empty token without a network call', async () => {
     const fetchImpl = vi.fn();
-    const result = await new TodoistService(fetchImpl).fetchActiveTasks('   ');
+    const result = await new TodoistService(fetchImpl).fetchCompleted('   ', SINCE, UNTIL);
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining('token') as string });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('maps auth failures, server errors, and network failures to messages', async () => {
-    expect(await serviceWith(401, {}).fetchActiveTasks('bad')).toMatchObject({
+    expect(await serviceWith(401, {}).fetchCompleted('bad', SINCE, UNTIL)).toMatchObject({
       ok: false,
       error: expect.stringContaining('rejected the token') as string,
     });
-    expect(await serviceWith(500, {}).fetchActiveTasks('t')).toMatchObject({
+    expect(await serviceWith(500, {}).fetchCompleted('t', SINCE, UNTIL)).toMatchObject({
       ok: false,
       error: 'Todoist is temporarily unavailable (HTTP 500) — try again in a minute',
     });
     // A retired API version (what REST v2 now returns) gets a clear message.
-    expect(await serviceWith(410, {}).fetchActiveTasks('t')).toMatchObject({
+    expect(await serviceWith(410, {}).fetchCompleted('t', SINCE, UNTIL)).toMatchObject({
       ok: false,
       error: expect.stringContaining('retired this API version') as string,
     });
@@ -193,14 +164,20 @@ describe('TodoistService', () => {
       vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
       instantSleep,
     );
-    expect(await offline.fetchActiveTasks('t')).toMatchObject({
+    expect(await offline.fetchCompleted('t', SINCE, UNTIL)).toMatchObject({
       ok: false,
       error: expect.stringContaining('Could not reach Todoist') as string,
     });
   });
 
-  it('rejects non-array payloads', async () => {
-    expect(await serviceWith(200, { error: 'nope' }).fetchActiveTasks('t')).toMatchObject({
+  it('rejects payloads without an item array', async () => {
+    expect(
+      await serviceWith(200, { error: 'nope' }).fetchCompleted('t', SINCE, UNTIL),
+    ).toMatchObject({
+      ok: false,
+      error: 'Unexpected response from Todoist',
+    });
+    expect(await serviceWith(200, 'nope').fetchCompleted('t', SINCE, UNTIL)).toMatchObject({
       ok: false,
       error: 'Unexpected response from Todoist',
     });

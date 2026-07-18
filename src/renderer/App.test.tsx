@@ -1,9 +1,12 @@
+import { seedWorkspace } from '@shared/domain/seed';
+import { markTasksPushed } from '@shared/domain/todoist';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './App';
-import { setupTestApp } from './test-utils';
+import { useStore } from './app/store';
+import { setupTestApp, TEST_TODAY } from './test-utils';
 
 beforeEach(() => {
   setupTestApp();
@@ -79,5 +82,32 @@ describe('App shell', () => {
 
     await userEvent.click(screen.getByTitle('New project'));
     expect(screen.getByLabelText('Project name')).toHaveValue('Untitled project');
+  });
+
+  it('runs the scheduled Todoist sync on launch when it is due, quietly', async () => {
+    const w = seedWorkspace(TEST_TODAY);
+    w.settings = { ...w.settings, todoistToken: 'tok123', todoistSyncEvery: 'hourly' };
+    const marked = markTasksPushed(w, [{ taskId: 't6', todoistId: '555' }]).workspace;
+    setupTestApp(marked, {
+      todoistCompleted: vi.fn().mockResolvedValue({
+        ok: true,
+        items: [{ todoistId: '555', completedDate: '2026-07-07' }],
+      }),
+    });
+    render(<App />);
+    await screen.findByTestId('home-headline');
+
+    await vi.waitFor(() => {
+      expect(useStore.getState().workspace?.tasks.find((t) => t.id === 't6')?.status).toBe('Done');
+    });
+    // Auto-run with completions still announces itself; the stamp advances.
+    expect(useStore.getState().toast).toBe('Marked 1 task done from Todoist');
+    expect(useStore.getState().workspace?.settings.lastTodoistSyncAt).not.toBeNull();
+  });
+
+  it('does not sync on launch when the schedule is manual', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    expect(window.ariadne.todoistCompleted).not.toHaveBeenCalled();
   });
 });

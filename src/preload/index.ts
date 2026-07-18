@@ -25,7 +25,8 @@ const api: AriadneApi = {
   importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
   importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
   chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
-  todoistFetch: (token: string) => ipcRenderer.invoke(IPC.todoistFetch, token),
+  todoistCompleted: (token: string, since: string, until: string) =>
+    ipcRenderer.invoke(IPC.todoistCompleted, { token, since, until }),
   todoistPush: (token: string, items: import('@shared/domain/todoist').TodoistPushCandidate[]) =>
     ipcRenderer.invoke(IPC.todoistPush, { token, items }),
   runBackupNow: () => ipcRenderer.invoke(IPC.backupRun),

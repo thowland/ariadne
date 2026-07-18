@@ -1,25 +1,17 @@
-import type { Project, Task, Workspace } from '../types';
+import type { Project, Settings, Task, Workspace } from '../types';
 
 import { dayDiff } from './dates';
 import type { MutationCtx, MutationResult } from './mutate';
 
 /**
- * One-way Todoist import (spec §9): fetched items merge into a dedicated
- * "Todoist Inbox" project. Dedupe is by the Todoist task id recorded as a
- * `todoist:<id>` marker line in the task notes; re-imports update the due
- * date/priority of previously imported, still-open tasks and never delete.
+ * Todoist integration (spec §9): Ariadne pushes tasks out, and the completion
+ * sync (D17) closes the loop — tasks that carry a `todoist:<id>` marker and
+ * were completed in Todoist get marked Done here. The marker line in the task
+ * notes is the join key in both directions.
  */
 
+/** Legacy project id from the pre-1.10 import; may exist in old workspaces. */
 export const TODOIST_INBOX_ID = 'todoist-inbox';
-
-/** Normalized item produced by the main-process TodoistService. */
-export interface TodoistItem {
-  todoistId: string;
-  title: string;
-  dueDate: string | null;
-  priority: Task['priority'];
-  notes: string;
-}
 
 const MARKER_RE = /^todoist:(\S+)$/m;
 
@@ -33,94 +25,57 @@ function notesWithMarker(notes: string, todoistId: string): string {
   return body === '' ? `todoist:${todoistId}` : `${body}\n\ntodoist:${todoistId}`;
 }
 
-export interface TodoistMergeResult extends MutationResult {
-  added: number;
-  updated: number;
-  projectCreated: boolean;
+// ---------- Completion sync (Todoist → Ariadne, D17) ----------
+
+/** How far back the sync looks for completions (Todoist caps windows at 3 months). */
+export const TODOIST_SYNC_LOOKBACK_DAYS = 30;
+
+/** One completed Todoist item, normalized by the main-process service. */
+export interface TodoistCompletion {
+  todoistId: string;
+  /** Completion date (YYYY-MM-DD, already local), or null if Todoist omitted it. */
+  completedDate: string | null;
 }
 
-export function mergeTodoistImport(
+export interface TodoistCompletionResult extends MutationResult {
+  /** Tasks newly marked Done by this sync. */
+  completed: number;
+}
+
+/**
+ * Mark tasks Done whose `todoist:<id>` marker matches a completed Todoist
+ * item. Only open tasks change — Done tasks are already there, and a task the
+ * user Dropped in Ariadne stays dropped. Idempotent by construction.
+ */
+export function applyTodoistCompletions(
   ws: Workspace,
   ctx: MutationCtx,
-  items: readonly TodoistItem[],
-): TodoistMergeResult {
-  let projects = ws.projects;
-  let projectCreated = false;
-  if (!projects.some((p) => p.id === TODOIST_INBOX_ID)) {
-    projectCreated = true;
-    projects = [
-      ...projects,
-      {
-        id: TODOIST_INBOX_ID,
-        name: 'Todoist Inbox',
-        category: 'home',
-        tags: ['todoist'],
-        color: '#c2569b',
-        status: 'Active',
-        notes: 'Tasks imported from Todoist.',
-        links: [],
-        createdAt: ctx.today,
-      },
-    ];
-  }
-
-  const byMarker = new Map<string, Task>();
-  for (const t of ws.tasks) {
-    if (t.projectId !== TODOIST_INBOX_ID) continue;
+  completions: readonly TodoistCompletion[],
+): TodoistCompletionResult {
+  const byId = new Map(completions.map((c) => [c.todoistId, c]));
+  let completed = 0;
+  const tasks = ws.tasks.map((t) => {
+    if (t.status === 'Done' || t.status === 'Dropped') return t;
     const marker = todoistMarkerOf(t);
-    if (marker !== null) byMarker.set(marker, t);
-  }
+    if (marker === null) return t;
+    const hit = byId.get(marker);
+    if (hit === undefined) return t;
+    completed += 1;
+    return { ...t, status: 'Done' as const, completedAt: hit.completedDate ?? ctx.today };
+  });
+  if (completed === 0) return { workspace: ws, changed: [], completed };
+  return { workspace: { ...ws, tasks }, changed: ['tasks'], completed };
+}
 
-  let added = 0;
-  let updated = 0;
-  let tasks = ws.tasks;
-
-  for (const item of items) {
-    const existing = byMarker.get(item.todoistId);
-    if (existing !== undefined) {
-      // Update still-open imports whose schedule/priority moved in Todoist.
-      const open = existing.status !== 'Done' && existing.status !== 'Dropped';
-      const changed = existing.dueDate !== item.dueDate || existing.priority !== item.priority;
-      if (open && changed) {
-        tasks = tasks.map((t) =>
-          t.id === existing.id ? { ...t, dueDate: item.dueDate, priority: item.priority } : t,
-        );
-        updated += 1;
-      }
-      continue;
-    }
-    tasks = [
-      ...tasks,
-      {
-        id: ctx.newId(),
-        projectId: TODOIST_INBOX_ID,
-        title: item.title,
-        status: 'Todo',
-        priority: item.priority,
-        tags: ['todoist'],
-        notes: notesWithMarker(item.notes, item.todoistId),
-        dueDate: item.dueDate,
-        dependsOn: [],
-        subtasks: [],
-        links: [],
-        createdAt: ctx.today,
-        completedAt: null,
-      },
-    ];
-    added += 1;
-  }
-
-  const changed: MutationResult['changed'] = [];
-  if (projectCreated) changed.push('projects');
-  if (added > 0 || updated > 0) changed.push('tasks');
-
-  return {
-    workspace: changed.length > 0 ? { ...ws, projects, tasks } : ws,
-    changed,
-    added,
-    updated,
-    projectCreated,
-  };
+/** Whether the scheduled sync should fire now (renderer passes wall-clock ISO). */
+export function todoistSyncDue(settings: Settings, nowIso: string): boolean {
+  if (settings.todoistSyncEvery === 'manual') return false;
+  if (settings.todoistToken.trim() === '') return false;
+  if (settings.lastTodoistSyncAt === null) return true;
+  const last = Date.parse(settings.lastTodoistSyncAt);
+  if (Number.isNaN(last)) return true;
+  const intervalMs = settings.todoistSyncEvery === 'hourly' ? 3_600_000 : 86_400_000;
+  return Date.parse(nowIso) - last >= intervalMs;
 }
 
 // ---------- Push (Ariadne → Todoist) ----------

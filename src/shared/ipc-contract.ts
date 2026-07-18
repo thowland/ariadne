@@ -18,7 +18,7 @@ export const IPC = {
   importFromFile: 'import:fromFile',
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
-  todoistFetch: 'todoist:fetch',
+  todoistCompleted: 'todoist:completed',
   todoistPush: 'todoist:push',
   backupRun: 'backup:run',
   backupDirChoose: 'backupDir:choose',
@@ -83,8 +83,9 @@ export type TodoistPushResponse =
   | { ok: true; pushed: { taskId: string; todoistId: string }[]; failed: number }
   | { ok: false; error: string };
 
-export type TodoistFetchResponse =
-  { ok: true; items: import('./domain/todoist').TodoistItem[] } | { ok: false; error: string };
+export type TodoistCompletedResponse =
+  | { ok: true; items: import('./domain/todoist').TodoistCompletion[] }
+  | { ok: false; error: string };
 
 export interface AiExtractRequest {
   apiKey: string;
@@ -108,7 +109,7 @@ export interface AriadneApi {
   importFromFile(): Promise<ImportResponse>;
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
-  todoistFetch(token: string): Promise<TodoistFetchResponse>;
+  todoistCompleted(token: string, since: string, until: string): Promise<TodoistCompletedResponse>;
   todoistPush(
     token: string,
     items: import('./domain/todoist').TodoistPushCandidate[],

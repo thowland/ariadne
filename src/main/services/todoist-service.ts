@@ -1,37 +1,30 @@
+import { toIsoDate } from '@shared/domain/dates';
 import { newId } from '@shared/domain/id';
-import type { TodoistItem, TodoistPushCandidate } from '@shared/domain/todoist';
-import type { TaskPriority } from '@shared/types';
+import type { TodoistCompletion, TodoistPushCandidate } from '@shared/domain/todoist';
 
 /**
- * Fetches active tasks from Todoist's unified API v1 (the REST v2 API was
- * retired upstream and now answers 410 Gone). Runs in the main process (no
- * CORS); the pure merge into the workspace happens in
- * shared/domain/todoist.ts on the renderer side.
+ * Talks to Todoist's unified API v1 (the REST v2 API was retired upstream and
+ * now answers 410 Gone). Runs in the main process (no CORS). Two jobs: fetch
+ * recently completed items for the completion sync (D17), and push tasks out.
+ * The pure workspace mutations happen in shared/domain/todoist.ts on the
+ * renderer side.
  */
 
 const API_BASE = 'https://api.todoist.com/api/v1';
 const API_URL = `${API_BASE}/tasks`;
+const COMPLETED_URL = `${API_BASE}/tasks/completed/by_completion_date`;
 const PAGE_LIMIT = 200;
-// Paranoia cap: 50 pages × 200 tasks is far beyond any personal inbox.
+// Paranoia cap: 50 pages × 200 tasks is far beyond any personal account.
 const MAX_PAGES = 50;
-
-/** Todoist priority: 4 = urgent (p1 in the apps) … 1 = normal (p4). */
-const PRIORITY_MAP: Record<number, TaskPriority> = {
-  4: 'Critical',
-  3: 'High',
-  2: 'Medium',
-  1: 'Low',
-};
 
 interface TodoistApiTask {
   id?: unknown;
-  content?: unknown;
-  description?: unknown;
-  priority?: unknown;
-  due?: { date?: unknown } | null;
+  task_id?: unknown;
+  completed_at?: unknown;
 }
 
-export type TodoistFetchResult = { ok: true; items: TodoistItem[] } | { ok: false; error: string };
+export type TodoistCompletedResult =
+  { ok: true; items: TodoistCompletion[] } | { ok: false; error: string };
 
 type FetchLike = (
   url: string,
@@ -131,10 +124,20 @@ export class TodoistService {
     return null;
   }
 
-  async fetchActiveTasks(token: string): Promise<TodoistFetchResult> {
+  /**
+   * Completed items in [since, until) by completion date (unified v1 pages:
+   * `{ items: [...], next_cursor }`). Todoist caps the window at 3 months;
+   * callers pass the D17 lookback. `completed_at` is UTC — it is converted to
+   * the machine's local calendar date here, at the edge.
+   */
+  async fetchCompleted(
+    token: string,
+    since: string,
+    until: string,
+  ): Promise<TodoistCompletedResult> {
     if (token.trim() === '') return { ok: false, error: 'Add your Todoist API token first' };
 
-    const items: TodoistItem[] = [];
+    const items: TodoistCompletion[] = [];
     let cursor: string | null = null;
     // Some CDN edges throttle or challenge requests with no User-Agent
     // (Node's fetch sends none by default) — identify ourselves.
@@ -142,7 +145,8 @@ export class TodoistService {
 
     for (let page = 0; page < MAX_PAGES; page++) {
       const url =
-        `${API_URL}?limit=${String(PAGE_LIMIT)}` +
+        `${COMPLETED_URL}?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}` +
+        `&limit=${String(PAGE_LIMIT)}` +
         (cursor !== null ? `&cursor=${encodeURIComponent(cursor)}` : '');
       let response;
       try {
@@ -157,42 +161,29 @@ export class TodoistService {
       }
 
       const raw = await response.json();
-      // Unified v1 pages: { results: [...], next_cursor: string | null }.
-      // A bare array is accepted defensively (old REST v2 shape).
-      let pageTasks: unknown[];
-      if (Array.isArray(raw)) {
-        pageTasks = raw as unknown[];
-        cursor = null;
-      } else if (
-        typeof raw === 'object' &&
-        raw !== null &&
-        Array.isArray((raw as Record<string, unknown>).results)
-      ) {
-        const doc = raw as { results: unknown[]; next_cursor?: unknown };
-        pageTasks = doc.results;
+      // Documented shape is { items: [...] }; accept { results: [...] } too.
+      let pageItems: unknown[];
+      if (typeof raw === 'object' && raw !== null) {
+        const doc = raw as { items?: unknown; results?: unknown; next_cursor?: unknown };
+        if (Array.isArray(doc.items)) pageItems = doc.items;
+        else if (Array.isArray(doc.results)) pageItems = doc.results;
+        else return { ok: false, error: 'Unexpected response from Todoist' };
         cursor =
           typeof doc.next_cursor === 'string' && doc.next_cursor !== '' ? doc.next_cursor : null;
       } else {
         return { ok: false, error: 'Unexpected response from Todoist' };
       }
 
-      for (const entryRaw of pageTasks) {
+      for (const entryRaw of pageItems) {
         if (typeof entryRaw !== 'object' || entryRaw === null) continue;
         const entry = entryRaw as TodoistApiTask;
-        const id =
-          typeof entry.id === 'string' || typeof entry.id === 'number' ? String(entry.id) : null;
-        const title = typeof entry.content === 'string' ? entry.content : '';
-        if (id === null || title === '') continue;
-        const dueRaw = entry.due?.date;
+        const idRaw = entry.id ?? entry.task_id;
+        const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : null;
+        if (id === null) continue;
+        const at = typeof entry.completed_at === 'string' ? Date.parse(entry.completed_at) : NaN;
         items.push({
           todoistId: id,
-          title,
-          dueDate:
-            typeof dueRaw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dueRaw)
-              ? dueRaw.slice(0, 10)
-              : null,
-          priority: PRIORITY_MAP[typeof entry.priority === 'number' ? entry.priority : 1] ?? 'Low',
-          notes: typeof entry.description === 'string' ? entry.description : '',
+          completedDate: Number.isNaN(at) ? null : toIsoDate(new Date(at)),
         });
       }
 

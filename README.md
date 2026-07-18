@@ -7,7 +7,7 @@ thread_ — the line that guides you through the labyrinth of long-running work.
 All data lives on your local filesystem as human-readable JSON plus ordinary files
 for attachments. No accounts, no cloud, no database, no login.
 
-**Current release: v1.6.0** — see `CHANGELOG.md` for what shipped when.
+**Current release: v1.10.0** — see `CHANGELOG.md` for what shipped when.
 
 ## What it does
 
@@ -35,7 +35,9 @@ for attachments. No accounts, no cloud, no database, no login.
 - **Tags** — prefix autocomplete everywhere, click-to-search, a **Tags** view showing
   every tag with usage counts, and Settings-based rename/merge/delete.
 - **Todoist** — push upcoming tasks (the primary direction: into #Home/#Work with
-  @project labels) and one-way import into a Todoist Inbox project.
+  @project labels, or a single task from its editor) and a completion sync that
+  marks pushed tasks Done here when you complete them in Todoist (manual, hourly,
+  or daily).
 - **Data ownership** — configurable data folder, daily + on-quit backups with
   retention, JSON export/import (accepts the original design-prototype exports),
   atomic writes with corrupt-file recovery.
@@ -132,7 +134,7 @@ On disk (`Settings → Data` shows the location; user-configurable):
 | `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration                                                  |
 | `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                           |
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                        |
-| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+import), ai-import, csv, seed                          |
+| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                 |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                             |
 | `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction — `.test.ts` twins                          |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                    |

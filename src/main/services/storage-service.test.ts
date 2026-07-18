@@ -67,8 +67,8 @@ describe('StorageService', () => {
     const seeded = seedWorkspace(TODAY);
     await svc.saveWorkspaceNow(seeded);
 
-    svc.scheduleSave('settings', { todoistToken: 'first', lastTodoistImportAt: null });
-    svc.scheduleSave('settings', { todoistToken: 'second', lastTodoistImportAt: null });
+    svc.scheduleSave('settings', { todoistToken: 'first', lastTodoistSyncAt: null });
+    svc.scheduleSave('settings', { todoistToken: 'second', lastTodoistSyncAt: null });
     expect(svc.pendingCount()).toBe(1);
     await sleep(60);
 
@@ -84,7 +84,7 @@ describe('StorageService', () => {
     svc.init();
     await svc.saveWorkspaceNow(seedWorkspace(TODAY));
 
-    svc.scheduleSave('settings', { todoistToken: 'flushed', lastTodoistImportAt: null });
+    svc.scheduleSave('settings', { todoistToken: 'flushed', lastTodoistSyncAt: null });
     await svc.flushAll();
 
     const onDisk = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as {

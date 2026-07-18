@@ -2,7 +2,8 @@ import { todayIso } from '@shared/domain/clock';
 import type { Scope } from '@shared/domain/derive';
 import { newId } from '@shared/domain/id';
 import type { MutationCtx, MutationResult } from '@shared/domain/mutate';
-import { createProject, createTask } from '@shared/domain/mutate';
+import { createProject, createTask, updateSettings } from '@shared/domain/mutate';
+import { applyTodoistCompletions, TODOIST_SYNC_LOOKBACK_DAYS } from '@shared/domain/todoist';
 import type { WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { IsoDate, Workspace } from '@shared/types';
 import { create } from 'zustand';
@@ -60,6 +61,14 @@ export interface AriadneStore {
   apply: <R extends MutationResult>(mutation: Mutation<R>) => R | null;
   /** Re-evaluate `today` (window focus / midnight rollover). */
   refreshToday: () => void;
+  /** True while a Todoist completion sync is in flight (guards overlap). */
+  todoistSyncing: boolean;
+  /**
+   * Todoist completion sync (D17): fetch recently completed items and mark
+   * the matching pushed tasks Done. `auto` runs stay quiet unless something
+   * actually changed; manual runs always toast the outcome.
+   */
+  runTodoistSync: (auto?: boolean) => Promise<void>;
 
   // ----- ui slice (never persisted) -----
   view: ViewName;
@@ -144,6 +153,40 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   refreshToday: () => {
     set({ today: todayIso(getApi().fakeToday ?? undefined) });
+  },
+
+  todoistSyncing: false,
+
+  runTodoistSync: async (auto = false) => {
+    const { workspace, todoistSyncing, showToast } = get();
+    if (todoistSyncing || workspace === null) return;
+    const token = workspace.settings.todoistToken;
+    if (token.trim() === '') {
+      if (!auto) showToast('Add your Todoist API token first');
+      return;
+    }
+    set({ todoistSyncing: true });
+    try {
+      const now = new Date();
+      const since = new Date(now.getTime() - TODOIST_SYNC_LOOKBACK_DAYS * 86_400_000);
+      const res = await getApi().todoistCompleted(token, since.toISOString(), now.toISOString());
+      // Stamp the attempt win or lose, so a failing endpoint is retried on
+      // the next scheduled slot rather than every minute.
+      get().apply((ws) => updateSettings(ws, { lastTodoistSyncAt: now.toISOString() }));
+      if (!res.ok) {
+        if (!auto) get().showToast(res.error);
+        return;
+      }
+      const result = get().apply((ws, ctx) => applyTodoistCompletions(ws, ctx, res.items));
+      const n = result?.completed ?? 0;
+      if (n > 0) {
+        get().showToast(`Marked ${String(n)} task${n === 1 ? '' : 's'} done from Todoist`);
+      } else if (!auto) {
+        get().showToast('Nothing new completed in Todoist');
+      }
+    } finally {
+      set({ todoistSyncing: false });
+    }
   },
 
   // ----- ui slice -----

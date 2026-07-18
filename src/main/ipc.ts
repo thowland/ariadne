@@ -108,8 +108,14 @@ export function registerIpc(
     return { path: picked.canceled || path === undefined ? null : path };
   });
 
-  ipcMain.handle(IPC.todoistFetch, (_event, token: string) =>
-    todoist.fetchActiveTasks(typeof token === 'string' ? token : ''),
+  ipcMain.handle(
+    IPC.todoistCompleted,
+    (_event, payload: { token: string; since: string; until: string }) =>
+      todoist.fetchCompleted(
+        typeof payload.token === 'string' ? payload.token : '',
+        payload.since,
+        payload.until,
+      ),
   );
 
   ipcMain.handle(

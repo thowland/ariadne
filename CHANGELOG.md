@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.10.0 — 2026-07-18
+
+- **Todoist completion sync replaces the import.** Ariadne no longer pulls
+  every active Todoist task into a "Todoist Inbox". Instead it watches the
+  tasks you've _sent_ to Todoist (the `todoist:<id>` note markers) and, when
+  you complete one in Todoist, marks it Done here with Todoist's completion
+  date. Open tasks only — nothing is created, deleted, or un-dropped; the
+  sync looks at the last 30 days of completions and is safe to run again.
+- **Sync schedule setting.** The Settings → Todoist card gains a "Sync now"
+  button and a schedule: run the check manually, every hour, or once a day
+  (checked once a minute while the app is open; the last-attempt time shows
+  under the card). Scheduled runs stay quiet unless they actually complete
+  something.
+- Existing "Todoist Inbox" projects and their tasks are untouched — they
+  keep syncing completions too, and still never push back.
+
 ## 1.9.0 — 2026-07-18
 
 - **Send a single task to Todoist**: the task editor's footer gains a

@@ -1,4 +1,5 @@
 import { seedWorkspace } from '@shared/domain/seed';
+import { markTasksPushed } from '@shared/domain/todoist';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -135,58 +136,71 @@ describe('Settings', () => {
   });
 });
 
-describe('Settings — Todoist import', () => {
-  it('saves the token and imports into the inbox with a toast', async () => {
-    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({
+describe('Settings — Todoist completion sync', () => {
+  /** Seeded workspace with a stored token and t6 already pushed (todoist:555). */
+  function loadPushedWorkspace() {
+    const w = seedWorkspace(TEST_TODAY);
+    w.settings = { ...w.settings, todoistToken: 'tok123' };
+    loadTestWorkspace(markTasksPushed(w, [{ taskId: 't6', todoistId: '555' }]).workspace);
+  }
+
+  it('marks pushed tasks Done with the Todoist completion date and stamps the sync', async () => {
+    loadPushedWorkspace();
+    vi.mocked(window.ariadne.todoistCompleted).mockResolvedValue({
       ok: true,
-      items: [
-        {
-          todoistId: '9001',
-          title: 'Call plumber',
-          dueDate: '2026-07-09',
-          priority: 'High',
-          notes: '',
-        },
-      ],
+      items: [{ todoistId: '555', completedDate: '2026-07-07' }],
     });
     renderSettings();
 
-    await userEvent.type(screen.getByLabelText('Todoist API token'), 'tok123');
-    expect(ws().settings.todoistToken).toBe('tok123');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
     await vi.waitFor(() => {
-      expect(useStore.getState().toast).toBe('Imported 1 task from Todoist');
+      expect(useStore.getState().toast).toBe('Marked 1 task done from Todoist');
     });
-    expect(vi.mocked(window.ariadne.todoistFetch)).toHaveBeenCalledWith('tok123');
-    expect(ws().projects.some((p) => p.id === 'todoist-inbox')).toBe(true);
-    expect(ws().tasks.some((t) => t.title === 'Call plumber')).toBe(true);
-    expect(ws().settings.lastTodoistImportAt).not.toBeNull();
-    expect(screen.getByTestId('todoist-last-import')).toBeInTheDocument();
+    expect(ws().tasks.find((t) => t.id === 't6')).toMatchObject({
+      status: 'Done',
+      completedAt: '2026-07-07',
+    });
+    expect(ws().settings.lastTodoistSyncAt).not.toBeNull();
+    expect(screen.getByTestId('todoist-last-sync')).toBeInTheDocument();
+    // Called with the stored token and a since/until window.
+    const call = vi.mocked(window.ariadne.todoistCompleted).mock.calls[0];
+    expect(call?.[0]).toBe('tok123');
+    expect(Date.parse(call?.[1] ?? '')).toBeLessThan(Date.parse(call?.[2] ?? ''));
   });
 
-  it('surfaces fetch errors and leaves the workspace untouched', async () => {
-    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({
+  it('surfaces sync errors but still stamps the attempt', async () => {
+    loadPushedWorkspace();
+    vi.mocked(window.ariadne.todoistCompleted).mockResolvedValue({
       ok: false,
       error: 'Todoist rejected the token — check it in Settings',
     });
     renderSettings();
-    const before = ws().tasks.length;
-    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
     await vi.waitFor(() => {
       expect(useStore.getState().toast).toMatch(/rejected the token/);
     });
-    expect(ws().tasks).toHaveLength(before);
-    expect(ws().settings.lastTodoistImportAt).toBeNull();
+    expect(ws().tasks.find((t) => t.id === 't6')?.status).not.toBe('Done');
+    expect(ws().settings.lastTodoistSyncAt).not.toBeNull();
   });
 
-  it('reports an in-sync workspace on an empty diff', async () => {
-    vi.mocked(window.ariadne.todoistFetch).mockResolvedValue({ ok: true, items: [] });
+  it('reports a quiet sync when nothing new was completed', async () => {
+    loadPushedWorkspace();
+    vi.mocked(window.ariadne.todoistCompleted).mockResolvedValue({ ok: true, items: [] });
     renderSettings();
-    await userEvent.click(screen.getByRole('button', { name: 'Import now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
     await vi.waitFor(() => {
-      expect(useStore.getState().toast).toBe('Todoist is already in sync');
+      expect(useStore.getState().toast).toBe('Nothing new completed in Todoist');
     });
+  });
+
+  it('refuses to sync without a token, and persists the schedule choice', async () => {
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
+    expect(useStore.getState().toast).toBe('Add your Todoist API token first');
+    expect(window.ariadne.todoistCompleted).not.toHaveBeenCalled();
+
+    await userEvent.selectOptions(screen.getByLabelText('Todoist sync schedule'), 'daily');
+    expect(ws().settings.todoistSyncEvery).toBe('daily');
   });
 });
 

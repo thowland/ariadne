@@ -53,8 +53,8 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
   (Dropped via select only); `completedAt` non-null iff Done; blocked is derived
   and cycle-tolerant; deletes cascade (tasks scrub `dependsOn`, projects remove
   files+blobs — surface `removedBlobIds` and call `api.deleteBlobs`); work/home
-  report scoping must never leak; `todoist:<id>` note markers drive push/import
-  dedupe; archived projects (D13) stay out of every active surface (sidebar,
+  report scoping must never leak; `todoist:<id>` note markers drive push dedupe
+  and the completion sync join (D17); archived projects (D13) stay out of every active surface (sidebar,
   Command Center, calendar, reports, Todoist push, project picker) but remain
   intact and searchable.
 

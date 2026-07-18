@@ -1,3 +1,4 @@
+import { todoistSyncDue } from '@shared/domain/todoist';
 import { useEffect } from 'react';
 
 import { useStore } from './app/store';
@@ -74,6 +75,25 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (loaded && warnings.length > 0) showToast(warnings[0] ?? '');
   }, [loaded, warnings, showToast]);
+
+  // Scheduled Todoist completion sync (D17): check once a minute whether the
+  // configured interval has elapsed; the store guards overlap and stamps the
+  // attempt time.
+  useEffect(() => {
+    if (!loaded) return;
+    const check = (): void => {
+      const s = useStore.getState();
+      const settings = s.workspace?.settings;
+      if (settings !== undefined && todoistSyncDue(settings, new Date().toISOString())) {
+        void s.runTodoistSync(true);
+      }
+    };
+    check();
+    const interval = setInterval(check, 60_000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loaded]);
 
   if (!loaded || workspace === null) {
     return (

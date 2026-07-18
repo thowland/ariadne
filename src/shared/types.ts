@@ -109,10 +109,15 @@ export interface FileEntry {
 export const BACKUP_KEEP_DEFAULT = 10;
 export const BACKUP_KEEP_MAX = 100;
 
+export const TODOIST_SYNC_CHOICES = ['manual', 'hourly', 'daily'] as const;
+export type TodoistSyncEvery = (typeof TODOIST_SYNC_CHOICES)[number];
+
 export interface Settings {
   todoistToken: string;
-  /** ISO datetime of the last successful Todoist import; informational. */
-  lastTodoistImportAt: string | null;
+  /** How often the completion sync runs on its own (D17). */
+  todoistSyncEvery: TodoistSyncEvery;
+  /** ISO datetime of the last completion-sync attempt; informational. */
+  lastTodoistSyncAt: string | null;
   /** Backup folder; null = <dataDir>/backups. */
   backupDir: string | null;
   /** Daily backup folders to keep (1–100). */
@@ -125,7 +130,8 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   todoistToken: '',
-  lastTodoistImportAt: null,
+  todoistSyncEvery: 'manual',
+  lastTodoistSyncAt: null,
   backupDir: null,
   backupKeep: BACKUP_KEEP_DEFAULT,
   todoistPushDays: 7,

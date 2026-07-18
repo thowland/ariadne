@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Settings, Task, Workspace } from '../types';
+import { DEFAULT_SETTINGS } from '../types';
+
 import type { MutationCtx } from './mutate';
 import { seedWorkspace } from './seed';
-import type { TodoistItem } from './todoist';
 import {
+  applyTodoistCompletions,
   collectTodoistPushCandidates,
   markTasksPushed,
-  mergeTodoistImport,
   TODOIST_INBOX_ID,
   todoistLabelFor,
   todoistMarkerOf,
   todoistPushCandidateForTask,
+  todoistSyncDue,
 } from './todoist';
 
 const TODAY = '2026-07-08';
@@ -26,91 +29,30 @@ function ctx(): MutationCtx {
   };
 }
 
-const item = (patch: Partial<TodoistItem> = {}): TodoistItem => ({
-  todoistId: '9001',
-  title: 'Call plumber',
-  dueDate: '2026-07-09',
-  priority: 'High',
-  notes: '',
-  ...patch,
-});
-
-describe('mergeTodoistImport', () => {
-  it('creates the Todoist Inbox project on first import', () => {
-    const r = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [item()]);
-    expect(r.projectCreated).toBe(true);
-    expect(r.added).toBe(1);
-    expect(r.changed).toEqual(['projects', 'tasks']);
-    const inbox = r.workspace.projects.find((p) => p.id === TODOIST_INBOX_ID);
-    expect(inbox).toMatchObject({ name: 'Todoist Inbox', category: 'home', tags: ['todoist'] });
-    const task = r.workspace.tasks.find((t) => t.projectId === TODOIST_INBOX_ID);
-    expect(task).toMatchObject({
-      title: 'Call plumber',
-      status: 'Todo',
-      priority: 'High',
-      dueDate: '2026-07-09',
-      tags: ['todoist'],
-    });
-    expect(todoistMarkerOf(task!)).toBe('9001');
-  });
-
-  it('preserves description notes above the marker', () => {
-    const r = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [
-      item({ notes: 'Kitchen sink, not bathroom' }),
-    ]);
-    const task = r.workspace.tasks.find((t) => t.projectId === TODOIST_INBOX_ID);
-    expect(task?.notes).toBe('Kitchen sink, not bathroom\n\ntodoist:9001');
-  });
-
-  it('re-import is idempotent and updates open tasks whose schedule moved', () => {
-    const first = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [item()]);
-    const again = mergeTodoistImport(first.workspace, ctx(), [item()]);
-    expect(again.added).toBe(0);
-    expect(again.updated).toBe(0);
-    expect(again.changed).toEqual([]);
-    expect(again.workspace).toBe(first.workspace);
-
-    const moved = mergeTodoistImport(first.workspace, ctx(), [
-      item({ dueDate: '2026-07-12', priority: 'Critical' }),
-    ]);
-    expect(moved.updated).toBe(1);
-    expect(moved.added).toBe(0);
-    const task = moved.workspace.tasks.find((t) => todoistMarkerOf(t) === '9001');
-    expect(task).toMatchObject({ dueDate: '2026-07-12', priority: 'Critical' });
-  });
-
-  it('never resurrects or edits completed imports', () => {
-    const first = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [item()]);
-    const done = {
-      ...first.workspace,
-      tasks: first.workspace.tasks.map((t) =>
-        todoistMarkerOf(t) === '9001' ? { ...t, status: 'Done' as const, completedAt: TODAY } : t,
-      ),
-    };
-    const again = mergeTodoistImport(done, ctx(), [item({ dueDate: '2026-08-01' })]);
-    expect(again.updated).toBe(0);
-    expect(again.added).toBe(0);
-    const task = again.workspace.tasks.find((t) => todoistMarkerOf(t) === '9001');
-    expect(task?.status).toBe('Done');
-    expect(task?.dueDate).toBe('2026-07-09');
-  });
-
-  it('imports several items in one pass', () => {
-    const r = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [
-      item(),
-      item({ todoistId: '9002', title: 'Renew registration', dueDate: null, priority: 'Low' }),
-    ]);
-    expect(r.added).toBe(2);
-    expect(r.workspace.tasks.filter((t) => t.projectId === TODOIST_INBOX_ID)).toHaveLength(2);
-  });
-
-  it('does not recreate an existing inbox', () => {
-    const first = mergeTodoistImport(seedWorkspace(TODAY), ctx(), [item()]);
-    const r = mergeTodoistImport(first.workspace, ctx(), [item({ todoistId: '9002' })]);
-    expect(r.projectCreated).toBe(false);
-    expect(r.changed).toEqual(['tasks']);
-  });
-});
+/** A workspace with a legacy Todoist Inbox project holding one task. */
+function withInboxTask(ws: Workspace, task: Partial<Task>): Workspace {
+  return {
+    ...ws,
+    projects: [
+      ...ws.projects,
+      { ...ws.projects[0]!, id: TODOIST_INBOX_ID, name: 'Todoist Inbox', category: 'home' },
+    ],
+    tasks: [
+      ...ws.tasks,
+      {
+        ...ws.tasks[0]!,
+        id: 'inbox1',
+        projectId: TODOIST_INBOX_ID,
+        title: 'Call plumber',
+        status: 'Todo',
+        completedAt: null,
+        dueDate: '2026-07-09',
+        notes: 'todoist:9001',
+        ...task,
+      },
+    ],
+  };
+}
 
 describe('todoistLabelFor', () => {
   it('slugs project names into valid Todoist labels', () => {
@@ -145,10 +87,9 @@ describe('collectTodoistPushCandidates', () => {
   });
 
   it('excludes overdue, far-future, closed, undated, inbox, and already-marked tasks', () => {
-    const ws = seedWorkspace(TODAY);
-    // Mark the runbook as already pushed; move one task to the inbox.
-    const imported = mergeTodoistImport(ws, ctx(), [item()]); // inbox task, due +1d
-    const marked = markTasksPushed(imported.workspace, [
+    // Mark the runbook as already pushed; park one task in the legacy inbox.
+    const ws = withInboxTask(seedWorkspace(TODAY), {});
+    const marked = markTasksPushed(ws, [
       { taskId: 't6', todoistId: 'existing' }, // runbook
     ]);
     const candidates = collectTodoistPushCandidates(marked.workspace, TODAY, 2);
@@ -228,13 +169,8 @@ describe('todoistPushCandidateForTask', () => {
     });
 
     // An unmarked task living in the Todoist Inbox never goes back.
-    const imported = mergeTodoistImport(ws, ctx(), [item()]).workspace;
-    const inboxTask = imported.tasks.find((t) => t.projectId === TODOIST_INBOX_ID);
-    const stripped = {
-      ...imported,
-      tasks: imported.tasks.map((t) => (t.id === inboxTask?.id ? { ...t, notes: '' } : t)),
-    };
-    expect(todoistPushCandidateForTask(stripped, inboxTask?.id ?? '')).toEqual({
+    const withInbox = withInboxTask(ws, { notes: '' });
+    expect(todoistPushCandidateForTask(withInbox, 'inbox1')).toEqual({
       ok: false,
       reason: 'from-todoist',
     });
@@ -272,5 +208,99 @@ describe('markTasksPushed', () => {
     const ws = seedWorkspace(TODAY);
     expect(markTasksPushed(ws, []).changed).toEqual([]);
     expect(markTasksPushed(ws, [{ taskId: 'ghost', todoistId: '1' }]).changed).toEqual([]);
+  });
+});
+
+describe('applyTodoistCompletions', () => {
+  it('marks matching open tasks Done with the Todoist completion date', () => {
+    const ws = markTasksPushed(seedWorkspace(TODAY), [
+      { taskId: 't6', todoistId: '555' },
+      { taskId: 't2', todoistId: '556' },
+    ]).workspace;
+    const r = applyTodoistCompletions(ws, ctx(), [
+      { todoistId: '555', completedDate: '2026-07-07' },
+      { todoistId: 'unrelated', completedDate: '2026-07-07' },
+    ]);
+    expect(r.completed).toBe(1);
+    expect(r.changed).toEqual(['tasks']);
+    const runbook = r.workspace.tasks.find((t) => t.id === 't6');
+    expect(runbook).toMatchObject({ status: 'Done', completedAt: '2026-07-07' });
+    // The other pushed task was not completed in Todoist — untouched.
+    expect(r.workspace.tasks.find((t) => t.id === 't2')?.status).toBe('Doing');
+  });
+
+  it('falls back to today when Todoist omits the completion date', () => {
+    const ws = markTasksPushed(seedWorkspace(TODAY), [
+      { taskId: 't6', todoistId: '555' },
+    ]).workspace;
+    const r = applyTodoistCompletions(ws, ctx(), [{ todoistId: '555', completedDate: null }]);
+    expect(r.workspace.tasks.find((t) => t.id === 't6')).toMatchObject({
+      status: 'Done',
+      completedAt: TODAY,
+    });
+  });
+
+  it('is idempotent and never touches closed tasks', () => {
+    const ws = markTasksPushed(seedWorkspace(TODAY), [
+      { taskId: 't6', todoistId: '555' },
+    ]).workspace;
+    const first = applyTodoistCompletions(ws, ctx(), [
+      { todoistId: '555', completedDate: '2026-07-07' },
+    ]);
+    // Same completion again: task is already Done → no-op, same workspace.
+    const again = applyTodoistCompletions(first.workspace, ctx(), [
+      { todoistId: '555', completedDate: '2026-07-06' },
+    ]);
+    expect(again.completed).toBe(0);
+    expect(again.changed).toEqual([]);
+    expect(again.workspace).toBe(first.workspace);
+    expect(again.workspace.tasks.find((t) => t.id === 't6')?.completedAt).toBe('2026-07-07');
+
+    // A task Dropped in Ariadne stays dropped even if completed in Todoist.
+    const dropped = {
+      ...ws,
+      tasks: ws.tasks.map((t) =>
+        t.id === 't6' ? { ...t, status: 'Dropped' as const, completedAt: null } : t,
+      ),
+    };
+    const r = applyTodoistCompletions(dropped, ctx(), [
+      { todoistId: '555', completedDate: '2026-07-07' },
+    ]);
+    expect(r.completed).toBe(0);
+    expect(r.workspace.tasks.find((t) => t.id === 't6')?.status).toBe('Dropped');
+  });
+
+  it('also closes legacy inbox tasks completed in Todoist (marker is the join key)', () => {
+    const ws = withInboxTask(seedWorkspace(TODAY), {});
+    const r = applyTodoistCompletions(ws, ctx(), [
+      { todoistId: '9001', completedDate: '2026-07-07' },
+    ]);
+    expect(r.completed).toBe(1);
+    expect(r.workspace.tasks.find((t) => t.id === 'inbox1')?.status).toBe('Done');
+  });
+});
+
+describe('todoistSyncDue', () => {
+  const base: Settings = {
+    ...DEFAULT_SETTINGS,
+    todoistToken: 'tok',
+    todoistSyncEvery: 'hourly',
+    lastTodoistSyncAt: '2026-07-08T10:00:00.000Z',
+  };
+  const NOW = '2026-07-08T10:30:00.000Z';
+
+  it('fires only when the configured interval has elapsed', () => {
+    expect(todoistSyncDue(base, NOW)).toBe(false); // 30min < 1h
+    expect(todoistSyncDue(base, '2026-07-08T11:00:00.000Z')).toBe(true);
+    const daily: Settings = { ...base, todoistSyncEvery: 'daily' };
+    expect(todoistSyncDue(daily, '2026-07-08T23:00:00.000Z')).toBe(false);
+    expect(todoistSyncDue(daily, '2026-07-09T10:00:00.000Z')).toBe(true);
+  });
+
+  it('never fires on manual mode or without a token; fires immediately when unstamped', () => {
+    expect(todoistSyncDue({ ...base, todoistSyncEvery: 'manual' }, NOW)).toBe(false);
+    expect(todoistSyncDue({ ...base, todoistToken: '  ' }, NOW)).toBe(false);
+    expect(todoistSyncDue({ ...base, lastTodoistSyncAt: null }, NOW)).toBe(true);
+    expect(todoistSyncDue({ ...base, lastTodoistSyncAt: 'garbage' }, NOW)).toBe(true);
   });
 });

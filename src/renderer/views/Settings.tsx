@@ -1,12 +1,9 @@
 import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
 import { deleteTag, renameTag, tagUsage } from '@shared/domain/tags';
-import {
-  collectTodoistPushCandidates,
-  markTasksPushed,
-  mergeTodoistImport,
-} from '@shared/domain/todoist';
+import { collectTodoistPushCandidates, markTasksPushed } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
+import type { TodoistSyncEvery } from '@shared/types';
 import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
 
@@ -17,7 +14,17 @@ import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
 /** Settings: data management, integrations, reference (prototype viewSettings, minus Account — no auth). */
 export function Settings(): React.JSX.Element {
-  const { workspace, today, apply, askConfirm, showToast, go, openAiImport } = useStore();
+  const {
+    workspace,
+    today,
+    apply,
+    askConfirm,
+    showToast,
+    go,
+    openAiImport,
+    runTodoistSync,
+    todoistSyncing,
+  } = useStore();
   const [dataDir, setDataDir] = useState('…');
   const [importText, setImportText] = useState('');
   const [renaming, setRenaming] = useState<{ tag: string; value: string } | null>(null);
@@ -114,27 +121,6 @@ export function Settings(): React.JSX.Element {
           res.failed > 0
             ? `Pushed ${res.pushed.length} of ${res.pushed.length + res.failed} tasks to Todoist`
             : `Pushed ${res.pushed.length} task${res.pushed.length === 1 ? '' : 's'} to Todoist`,
-        );
-      });
-  };
-
-  const runTodoistImport = (): void => {
-    const token = workspace?.settings.todoistToken ?? '';
-    void getApi()
-      .todoistFetch(token)
-      .then((res) => {
-        if (!res.ok) {
-          showToast(res.error);
-          return;
-        }
-        const result = apply((ws2, ctx) => mergeTodoistImport(ws2, ctx, res.items));
-        if (result === null) return;
-        apply((ws2) => updateSettings(ws2, { lastTodoistImportAt: new Date().toISOString() }));
-        showToast(
-          result.added > 0 || result.updated > 0
-            ? `Imported ${result.added} task${result.added === 1 ? '' : 's'} from Todoist` +
-                (result.updated > 0 ? ` (${result.updated} updated)` : '')
-            : 'Todoist is already in sync',
         );
       });
   };
@@ -384,9 +370,10 @@ export function Settings(): React.JSX.Element {
         <Card title="Integrations · Todoist">
           <div className="card-pad settings-section">
             <p className="settings-copy">
-              Store your Todoist API token to import tasks captured on your phone. Import is one-way
-              (Todoist → Ariadne) into a “Todoist Inbox” project; re-importing updates due dates and
-              priorities of open tasks and never deletes anything.
+              Store your Todoist API token to connect the two apps. Push sends upcoming tasks to
+              Todoist; the completion sync then watches the tasks you’ve sent and, when you complete
+              one in Todoist, marks it Done here with Todoist’s completion date. The sync never
+              creates or deletes anything.
             </p>
             <div className="todoist-row">
               <div className="todoist-token">
@@ -402,9 +389,35 @@ export function Settings(): React.JSX.Element {
                   }}
                 />
               </div>
-              <button className="btn primary" onClick={runTodoistImport}>
-                Import now
+              <button
+                className="btn primary"
+                disabled={todoistSyncing}
+                onClick={() => void runTodoistSync()}
+              >
+                {todoistSyncing ? 'Syncing…' : 'Sync now'}
               </button>
+            </div>
+            <div>
+              <div className="field-label">CHECK FOR COMPLETED TASKS</div>
+              <span className="settings-copy">
+                <select
+                  className="inp select"
+                  value={workspace?.settings.todoistSyncEvery ?? 'manual'}
+                  aria-label="Todoist sync schedule"
+                  onChange={(e) => {
+                    apply((ws2) =>
+                      updateSettings(ws2, {
+                        todoistSyncEvery: e.target.value as TodoistSyncEvery,
+                      }),
+                    );
+                  }}
+                >
+                  <option value="manual">Only when I click Sync now</option>
+                  <option value="hourly">Every hour</option>
+                  <option value="daily">Once a day</option>
+                </select>{' '}
+                — looks at the last 30 days of Todoist completions
+              </span>
             </div>
             <div className="push-row">
               <div>
@@ -432,10 +445,10 @@ export function Settings(): React.JSX.Element {
                 Push to Todoist
               </button>
             </div>
-            {workspace?.settings.lastTodoistImportAt !== null &&
-              workspace?.settings.lastTodoistImportAt !== undefined && (
-                <p className="settings-copy" data-testid="todoist-last-import">
-                  Last import: {new Date(workspace.settings.lastTodoistImportAt).toLocaleString()}
+            {workspace?.settings.lastTodoistSyncAt !== null &&
+              workspace?.settings.lastTodoistSyncAt !== undefined && (
+                <p className="settings-copy" data-testid="todoist-last-sync">
+                  Last sync: {new Date(workspace.settings.lastTodoistSyncAt).toLocaleString()}
                 </p>
               )}
           </div>

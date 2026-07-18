@@ -71,7 +71,8 @@ export const fileEntrySchema = z.object({
 
 export const settingsSchema = z.object({
   todoistToken: z.string().catch(''),
-  lastTodoistImportAt: z.string().nullable().catch(null),
+  todoistSyncEvery: z.enum(['manual', 'hourly', 'daily']).catch('manual'),
+  lastTodoistSyncAt: z.string().nullable().catch(null),
   backupDir: z.string().min(1).nullable().catch(null),
   backupKeep: z
     .preprocess(
