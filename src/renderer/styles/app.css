@@ -2239,3 +2239,81 @@ input.inp.full {
   color: var(--faint);
   padding: 6px 2px 0;
 }
+
+/* ============ Project-card visualizations ============ */
+
+.status-strip {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 10px 0 8px;
+}
+.status-strip-seg {
+  min-width: 3px;
+  border-radius: 1px;
+}
+
+.pc-viz-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.pc-due-strip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.pc-due-cell {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.pc-due-cell.past {
+  opacity: 0.4;
+}
+.pc-due-cell.today {
+  box-shadow:
+    0 0 0 1.5px var(--surface),
+    0 0 0 2.5px var(--accent);
+}
+.pc-due-overdue {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--danger-dot);
+  background: var(--danger-bg);
+  border-radius: 20px;
+  padding: 0 6px;
+  margin-right: 3px;
+  line-height: 14px;
+}
+
+.pc-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+.pc-spark-slot {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  width: 5px;
+}
+.pc-spark-bar {
+  width: 100%;
+  background: #d5d5cf;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.pc-spark-bar.zero {
+  height: 2px !important;
+  background: #e8e8e4;
+  border-radius: 0;
+}
+.pc-spark-bar.current {
+  background: var(--accent);
+}

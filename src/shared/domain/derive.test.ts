@@ -4,6 +4,7 @@ import type { Project, Task } from '../types';
 
 import {
   allProjectTags,
+  duePressure,
   indexTasks,
   isArchived,
   isBlocked,
@@ -18,8 +19,10 @@ import {
   projectProgress,
   projectsInScope,
   relativeDueLabel,
+  statusComposition,
   taskDueLabel,
   tasksInScope,
+  weeklyCompletionCounts,
 } from './derive';
 
 const TODAY = '2026-07-08';
@@ -289,5 +292,68 @@ describe('overdueDependency', () => {
     const late = task({ id: 'late', dueDate: '2026-07-01' });
     const t = task({ dependsOn: ['late'], status: 'Dropped' });
     expect(overdueDependency(t, indexTasks([late, t]), TODAY)).toBeNull();
+  });
+});
+
+describe('project-card visualizations', () => {
+  it('weeklyCompletionCounts buckets the last 8 Sun–Sat weeks, oldest first', () => {
+    const tasks = [
+      task({ status: 'Done', completedAt: '2026-07-06' }), // current week (Mon)
+      task({ status: 'Done', completedAt: '2026-07-04' }), // last week (Sat)
+      task({ status: 'Done', completedAt: '2026-06-28' }), // last week (Sun)
+      task({ status: 'Done', completedAt: '2026-05-20' }), // 7 weeks back
+      task({ status: 'Done', completedAt: '2026-04-01' }), // out of window
+      task({ status: 'Todo' }), // never counted
+    ];
+    const points = weeklyCompletionCounts(tasks, TODAY);
+    expect(points).toHaveLength(8);
+    expect(points[0]?.start).toBe('2026-05-17'); // 7 weeks before this week's Sunday
+    expect(points[7]?.start).toBe('2026-07-05'); // current week
+    expect(points.map((p) => p.count)).toEqual([1, 0, 0, 0, 0, 0, 2, 1]);
+  });
+
+  it('statusComposition splits blocked out of Todo/Waiting and drops Dropped', () => {
+    const dep = task({ id: 'dep', status: 'Doing' });
+    const list = [
+      dep,
+      task({ status: 'Done', completedAt: TODAY }),
+      task({ status: 'Todo', dependsOn: ['dep'] }), // blocked
+      task({ status: 'Waiting', dependsOn: ['dep'] }), // blocked
+      task({ status: 'Waiting' }),
+      task({ status: 'Todo' }),
+      task({ status: 'Dropped' }),
+    ];
+    expect(statusComposition(list, indexTasks(list))).toEqual({
+      done: 1,
+      doing: 1,
+      blocked: 2,
+      waiting: 1,
+      todo: 1,
+      total: 6,
+    });
+  });
+
+  it('duePressure pools overdue and counts open tasks per current-week day', () => {
+    const tasks = [
+      task({ dueDate: '2026-07-01' }), // overdue (last week)
+      task({ dueDate: '2026-07-06' }), // overdue (this week, Monday, still open)
+      task({ dueDate: TODAY }),
+      task({ dueDate: '2026-07-09' }),
+      task({ dueDate: '2026-07-09', status: 'Done', completedAt: TODAY }), // closed → not due
+      task({ dueDate: '2026-07-12' }), // next week → outside the strip
+    ];
+    const p = duePressure(tasks, TODAY);
+    expect(p.overdue).toBe(2);
+    expect(p.days.map((d) => d.date)).toEqual([
+      '2026-07-05',
+      '2026-07-06',
+      '2026-07-07',
+      '2026-07-08',
+      '2026-07-09',
+      '2026-07-10',
+      '2026-07-11',
+    ]);
+    // The open Monday task counts on its cell AND in the overdue pool.
+    expect(p.days.map((d) => d.count)).toEqual([0, 1, 0, 1, 1, 0, 0]);
   });
 });

@@ -1,6 +1,6 @@
 import type { IsoDate, Project, Task } from '../types';
 
-import { dayDiff, fmtShort, weekEnd } from './dates';
+import { dayDiff, fmtShort, isoAdd, weekEnd, weekStart } from './dates';
 
 /**
  * Derived values — computed, never stored. Semantics ported 1:1 from the
@@ -137,6 +137,87 @@ export function allProjectTags(projects: readonly Project[]): string[] {
 
 export function isArchived(p: Project): boolean {
   return p.archived === true;
+}
+
+// ---------- Project-card visualizations (Command Center portfolio) ----------
+
+export interface WeeklyCompletionPoint {
+  /** Sunday starting the week. */
+  start: IsoDate;
+  count: number;
+}
+
+/**
+ * Completed-task counts for the last `weeks` Sun–Sat weeks (D15), oldest
+ * first; the final entry is the current, still-partial week. Feeds the
+ * project-card momentum sparkline.
+ */
+export function weeklyCompletionCounts(
+  tasks: readonly Task[],
+  today: IsoDate,
+  weeks = 8,
+): WeeklyCompletionPoint[] {
+  const firstStart = isoAdd(weekStart(today), -7 * (weeks - 1));
+  return Array.from({ length: weeks }, (_, i) => {
+    const start = isoAdd(firstStart, i * 7);
+    const end = isoAdd(start, 6);
+    const count = tasks.filter(
+      (t) => t.completedAt !== null && t.completedAt >= start && t.completedAt <= end,
+    ).length;
+    return { start, count };
+  });
+}
+
+/**
+ * How a project's live tasks split by state. Blocked (derived) is pulled out
+ * of Todo/Waiting so the strip can show it; Dropped tasks don't count.
+ */
+export interface StatusComposition {
+  done: number;
+  doing: number;
+  blocked: number;
+  waiting: number;
+  todo: number;
+  total: number;
+}
+
+export function statusComposition(
+  tasks: readonly Task[],
+  byId: Map<string, Task>,
+): StatusComposition {
+  const comp = { done: 0, doing: 0, blocked: 0, waiting: 0, todo: 0, total: 0 };
+  for (const t of tasks) {
+    if (t.status === 'Dropped') continue;
+    comp.total += 1;
+    if (t.status === 'Done') comp.done += 1;
+    else if (isBlocked(t, byId)) comp.blocked += 1;
+    else if (t.status === 'Doing') comp.doing += 1;
+    else if (t.status === 'Waiting') comp.waiting += 1;
+    else comp.todo += 1;
+  }
+  return comp;
+}
+
+export interface DuePressure {
+  /** Open tasks already past due (pooled, regardless of week). */
+  overdue: number;
+  /** The current Sun–Sat week; count = open tasks due that day. */
+  days: { date: IsoDate; count: number }[];
+}
+
+/** Per-day due load across the current week, for the card's mini heat strip. */
+export function duePressure(tasks: readonly Task[], today: IsoDate): DuePressure {
+  const start = weekStart(today);
+  return {
+    overdue: tasks.filter((t) => isOverdue(t, today)).length,
+    days: Array.from({ length: 7 }, (_, i) => {
+      const date = isoAdd(start, i);
+      return {
+        date,
+        count: tasks.filter((t) => isOpen(t) && t.dueDate === date).length,
+      };
+    }),
+  };
 }
 
 /**

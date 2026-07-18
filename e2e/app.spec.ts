@@ -30,8 +30,11 @@ test('first run seeds the sample workspace into the Command Center', async () =>
   const projectNav = win.getByRole('navigation', { name: 'Projects' });
   await expect(projectNav.getByRole('button', { name: /Q3 Platform Migration/ })).toBeVisible();
   await expect(projectNav.getByRole('button', { name: /Home network upgrade/ })).toBeVisible();
-  // Portfolio column renders project cards.
+  // Portfolio column renders project cards with their visualizations.
   await expect(win.getByTestId('project-card-p1')).toBeVisible();
+  await expect(win.getByTestId('strip-p1')).toBeVisible();
+  await expect(win.getByTestId('spark-p1')).toBeVisible();
+  await expect(win.getByTestId('due-strip-p1')).toBeVisible();
 
   await app.close();
 });

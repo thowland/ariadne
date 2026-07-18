@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0 — 2026-07-17
+
+- **Project-card visualizations** (Command Center portfolio): each card now
+  carries three at-a-glance reads —
+  - a **status-composition strip** in place of the plain progress bar
+    (done / doing / blocked / waiting / todo segments, hover for counts);
+  - a **momentum sparkline** of completions per week over the last 8 Sun–Sat
+    weeks, current week highlighted (flat = stalled, on purpose);
+  - a **due-load strip** for the current week — one cell per day shaded by
+    how much is due, today ringed, past days dimmed, and any overdue tasks
+    pooled in a red chip at the left. Everything has hover tooltips.
+
 ## 1.7.0 — 2026-07-17
 
 - **Calendar week view**: a Month/Week toggle on the calendar. Week view lays

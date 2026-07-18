@@ -50,6 +50,10 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   Due today, Due this week, High priority · later, and Blocked. "This week"
   means the current calendar week (Sunday through Saturday) — a task due
   next Monday waits in "High priority · later" until its week starts.
+  Each project card in the Portfolio column shows a colored strip of its
+  task states, a small bar chart of completions per week (is this project
+  moving?), and a row of day cells showing this week's due load — hover
+  over any of them for the exact numbers.
 - **Archiving**: when a project is finished (or parked), tick **Archive this
   project** on its page — or drag it onto the **DROP TO ARCHIVE** zone that
   appears at the bottom of the sidebar while dragging. Archived projects

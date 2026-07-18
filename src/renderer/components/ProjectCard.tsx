@@ -1,15 +1,33 @@
+import { fmtShort } from '@shared/domain/dates';
 import {
+  duePressure,
+  indexTasks,
   isOpen,
   isOverdue,
   nextDueTask,
-  projectProgress,
   relativeDueLabel,
+  statusComposition,
+  weeklyCompletionCounts,
 } from '@shared/domain/derive';
 import type { Project } from '@shared/types';
 
 import { useStore } from '../app/store';
 
 import { CategoryPill, Dot } from './primitives';
+
+/** Status-strip segment colors: Done, Doing, Blocked, Waiting, Todo. Waiting
+ * is a lighter step of the blocked amber (related states, ordered by
+ * severity); the 2px gaps do the separating. */
+const STRIP_SEGMENTS = [
+  ['done', '#3a9a5f'],
+  ['doing', '#2f62d8'],
+  ['blocked', '#d69220'],
+  ['waiting', '#e8c88a'],
+  ['todo', '#dcdcd4'],
+] as const;
+
+/** Due-load cell shades: 0, 1, 2, 3+ due — one accent hue, light → dark. */
+const DUE_LEVELS = ['#efefec', '#c9cef4', '#8f99e8', '#4f5bd5'];
 
 /** Portfolio project card (prototype _projectCard). */
 export function ProjectCard({ project }: { project: Project }): React.JSX.Element {
@@ -20,8 +38,13 @@ export function ProjectCard({ project }: { project: Project }): React.JSX.Elemen
   const done = tasks.filter((t) => t.status === 'Done').length;
   const overdue = open.filter((t) => isOverdue(t, today));
   const next = nextDueTask(tasks);
-  const pct = Math.round(projectProgress(tasks) * 100);
   const nextLabel = next !== null ? relativeDueLabel(next.dueDate, today) : null;
+
+  const comp = statusComposition(tasks, indexTasks(tasks));
+  const stripTitle = `${comp.done} done · ${comp.doing} doing · ${comp.blocked} blocked · ${comp.waiting} waiting · ${comp.todo} todo`;
+  const spark = weeklyCompletionCounts(tasks, today);
+  const sparkMax = Math.max(...spark.map((w) => w.count), 1);
+  const pressure = duePressure(tasks, today);
 
   return (
     <div
@@ -41,8 +64,19 @@ export function ProjectCard({ project }: { project: Project }): React.JSX.Elemen
         <div className="pc-name">{project.name}</div>
         <CategoryPill category={project.category} />
       </div>
-      <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${pct}%`, background: project.color }} />
+      <div className="status-strip" title={stripTitle} data-testid={`strip-${project.id}`}>
+        {comp.total > 0 ? (
+          STRIP_SEGMENTS.filter(([key]) => comp[key] > 0).map(([key, color]) => (
+            <div
+              key={key}
+              className="status-strip-seg"
+              data-seg={key}
+              style={{ flexGrow: comp[key], background: color }}
+            />
+          ))
+        ) : (
+          <div className="status-strip-seg" style={{ flexGrow: 1, background: '#efefec' }} />
+        )}
       </div>
       <div className="pc-meta">
         <span>{open.length} open</span>
@@ -56,6 +90,48 @@ export function ProjectCard({ project }: { project: Project }): React.JSX.Elemen
             {`Next ${nextLabel.text}`}
           </span>
         )}
+      </div>
+      <div className="pc-viz-row">
+        <div
+          className="pc-due-strip"
+          data-testid={`due-strip-${project.id}`}
+          role="img"
+          aria-label="Due load this week"
+        >
+          {pressure.overdue > 0 && (
+            <span className="pc-due-overdue" title={`${String(pressure.overdue)} overdue`}>
+              {pressure.overdue}
+            </span>
+          )}
+          {pressure.days.map((d) => (
+            <span
+              key={d.date}
+              className={`pc-due-cell ${d.date === today ? 'today' : ''} ${d.date < today ? 'past' : ''}`}
+              style={{ background: DUE_LEVELS[Math.min(d.count, 3)] }}
+              title={`${fmtShort(d.date)}: ${String(d.count)} due`}
+            />
+          ))}
+        </div>
+        <div className="spacer" />
+        <div
+          className="pc-spark"
+          data-testid={`spark-${project.id}`}
+          role="img"
+          aria-label="Completions per week, last 8 weeks"
+        >
+          {spark.map((w, i) => (
+            <span
+              key={w.start}
+              className={`pc-spark-slot`}
+              title={`Week of ${fmtShort(w.start)}: ${String(w.count)} completed`}
+            >
+              <span
+                className={`pc-spark-bar ${i === spark.length - 1 ? 'current' : ''} ${w.count === 0 ? 'zero' : ''}`}
+                style={{ height: `${String((w.count / sparkMax) * 100)}%` }}
+              />
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -13,8 +13,9 @@ for attachments. No accounts, no cloud, no database, no login.
 
 - **Command Center** — a daily review: stat cards, an ambient overdue banner, focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked), and a
-  portfolio column with per-project progress and next-due labels. "This week" means
-  the current Sun–Sat calendar week (D15), not a rolling 7 days.
+  portfolio column where each project card shows a status-composition strip, a
+  weekly-completions sparkline, a current-week due-load strip, and next-due labels.
+  "This week" means the current Sun–Sat calendar week (D15), not a rolling 7 days.
 - **Projects & tasks** — per-project workspace (notes, links, tags, quick-add task
   list) and a full task editor: status/priority/due, subtasks, "Blocked by"
   dependencies, attachments, links. Everything auto-saves; there is no Save button.
