@@ -1,6 +1,6 @@
 import type { IsoDate, Project, Task, Workspace } from '../types';
 
-import { dayDiff, fmtLong, fmtShort } from './dates';
+import { dayDiff, fmtLong, fmtShort, isoAdd, isValidIsoDate, weekStart } from './dates';
 import {
   indexTasks,
   isArchived,
@@ -165,6 +165,83 @@ export function retrospective(
     group.tasks.push(t);
   }
   return { total: done.length, groups };
+}
+
+/**
+ * Retrospective date-range presets. "Weeks" run Sun–Sat (D15); calendar
+ * months/years are literal. `custom` is the UI escape hatch and resolves
+ * to nothing here.
+ */
+export const RETRO_PRESETS = [
+  ['last-week', 'Last week'],
+  ['last-month', 'Last month'],
+  ['month-to-date', 'Month to date'],
+  ['year-to-date', 'Year to date'],
+  ['last-30', 'Last 30 days'],
+  ['custom', 'Custom range'],
+] as const;
+
+export type RetroPreset = (typeof RETRO_PRESETS)[number][0];
+
+export function retroPresetRange(
+  preset: Exclude<RetroPreset, 'custom'>,
+  today: IsoDate,
+): { from: IsoDate; to: IsoDate } {
+  switch (preset) {
+    case 'last-week': {
+      const start = isoAdd(weekStart(today), -7);
+      return { from: start, to: isoAdd(start, 6) };
+    }
+    case 'last-month': {
+      const firstOfThis = `${today.slice(0, 7)}-01`;
+      const lastOfPrev = isoAdd(firstOfThis, -1);
+      return { from: `${lastOfPrev.slice(0, 7)}-01`, to: lastOfPrev };
+    }
+    case 'month-to-date':
+      return { from: `${today.slice(0, 7)}-01`, to: today };
+    case 'year-to-date':
+      return { from: `${today.slice(0, 4)}-01-01`, to: today };
+    case 'last-30':
+      return { from: isoAdd(today, -30), to: today };
+  }
+}
+
+/** One column of the retrospective completions chart. */
+export interface RetroBucket {
+  start: IsoDate;
+  /** Inclusive; clamped to the report range. */
+  end: IsoDate;
+  count: number;
+  label: string;
+}
+
+/**
+ * Completions bucketed for charting: daily up to a month of range, else by
+ * Sun–Sat week (first/last buckets clamped to the range). Buckets with no
+ * completions are kept so the timeline reads true.
+ */
+export function retroBuckets(result: RetroResult, from: IsoDate, to: IsoDate): RetroBucket[] {
+  // Date inputs pass through '' / partial values while being edited.
+  if (!isValidIsoDate(from) || !isValidIsoDate(to) || to < from) return [];
+  const completions = result.groups.flatMap((g) => g.tasks.map((t) => t.completedAt ?? ''));
+  const daily = dayDiff(to, from) <= 31;
+  const buckets: RetroBucket[] = [];
+  let cursor = from;
+  while (cursor <= to) {
+    const end = daily
+      ? cursor
+      : isoAdd(weekStart(cursor), 6) < to
+        ? isoAdd(weekStart(cursor), 6)
+        : to;
+    buckets.push({
+      start: cursor,
+      end,
+      count: completions.filter((c) => c >= cursor && c <= end).length,
+      label: daily ? fmtShort(cursor) : `${fmtShort(cursor)} – ${fmtShort(end)}`,
+    });
+    cursor = isoAdd(end, 1);
+  }
+  return buckets;
 }
 
 export function retrospectiveText(result: RetroResult, from: IsoDate, to: IsoDate): string {

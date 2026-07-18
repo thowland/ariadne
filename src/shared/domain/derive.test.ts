@@ -86,19 +86,20 @@ describe('isOverdue / isDueToday / due-week windows', () => {
     expect(isDueToday(task({ dueDate: TODAY, status: 'Done' }), TODAY)).toBe(false);
   });
 
-  it('isDueThisWeek covers days 1..7 only', () => {
+  it('isDueThisWeek runs from tomorrow through Saturday (Sun–Sat weeks, D15)', () => {
+    // TODAY is Wed 2026-07-08; the week ends Sat 2026-07-11.
     expect(isDueThisWeek(task({ dueDate: TODAY }), TODAY)).toBe(false);
     expect(isDueThisWeek(task({ dueDate: '2026-07-09' }), TODAY)).toBe(true);
-    expect(isDueThisWeek(task({ dueDate: '2026-07-15' }), TODAY)).toBe(true);
-    expect(isDueThisWeek(task({ dueDate: '2026-07-16' }), TODAY)).toBe(false);
+    expect(isDueThisWeek(task({ dueDate: '2026-07-11' }), TODAY)).toBe(true);
+    expect(isDueThisWeek(task({ dueDate: '2026-07-12' }), TODAY)).toBe(false); // next Sunday
     expect(isDueThisWeek(task({ dueDate: '2026-07-07' }), TODAY)).toBe(false);
     expect(isDueThisWeek(task({ dueDate: null }), TODAY)).toBe(false);
   });
 
-  it('isDueWithinWeek covers days 0..7 (stat card window)', () => {
+  it('isDueWithinWeek covers today through Saturday (stat card window, D15)', () => {
     expect(isDueWithinWeek(task({ dueDate: TODAY }), TODAY)).toBe(true);
-    expect(isDueWithinWeek(task({ dueDate: '2026-07-15' }), TODAY)).toBe(true);
-    expect(isDueWithinWeek(task({ dueDate: '2026-07-16' }), TODAY)).toBe(false);
+    expect(isDueWithinWeek(task({ dueDate: '2026-07-11' }), TODAY)).toBe(true); // Saturday
+    expect(isDueWithinWeek(task({ dueDate: '2026-07-12' }), TODAY)).toBe(false); // next Sunday
     expect(isDueWithinWeek(task({ dueDate: '2026-07-07' }), TODAY)).toBe(false);
   });
 });
@@ -143,10 +144,12 @@ describe('isHighLater', () => {
     expect(isHighLater(task({ priority: 'High', dueDate: '2026-07-20' }), TODAY)).toBe(true);
   });
 
-  it('excludes tasks due within 7 days and overdue tasks', () => {
+  it('excludes tasks due inside the current week and overdue tasks', () => {
     expect(isHighLater(task({ priority: 'Critical', dueDate: TODAY }), TODAY)).toBe(false);
-    expect(isHighLater(task({ priority: 'High', dueDate: '2026-07-15' }), TODAY)).toBe(false);
+    expect(isHighLater(task({ priority: 'High', dueDate: '2026-07-11' }), TODAY)).toBe(false);
     expect(isHighLater(task({ priority: 'Critical', dueDate: '2026-07-01' }), TODAY)).toBe(false);
+    // Due next Sunday: outside the Sun–Sat week → high-later, not due-this-week.
+    expect(isHighLater(task({ priority: 'High', dueDate: '2026-07-12' }), TODAY)).toBe(true);
   });
 
   it('excludes medium/low priorities and closed tasks', () => {

@@ -1,6 +1,6 @@
 import type { IsoDate, Task } from '../types';
 
-import { dayDiff } from './dates';
+import { dayDiff, fmtShort, isoAdd, weekStart } from './dates';
 import { byDue } from './sort';
 
 /** Calendar month key `YYYY-MM`. */
@@ -38,6 +38,24 @@ export function monthCells(month: MonthKey): (IsoDate | null)[] {
   }
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+
+/** The Sun–Sat week containing `anchor`, as seven IsoDates. */
+export function weekCells(anchor: IsoDate): IsoDate[] {
+  const start = weekStart(anchor);
+  return Array.from({ length: 7 }, (_, i) => isoAdd(start, i));
+}
+
+/** e.g. "Jul 5 – Jul 11, 2026" (year from the week's Saturday). */
+export function weekTitle(anchor: IsoDate): string {
+  const start = weekStart(anchor);
+  const end = isoAdd(start, 6);
+  return `${fmtShort(start)} – ${fmtShort(end)}, ${end.slice(0, 4)}`;
+}
+
+/** Shift a week anchor by whole weeks (calendar paging). */
+export function shiftWeek(anchor: IsoDate, delta: number): IsoDate {
+  return isoAdd(anchor, delta * 7);
 }
 
 /** Tasks that appear on the calendar: dated and not Dropped (Done shows struck). */

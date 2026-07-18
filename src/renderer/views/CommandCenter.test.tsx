@@ -65,6 +65,21 @@ describe('CommandCenter', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('due-this-week stops at Saturday; later-in-cycle high tasks move to high-later (D15)', () => {
+    render(<CommandCenter />);
+    // Today is Wed Jul 8; the week ends Sat Jul 11.
+    const week = screen.getByTestId('focus-due-this-week');
+    expect(within(week).getByText('Apply first coat of spar varnish')).toBeInTheDocument(); // Sat
+    // "Meet with accountant" (Critical) is due Sun Jul 12 — next week, so it
+    // surfaces under High priority · later instead.
+    expect(within(week).queryByText('Meet with accountant')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('focus-high-priority-later')).getByText('Meet with accountant'),
+    ).toBeInTheDocument();
+    // Stat card window: today (2) + Thu–Sat (5) = 7.
+    expect(screen.getByTestId('stat-due-this-week')).toHaveTextContent('7');
+  });
+
   it('lists the right tasks in the overdue section', () => {
     render(<CommandCenter />);
     const overdue = screen.getByTestId('focus-overdue');

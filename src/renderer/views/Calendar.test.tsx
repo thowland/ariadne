@@ -63,6 +63,52 @@ describe('Calendar', () => {
   });
 });
 
+describe('Calendar — week view', () => {
+  it('toggles to a Sun–Sat week containing today', async () => {
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    expect(screen.getByRole('heading', { name: 'Jul 5 – Jul 11, 2026' })).toBeInTheDocument();
+    const grid = screen.getByTestId('calendar-week-grid');
+    // Chips inside the week render; the month grid is gone.
+    expect(within(grid).getByTitle('Write migration runbook')).toBeInTheDocument();
+    expect(within(grid).getByTitle('Sand to 220 grit')).toBeInTheDocument();
+    expect(screen.queryByTestId('calendar-grid')).not.toBeInTheDocument();
+    // "Meet with accountant" is due Sun Jul 12 — next week, not this grid.
+    expect(within(grid).queryByTitle('Meet with accountant')).not.toBeInTheDocument();
+  });
+
+  it('pages weeks and returns via Today', async () => {
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next week' }));
+    expect(screen.getByRole('heading', { name: 'Jul 12 – Jul 18, 2026' })).toBeInTheDocument();
+    // Next week's grid now holds the Sunday Jul-12 task.
+    expect(
+      within(screen.getByTestId('calendar-week-grid')).getByTitle('Meet with accountant'),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.getByRole('heading', { name: 'Jul 5 – Jul 11, 2026' })).toBeInTheDocument();
+    expect(useStore.getState().calWeek).toBeNull();
+
+    // Month mode state is untouched by week paging.
+    await userEvent.click(screen.getByRole('tab', { name: 'Month' }));
+    expect(screen.getByRole('heading', { name: 'July 2026' })).toBeInTheDocument();
+  });
+
+  it('day numbers open the day view from the week grid', async () => {
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    const grid = screen.getByTestId('calendar-week-grid');
+    // Several days hold 2 tasks; pick today's column by its day number.
+    const dayButtons = within(grid).getAllByTitle(/View all \d+ tasks due this day/);
+    const todayBtn = dayButtons.find((b) => b.textContent === '8');
+    expect(todayBtn).toBeDefined();
+    await userEvent.click(todayBtn!);
+    expect(useStore.getState().modal).toEqual({ type: 'day', iso: TEST_TODAY });
+  });
+});
+
 describe('Calendar — fixed cells & day view', () => {
   function crowdedWorkspace() {
     const base = seedWorkspace(TEST_TODAY);

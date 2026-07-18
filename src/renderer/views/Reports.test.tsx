@@ -70,16 +70,18 @@ describe('Reports', () => {
     render(<Reports />);
     await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
     const table = screen.getByTestId('portfolio-table');
-    // Real table semantics: 6 column headers, and one cell per column in
+    // Real table semantics: 7 column headers, and one cell per column in
     // every row so values line up under their headers (regression: a flex
     // display on <tr> once collapsed the cells into the name).
-    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(7);
     const row = within(table).getByText('Q3 Platform Migration').closest('tr');
-    expect(within(row as HTMLElement).getAllByRole('cell')).toHaveLength(6);
+    expect(within(row as HTMLElement).getAllByRole('cell')).toHaveLength(7);
     expect(row).not.toHaveClass('trow');
     expect(row).toHaveTextContent('Work');
     expect(row).toHaveTextContent('5');
     expect(row).toHaveTextContent('1d overdue');
+    // Progress bar: p1 is 1 done of 6 → 17%.
+    expect(row).toHaveTextContent('17%');
   });
 
   it('renders the retrospective with a date range', async () => {
@@ -94,6 +96,45 @@ describe('Reports', () => {
     // (clearing an empty date input leaves ''; type a new one)
     await userEvent.type(from, '2026-07-02');
     expect(screen.getByTestId('retro-headline')).toHaveTextContent('1');
+  });
+
+  it('retro presets fill the date range; manual edits switch to custom', async () => {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Retrospective' }));
+
+    const preset = screen.getByLabelText('Date range preset');
+    expect(preset).toHaveValue('last-30');
+
+    await userEvent.selectOptions(preset, 'month-to-date');
+    expect(screen.getByLabelText('From date')).toHaveValue('2026-07-01');
+    expect(screen.getByLabelText('To date')).toHaveValue('2026-07-08');
+
+    await userEvent.selectOptions(preset, 'last-week');
+    expect(screen.getByLabelText('From date')).toHaveValue('2026-06-28');
+    expect(screen.getByLabelText('To date')).toHaveValue('2026-07-04');
+
+    // Touching a date input flips the preset to Custom without moving dates.
+    await userEvent.clear(screen.getByLabelText('From date'));
+    await userEvent.type(screen.getByLabelText('From date'), '2026-06-01');
+    expect(preset).toHaveValue('custom');
+    expect(screen.getByLabelText('To date')).toHaveValue('2026-07-04');
+  });
+
+  it('retro shows a completions chart with tooltips and a labeled peak', async () => {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Retrospective' }));
+    const chart = screen.getByTestId('retro-chart');
+    // Daily buckets over the default 30-day range; the Jul 3 completion has a tooltip.
+    expect(within(chart).getByTitle(/Jul 3: 1 completed/)).toBeInTheDocument();
+    expect(within(chart).getByText('COMPLETIONS OVER TIME')).toBeInTheDocument();
+  });
+
+  it('weekly blocks summarize with count pills', () => {
+    render(<Reports />);
+    const p3 = screen.getByTestId('weekly-p3');
+    expect(within(p3).getByText('1 done')).toBeInTheDocument();
+    // Overdue sanding plus its direct dependent.
+    expect(within(p3).getByText('2 at risk')).toBeInTheDocument();
   });
 
   it('renders the at-risk report: overdue plus direct dependents only', async () => {

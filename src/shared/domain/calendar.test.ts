@@ -7,8 +7,11 @@ import {
   monthCells,
   monthTitle,
   shiftMonth,
+  shiftWeek,
   tasksByDueDate,
   upcomingTasks,
+  weekCells,
+  weekTitle,
 } from './calendar';
 
 const TODAY = '2026-07-08';
@@ -93,5 +96,25 @@ describe('upcomingTasks', () => {
     ];
     expect(upcomingTasks(list, TODAY).map((t) => t.id)).toEqual(['today', 'soon', 'later']);
     expect(upcomingTasks(list, TODAY, 2).map((t) => t.id)).toEqual(['today', 'soon']);
+  });
+});
+
+describe('weekCells / weekTitle / shiftWeek', () => {
+  it('produces the Sun–Sat week containing the anchor', () => {
+    const cells = weekCells('2026-07-08'); // a Wednesday
+    expect(cells).toHaveLength(7);
+    expect(cells[0]).toBe('2026-07-05'); // Sunday
+    expect(cells[6]).toBe('2026-07-11'); // Saturday
+  });
+
+  it('titles the week with its range and year', () => {
+    expect(weekTitle('2026-07-08')).toBe('Jul 5 – Jul 11, 2026');
+    // Year comes from the week's Saturday when the week straddles new year.
+    expect(weekTitle('2025-12-30')).toBe('Dec 28 – Jan 3, 2026');
+  });
+
+  it('shifts by whole weeks', () => {
+    expect(shiftWeek('2026-07-08', 1)).toBe('2026-07-15');
+    expect(shiftWeek('2026-07-08', -2)).toBe('2026-06-24');
   });
 });

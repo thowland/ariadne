@@ -13,7 +13,8 @@ for attachments. No accounts, no cloud, no database, no login.
 
 - **Command Center** — a daily review: stat cards, an ambient overdue banner, focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked), and a
-  portfolio column with per-project progress and next-due labels.
+  portfolio column with per-project progress and next-due labels. "This week" means
+  the current Sun–Sat calendar week (D15), not a rolling 7 days.
 - **Projects & tasks** — per-project workspace (notes, links, tags, quick-add task
   list) and a full task editor: status/priority/due, subtasks, "Blocked by"
   dependencies, attachments, links. Everything auto-saves; there is no Save button.
@@ -21,14 +22,15 @@ for attachments. No accounts, no cloud, no database, no login.
   onto the sidebar's archive zone): they leave every active surface but stay intact
   under the sidebar's ARCHIVED section.
 - **Dependency map** — a layered SVG graph of each project's task chains.
-- **Calendar** — month grid with priority-colored chips, uniform cells with a
-  single-day drill-in modal, and an Upcoming list.
+- **Calendar** — month grid or single-week (Sun–Sat) layout, priority-colored chips,
+  a single-day drill-in modal, and an Upcoming list.
 - **Document library** — per-project markdown notes (sanitized live preview/edit),
   file uploads (PDF/CSV/images preview inline), task attachments, and a cross-project
   **Files** view that lists everything in one place.
-- **Reports** — weekly status, portfolio roll-up, date-ranged retrospective, and
-  at-risk, all filterable by Work/Home/tag (work reports can never leak personal
-  projects) and copyable as plain text.
+- **Reports** — weekly status (with done/planned/at-risk count pills), portfolio
+  roll-up (with progress bars), date-ranged retrospective (range presets + a
+  completions-over-time chart), and at-risk — all filterable by Work/Home/tag
+  (work reports can never leak personal projects) and copyable as plain text.
 - **Tags** — prefix autocomplete everywhere, click-to-search, a **Tags** view showing
   every tag with usage counts, and Settings-based rename/merge/delete.
 - **Todoist** — push upcoming tasks (the primary direction: into #Home/#Work with

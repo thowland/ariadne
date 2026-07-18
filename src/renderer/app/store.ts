@@ -71,6 +71,10 @@ export interface AriadneStore {
   confirmState: ConfirmState | null;
   /** Calendar month being viewed; null = the month containing today. */
   calMonth: string | null;
+  /** Calendar layout: month grid or single Sun–Sat week. */
+  calMode: 'month' | 'week';
+  /** Anchor date of the week being viewed; null = the week containing today. */
+  calWeek: IsoDate | null;
   /** File viewer mode; reset to preview on open. */
   fileMode: FileMode;
 
@@ -93,6 +97,8 @@ export interface AriadneStore {
   askConfirm: (message: string) => Promise<boolean>;
   resolveConfirm: (confirmed: boolean) => void;
   setCalMonth: (month: string | null) => void;
+  setCalMode: (mode: 'month' | 'week') => void;
+  setCalWeek: (anchor: IsoDate | null) => void;
   /** Sidebar "+" — create a project and jump to it. */
   newProject: () => void;
   /** Top bar "+ New task" — create in the active (or first) project and edit it. */
@@ -149,6 +155,8 @@ export const useStore = create<AriadneStore>((set, get) => ({
   modal: null,
   confirmState: null,
   calMonth: null,
+  calMode: 'month',
+  calWeek: null,
   fileMode: 'preview',
 
   go: (view) => {
@@ -220,6 +228,14 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   setCalMonth: (month) => {
     set({ calMonth: month });
+  },
+
+  setCalMode: (mode) => {
+    set({ calMode: mode });
+  },
+
+  setCalWeek: (anchor) => {
+    set({ calWeek: anchor });
   },
 
   showToast: (message) => {

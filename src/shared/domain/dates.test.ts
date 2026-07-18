@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayDiff, fmtLong, fmtShort, isoAdd, isValidIsoDate, monthKey, toIsoDate } from './dates';
+import {
+  dayDiff,
+  dayOfWeek,
+  fmtLong,
+  fmtShort,
+  isoAdd,
+  isValidIsoDate,
+  monthKey,
+  toIsoDate,
+  weekEnd,
+  weekStart,
+} from './dates';
 
 // The prototype's pinned demo date; convenient, stable fixture.
 const TODAY = '2026-07-08';
@@ -111,5 +122,24 @@ describe('monthKey', () => {
   it('returns the YYYY-MM prefix', () => {
     expect(monthKey(TODAY)).toBe('2026-07');
     expect(monthKey('1999-12-31')).toBe('1999-12');
+  });
+});
+
+describe('week boundaries (Sun–Sat, D15)', () => {
+  it('dayOfWeek: 0 = Sunday … 6 = Saturday', () => {
+    expect(dayOfWeek('2026-07-05')).toBe(0); // Sunday
+    expect(dayOfWeek(TODAY)).toBe(3); // Wednesday
+    expect(dayOfWeek('2026-07-11')).toBe(6); // Saturday
+  });
+
+  it('weekStart/weekEnd bracket the containing week', () => {
+    expect(weekStart(TODAY)).toBe('2026-07-05');
+    expect(weekEnd(TODAY)).toBe('2026-07-11');
+    // Idempotent at the boundaries.
+    expect(weekStart('2026-07-05')).toBe('2026-07-05');
+    expect(weekEnd('2026-07-11')).toBe('2026-07-11');
+    // Crosses month/year edges cleanly.
+    expect(weekStart('2026-01-01')).toBe('2025-12-28');
+    expect(weekEnd('2026-08-31')).toBe('2026-09-05');
   });
 });

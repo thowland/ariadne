@@ -62,3 +62,18 @@ export function fmtLong(iso: IsoDate): string {
 export function monthKey(iso: IsoDate): string {
   return iso.slice(0, 7);
 }
+
+/** Day of week, 0 = Sunday … 6 = Saturday. */
+export function dayOfWeek(iso: IsoDate): number {
+  return atLocalMidnight(iso).getDay();
+}
+
+/** The Sunday starting the week containing `iso` (weeks run Sun–Sat, D15). */
+export function weekStart(iso: IsoDate): IsoDate {
+  return isoAdd(iso, -dayOfWeek(iso));
+}
+
+/** The Saturday ending the week containing `iso`. */
+export function weekEnd(iso: IsoDate): IsoDate {
+  return isoAdd(iso, 6 - dayOfWeek(iso));
+}

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.7.0 — 2026-07-17
+
+- **Calendar week view**: a Month/Week toggle on the calendar. Week view lays
+  out a single Sun–Sat week with roomier day columns, pages with the same
+  ‹ Today › controls, and opens tasks/days like the month grid.
+- **"Due this week" means this calendar week now**: weeks run Sunday–Saturday.
+  The Command Center stat card and focus section stop at Saturday instead of
+  counting 7 rolling days; a Critical/High task due next week surfaces under
+  "High priority · later" until its week arrives.
+- **Retrospective presets**: a range dropdown — Last week, Last month, Month
+  to date, Year to date, Last 30 days — fills the date inputs; editing a date
+  by hand switches to Custom range.
+- **Report visualizations**: the retrospective gains a completions-over-time
+  chart (daily bars up to a month of range, Sun–Sat weekly buckets beyond,
+  hover for exact counts); the portfolio roll-up gains a per-project progress
+  bar column; weekly status blocks summarize with done/planned/at-risk count
+  pills in their headers.
+
 ## 1.6.1 — 2026-07-17
 
 - **Security**: Electron upgraded 33.4.11 → 39.8.10, clearing all high-severity

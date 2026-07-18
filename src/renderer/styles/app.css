@@ -2128,3 +2128,114 @@ input.inp.full {
   font-weight: 700;
   color: var(--faint);
 }
+
+/* ============ Calendar week view ============ */
+
+.cal-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-height: 420px;
+}
+.cal-week-col {
+  border-right: 1px solid var(--border2);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.cal-week-col:last-child {
+  border-right: none;
+}
+.cal-week-col.today {
+  background: #f5f6fe;
+}
+.cal-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border2);
+}
+.cal-week-col .cal-chips {
+  flex: 1;
+}
+
+/* ============ Report visualizations ============ */
+
+.report-count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  background: #f0f0ee;
+  border-radius: 20px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.portfolio-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+}
+.portfolio-progress .progress-track {
+  flex: 1;
+  margin: 0;
+}
+.portfolio-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.retro-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 96px;
+  padding: 18px 2px 0;
+}
+.retro-chart-slot {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+  min-width: 0;
+}
+.retro-chart-bar {
+  width: 100%;
+  max-width: 24px;
+  background: #2f8552;
+  border-radius: 4px 4px 0 0;
+  min-height: 3px;
+}
+.retro-chart-bar.zero {
+  height: 3px !important;
+  background: #2f855226;
+  border-radius: 0;
+}
+.retro-chart-peak {
+  position: absolute;
+  top: -17px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.retro-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--faint);
+  padding: 6px 2px 0;
+}

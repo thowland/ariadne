@@ -1,12 +1,21 @@
 import { isoAdd } from '@shared/domain/dates';
 import { fmtShort } from '@shared/domain/dates';
 import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
-import type { ReportFilter, RiskRow, WeeklyBlock } from '@shared/domain/reports';
+import type {
+  ReportFilter,
+  RetroBucket,
+  RetroPreset,
+  RiskRow,
+  WeeklyBlock,
+} from '@shared/domain/reports';
 import {
   atRiskReport,
   atRiskText,
   portfolioRollup,
   portfolioText,
+  RETRO_PRESETS,
+  retroBuckets,
+  retroPresetRange,
   retrospective,
   retrospectiveText,
   weeklyStatus,
@@ -56,6 +65,17 @@ function ReportLine({ task }: { task: Task }): React.JSX.Element {
   );
 }
 
+/** Colored-dot count pill for report headers (identity via the dot, not text). */
+function CountPill({ count, label, color }: { count: number; label: string; color: string }) {
+  if (count === 0) return null;
+  return (
+    <span className="report-count-pill">
+      <Dot color={color} size={7} />
+      {count} {label}
+    </span>
+  );
+}
+
 function WeeklyReport({ blocks }: { blocks: WeeklyBlock[] }): React.JSX.Element {
   if (blocks.length === 0) {
     return <div className="report-block card-empty">No activity in this filter.</div>;
@@ -80,6 +100,10 @@ function WeeklyReport({ blocks }: { blocks: WeeklyBlock[] }): React.JSX.Element 
             <Dot color={b.project.color} size={10} />
             <span className="report-project-name">{b.project.name}</span>
             <CategoryPill category={b.project.category} />
+            <div className="spacer" />
+            <CountPill count={b.done.length} label="done" color="#2f8552" />
+            <CountPill count={b.planned.length} label="planned" color="#4f5bd5" />
+            <CountPill count={b.atRisk.length} label="at risk" color="#c23b2b" />
           </div>
           <div className="weekly-cols">
             {col('DONE THIS WEEK', b.done, '#2f8552', '—')}
@@ -108,6 +132,7 @@ function PortfolioReport({
           <tr>
             <th>PROJECT</th>
             <th>TYPE</th>
+            <th>PROGRESS</th>
             <th className="num">OPEN</th>
             <th className="num">DONE</th>
             <th className="num">OVERDUE</th>
@@ -132,6 +157,26 @@ function PortfolioReport({
               <td>
                 <CategoryPill category={r.project.category} />
               </td>
+              <td>
+                {(() => {
+                  const total = r.open + r.done;
+                  const pct = total > 0 ? Math.round((r.done / total) * 100) : 0;
+                  return (
+                    <div
+                      className="portfolio-progress"
+                      title={`${r.done} of ${total} tasks done (${pct}%)`}
+                    >
+                      <div className="progress-track">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${pct}%`, background: r.project.color }}
+                        />
+                      </div>
+                      <span className="portfolio-pct">{pct}%</span>
+                    </div>
+                  );
+                })()}
+              </td>
               <td className="num">{r.open}</td>
               <td className="num muted">{r.done}</td>
               <td className="num">
@@ -153,6 +198,47 @@ function PortfolioReport({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Completions-over-time chart for the retrospective: one series, daily or
+ * weekly buckets from the domain layer. Single hue (the app's "done" green),
+ * 4px rounded data-ends on a square baseline, only the peak directly
+ * labeled — per-bucket values ride the hover tooltip.
+ */
+function RetroChart({ buckets }: { buckets: RetroBucket[] }): React.JSX.Element | null {
+  if (buckets.length < 2) return null;
+  const max = Math.max(...buckets.map((b) => b.count));
+  if (max === 0) return null;
+  const peakIndex = buckets.findIndex((b) => b.count === max);
+  const first = buckets[0];
+  const last = buckets[buckets.length - 1];
+  return (
+    <div className="report-block retro-chart-block" data-testid="retro-chart">
+      <div className="weekly-col-label" style={{ color: '#2f8552' }}>
+        COMPLETIONS OVER TIME
+      </div>
+      <div className="retro-chart" role="img" aria-label="Completed tasks per period">
+        {buckets.map((b, i) => (
+          <div
+            key={b.start}
+            className="retro-chart-slot"
+            title={`${b.label}: ${b.count} completed`}
+          >
+            {i === peakIndex && <span className="retro-chart-peak">{b.count}</span>}
+            <div
+              className={`retro-chart-bar ${b.count === 0 ? 'zero' : ''}`}
+              style={{ height: `${(b.count / max) * 100}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="retro-chart-axis">
+        <span>{first?.label}</span>
+        <span>{last?.label}</span>
+      </div>
     </div>
   );
 }
@@ -202,8 +288,18 @@ export function Reports(): React.JSX.Element {
   const { workspace, today, showToast } = useStore();
   const [type, setType] = useState<ReportType>('weekly');
   const [filter, setFilter] = useState<ReportFilter>('all');
+  const [preset, setPreset] = useState<RetroPreset>('last-30');
   const [from, setFrom] = useState(isoAdd(today, -30));
   const [to, setTo] = useState(today);
+
+  const pickPreset = (next: RetroPreset): void => {
+    setPreset(next);
+    if (next !== 'custom') {
+      const range = retroPresetRange(next, today);
+      setFrom(range.from);
+      setTo(range.to);
+    }
+  };
 
   if (workspace === null) return <div className="stub-view">Loading…</div>;
 
@@ -241,6 +337,7 @@ export function Reports(): React.JSX.Element {
             tasks completed · {fmtShort(from)} – {fmtShort(to)}
           </span>
         </div>
+        <RetroChart buckets={retroBuckets(result, from, to)} />
         {result.groups.length > 0 ? (
           result.groups.map((g) => (
             <div key={g.project.id} className="report-block">
@@ -272,12 +369,27 @@ export function Reports(): React.JSX.Element {
         <div className="spacer" />
         {type === 'retro' && (
           <div className="retro-range-inputs">
+            <select
+              className="inp select"
+              value={preset}
+              aria-label="Date range preset"
+              onChange={(e) => {
+                pickPreset(e.target.value as RetroPreset);
+              }}
+            >
+              {RETRO_PRESETS.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
             <input
               type="date"
               className="inp"
               value={from}
               aria-label="From date"
               onChange={(e) => {
+                setPreset('custom');
                 setFrom(e.target.value);
               }}
             />
@@ -288,6 +400,7 @@ export function Reports(): React.JSX.Element {
               value={to}
               aria-label="To date"
               onChange={(e) => {
+                setPreset('custom');
                 setTo(e.target.value);
               }}
             />

@@ -394,3 +394,38 @@ test('archive lifecycle, files library, and tags view', async () => {
   ).toBeVisible();
   await second.close();
 });
+
+test('calendar week view, retro presets, and report visuals', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Command Center: "Due this week" respects the Sun–Sat boundary — the
+  // Critical accountant task due Sun Jul 12 sits in High priority · later.
+  await expect(win.getByTestId('stat-due-this-week')).toContainText('7');
+  await expect(
+    win.getByTestId('focus-high-priority-later').getByText('Meet with accountant'),
+  ).toBeVisible();
+
+  // Calendar: toggle to the week view and page it.
+  await win.getByRole('button', { name: 'Calendar' }).click();
+  await win.getByRole('tab', { name: 'Week' }).click();
+  await expect(win.getByRole('heading', { name: 'Jul 5 – Jul 11, 2026' })).toBeVisible();
+  await expect(win.getByTestId('calendar-week-grid').getByTitle('Sand to 220 grit')).toBeVisible();
+  await win.getByRole('button', { name: 'Next week' }).click();
+  await expect(win.getByRole('heading', { name: 'Jul 12 – Jul 18, 2026' })).toBeVisible();
+
+  // Reports: weekly pills, portfolio progress, retro preset + chart.
+  await win.getByRole('button', { name: 'Reports' }).click();
+  await expect(win.getByTestId('weekly-p3').getByText('2 at risk')).toBeVisible();
+  await win.getByRole('tab', { name: 'Portfolio roll-up' }).click();
+  await expect(win.getByTestId('portfolio-table').getByText('17%')).toBeVisible();
+  await win.getByRole('tab', { name: 'Retrospective' }).click();
+  await expect(win.getByTestId('retro-chart')).toBeVisible();
+  await win.getByLabel('Date range preset').selectOption('month-to-date');
+  await expect(win.getByLabel('From date')).toHaveValue('2026-07-01');
+  await expect(win.getByTestId('retro-headline')).toContainText('tasks completed · Jul 1 – Jul 8');
+
+  await app.close();
+});

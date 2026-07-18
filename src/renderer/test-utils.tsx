@@ -54,6 +54,9 @@ export function setupTestApp(
     toast: null,
     modal: null,
     confirmState: null,
+    calMonth: null,
+    calMode: 'month',
+    calWeek: null,
   });
   return api;
 }

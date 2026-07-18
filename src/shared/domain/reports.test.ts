@@ -7,6 +7,8 @@ import {
   filterProjects,
   portfolioRollup,
   portfolioText,
+  retroBuckets,
+  retroPresetRange,
   retrospective,
   retrospectiveText,
   weeklyStatus,
@@ -168,5 +170,71 @@ describe('atRiskReport', () => {
     const text = atRiskText(rows, TODAY);
     expect(text).toContain('AT-RISK — Wednesday, July 8, 2026');
     expect(text).toContain('- Q3 Platform Migration: Migrate auth service (1d overdue)');
+  });
+});
+
+describe('retroPresetRange', () => {
+  it('resolves each preset against a pinned Wednesday', () => {
+    // TODAY = Wed 2026-07-08; weeks run Sun–Sat.
+    expect(retroPresetRange('last-week', TODAY)).toEqual({
+      from: '2026-06-28',
+      to: '2026-07-04',
+    });
+    expect(retroPresetRange('last-month', TODAY)).toEqual({
+      from: '2026-06-01',
+      to: '2026-06-30',
+    });
+    expect(retroPresetRange('month-to-date', TODAY)).toEqual({
+      from: '2026-07-01',
+      to: TODAY,
+    });
+    expect(retroPresetRange('year-to-date', TODAY)).toEqual({
+      from: '2026-01-01',
+      to: TODAY,
+    });
+    expect(retroPresetRange('last-30', TODAY)).toEqual({ from: '2026-06-08', to: TODAY });
+  });
+
+  it('last-month lands on real month lengths across the year edge', () => {
+    expect(retroPresetRange('last-month', '2026-01-15')).toEqual({
+      from: '2025-12-01',
+      to: '2025-12-31',
+    });
+    expect(retroPresetRange('last-month', '2026-03-05')).toEqual({
+      from: '2026-02-01',
+      to: '2026-02-28',
+    });
+  });
+});
+
+describe('retroBuckets', () => {
+  it('buckets daily for ranges up to a month, keeping zero days', () => {
+    const result = retrospective(ws, 'all', '2026-07-01', TODAY);
+    const buckets = retroBuckets(result, '2026-07-01', TODAY);
+    expect(buckets).toHaveLength(8);
+    expect(buckets.every((b) => b.start === b.end)).toBe(true);
+    const total = buckets.reduce((n, b) => n + b.count, 0);
+    expect(total).toBe(result.total);
+    // "Strip old varnish" completed Jul 3 → that day's bucket counts it.
+    expect(buckets.find((b) => b.start === '2026-07-03')?.count).toBeGreaterThan(0);
+  });
+
+  it('buckets by Sun–Sat week for longer ranges, clamped to the range', () => {
+    const from = '2026-05-01';
+    const result = retrospective(ws, 'all', from, TODAY);
+    const buckets = retroBuckets(result, from, TODAY);
+    expect(buckets.length).toBeGreaterThan(4);
+    // First bucket starts at the range start, ends on that week's Saturday.
+    expect(buckets[0]).toMatchObject({ start: from, end: '2026-05-02' });
+    // Interior buckets are whole Sun–Sat weeks; the last clamps to `to`.
+    expect(buckets[1]).toMatchObject({ start: '2026-05-03', end: '2026-05-09' });
+    expect(buckets[buckets.length - 1]?.end).toBe(TODAY);
+    expect(buckets.reduce((n, b) => n + b.count, 0)).toBe(result.total);
+  });
+
+  it('returns nothing for invalid or inverted ranges (mid-edit date inputs)', () => {
+    const result = retrospective(ws, 'all', '2026-07-01', TODAY);
+    expect(retroBuckets(result, '', TODAY)).toEqual([]);
+    expect(retroBuckets(result, TODAY, '2026-07-01')).toEqual([]);
   });
 });

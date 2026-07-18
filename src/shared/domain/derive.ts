@@ -1,6 +1,6 @@
 import type { IsoDate, Project, Task } from '../types';
 
-import { dayDiff, fmtShort } from './dates';
+import { dayDiff, fmtShort, weekEnd } from './dates';
 
 /**
  * Derived values — computed, never stored. Semantics ported 1:1 from the
@@ -19,18 +19,19 @@ export function isDueToday(t: Task, today: IsoDate): boolean {
   return isOpen(t) && t.dueDate === today;
 }
 
-/** Due in 1–7 days (excludes today and overdue). */
+/**
+ * Due after today but still inside the current calendar week (weeks run
+ * Sun–Sat, D15). Excludes today and overdue.
+ */
 export function isDueThisWeek(t: Task, today: IsoDate): boolean {
   if (!isOpen(t) || t.dueDate === null) return false;
-  const n = dayDiff(t.dueDate, today);
-  return n >= 1 && n <= 7;
+  return t.dueDate > today && t.dueDate <= weekEnd(today);
 }
 
-/** Due in 0–7 days — the "Due this week" stat card window. */
+/** Due today through Saturday — the "Due this week" stat card window (D15). */
 export function isDueWithinWeek(t: Task, today: IsoDate): boolean {
   if (!isOpen(t) || t.dueDate === null) return false;
-  const n = dayDiff(t.dueDate, today);
-  return n >= 0 && n <= 7;
+  return t.dueDate >= today && t.dueDate <= weekEnd(today);
 }
 
 export function indexTasks(tasks: readonly Task[]): Map<string, Task> {
@@ -65,13 +66,15 @@ export function overdueDependency(t: Task, byId: Map<string, Task>, today: IsoDa
 
 /**
  * "High priority · later": Critical/High priority with no due pressure inside
- * the week (no due date, or due more than 7 days out; overdue is excluded
- * because those tasks already surface in the Overdue section).
+ * the current Sun–Sat week (no due date, or due after this week's Saturday;
+ * overdue is excluded because those tasks already surface in the Overdue
+ * section). Mirrors the D15 week boundary so every dated task lands in
+ * exactly one Command Center section.
  */
 export function isHighLater(t: Task, today: IsoDate): boolean {
   if (!isOpen(t)) return false;
   if (t.priority !== 'Critical' && t.priority !== 'High') return false;
-  return !(t.dueDate !== null && dayDiff(t.dueDate, today) <= 7);
+  return !(t.dueDate !== null && t.dueDate <= weekEnd(today));
 }
 
 /** done / (total excluding Dropped); 0 when there is nothing to count. */
