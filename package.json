@@ -98,7 +98,9 @@
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
       "darkModeSupport": true,
-      "notarize": false
+      "notarize": false,
+      "identity": "-",
+      "hardenedRuntime": false
     },
     "dmg": {
       "contents": [

@@ -209,17 +209,17 @@ npm run package:win            # Windows x64 NSIS installer (cross-built on Linu
 ```
 
 macOS packages **must be built on a Mac** (DMG + signing need Apple tooling).
-Notarization is **explicitly off** (`build.mac.notarize: false`) — the app is
-for personal use, so Apple credentials aren't required to package. Signing uses
-whatever identity electron-builder auto-discovers in the keychain (an Xcode
-"Apple Development" cert, or ad-hoc with none); either way the app launches
-fine on the build machine but shows Gatekeeper's "unidentified developer"
-friction on anyone else's Mac — on macOS ≤ 14 right-click → Open, on macOS 15+
-System Settings → Privacy & Security → "Open Anyway" after the first blocked
-launch. To share an unnotarized build, prefer forcing ad-hoc signing
-(`CSC_IDENTITY_AUTO_DISCOVERY=false npm run package:mac`) — a Development cert
-is no better for recipients and expires yearly. `npm overrides` pins
-`@noble/hashes` to 1.x for electron-builder; keep it when updating.
+Notarization is **explicitly off** (`build.mac.notarize: false`) and signing is
+**pinned to ad-hoc** (`"identity": "-"`, with `hardenedRuntime: false`) — the
+app is for personal use, so no Apple credentials, no keychain access, and no
+"codesign wants to use your key" prompts are involved. (Letting electron-builder
+auto-discover a keychain cert is what used to hang the build: codesign blocks
+silently on the keychain permission dialog, and a Development cert buys nothing
+for distribution anyway.) The app launches fine on the build machine; on anyone
+else's Mac it shows Gatekeeper's "unidentified developer" friction — macOS ≤ 14
+right-click → Open, macOS 15+ System Settings → Privacy & Security → "Open
+Anyway" after the first blocked launch. `npm overrides` pins `@noble/hashes` to
+1.x for electron-builder; keep it when updating.
 
 #### Notarizing (when the time comes)
 
@@ -232,9 +232,12 @@ To distribute DMGs without the Gatekeeper friction (all steps on the Mac):
    electron-builder auto-picks it over a Development cert.
 3. Create an app-specific password: account.apple.com → Sign-In & Security →
    App-Specific Passwords.
-4. In `package.json` `build.mac`, set `"notarize": true` and add
+4. In `package.json` `build.mac`: set `"notarize": true`, set
    `"hardenedRuntime": true` (notarization requires it; electron-builder
-   applies Electron's JIT entitlements automatically).
+   applies Electron's JIT entitlements automatically), and **remove the
+   `"identity": "-"` pin** so electron-builder auto-discovers the
+   Developer ID cert. Expect one keychain prompt on the first signing run —
+   click "Always Allow" so later builds don't block on it.
 5. Package with credentials in the environment:
 
    ```sh
