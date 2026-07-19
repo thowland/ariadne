@@ -111,6 +111,26 @@ describe('App shell', () => {
     expect(window.ariadne.todoistCompleted).not.toHaveBeenCalled();
   });
 
+  it('lists every load warning in a dismissable banner', async () => {
+    const w = seedWorkspace(TEST_TODAY);
+    setupTestApp(w, {
+      loadWorkspace: vi.fn().mockResolvedValue({
+        workspace: w,
+        warnings: ['tasks.json restored from backup', 'files.json failed validation'],
+        firstRun: false,
+      }),
+    });
+    render(<App />);
+    await screen.findByTestId('home-headline');
+
+    const banner = screen.getByTestId('load-warnings');
+    expect(banner).toHaveTextContent('tasks.json restored from backup');
+    expect(banner).toHaveTextContent('files.json failed validation');
+
+    await userEvent.click(screen.getByLabelText('Dismiss warnings'));
+    expect(screen.queryByTestId('load-warnings')).not.toBeInTheDocument();
+  });
+
   it('shows a persistent banner while disk writes fail, and clears it on recovery', async () => {
     render(<App />);
     await screen.findByTestId('home-headline');

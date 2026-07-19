@@ -10,6 +10,32 @@ import {
 import { join } from 'node:path';
 
 import type { AppConfig } from '@shared/types';
+import { z } from 'zod';
+
+/** Fallback window size, shared with createWindow (main/index.ts). */
+export const DEFAULT_WINDOW_BOUNDS = { width: 1440, height: 900 } as const;
+
+/**
+ * config.json is the one persisted document a user might plausibly hand-edit
+ * (it points at the data directory), so it gets the same zod treatment as the
+ * workspace documents. Bounds that would produce an unusable window (wrong
+ * types, sizes below 400×300) are dropped wholesale — createWindow then falls
+ * back to defaults. Negative x/y are legitimate (multi-monitor layouts).
+ */
+const windowBoundsSchema = z
+  .object({
+    x: z.number().int(),
+    y: z.number().int(),
+    width: z.number().int().min(400),
+    height: z.number().int().min(300),
+  })
+  .optional()
+  .catch(undefined);
+
+const appConfigSchema = z.object({
+  dataDir: z.string().min(1).catch(''),
+  windowBounds: windowBoundsSchema,
+});
 
 /**
  * Owns userData/config.json — the pointer to the active data directory plus
@@ -28,11 +54,14 @@ export class ConfigService {
   load(): AppConfig {
     try {
       const raw: unknown = JSON.parse(readFileSync(this.configPath, 'utf8'));
-      if (typeof raw === 'object' && raw !== null) {
-        const cfg = raw as Partial<AppConfig>;
-        if (typeof cfg.dataDir === 'string' && cfg.dataDir.length > 0) {
-          return { ...cfg, dataDir: cfg.dataDir };
-        }
+      const parsed = appConfigSchema.safeParse(raw);
+      if (parsed.success) {
+        return {
+          dataDir: parsed.data.dataDir !== '' ? parsed.data.dataDir : this.defaultDataDir,
+          ...(parsed.data.windowBounds !== undefined
+            ? { windowBounds: parsed.data.windowBounds }
+            : {}),
+        };
       }
     } catch {
       // Missing or unreadable config falls through to the default.

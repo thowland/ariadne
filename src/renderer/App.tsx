@@ -1,5 +1,5 @@
 import { todoistSyncDue } from '@shared/domain/todoist';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { getApi } from './app/api';
 import { useStore } from './app/store';
@@ -39,8 +39,8 @@ function ViewBody(): React.JSX.Element {
 }
 
 export function App(): React.JSX.Element {
-  const { loaded, workspace, toast, warnings, saveBroken, load, refreshToday, showToast } =
-    useStore();
+  const { loaded, workspace, toast, warnings, saveBroken, load, refreshToday } = useStore();
+  const [warningsDismissed, setWarningsDismissed] = useState(false);
 
   useEffect(() => {
     void load();
@@ -82,10 +82,6 @@ export function App(): React.JSX.Element {
     };
   }, [refreshToday]);
 
-  useEffect(() => {
-    if (loaded && warnings.length > 0) showToast(warnings[0] ?? '');
-  }, [loaded, warnings, showToast]);
-
   // Scheduled Todoist completion sync (D17): check once a minute whether the
   // configured interval has elapsed; the store guards overlap and stamps the
   // attempt time.
@@ -125,12 +121,32 @@ export function App(): React.JSX.Element {
       </main>
       <ModalHost />
       <ConfirmDialog />
-      {saveBroken && (
-        <div className="save-error-banner" role="alert">
-          Changes are not being saved — check free disk space and permissions for the data folder.
-          Retrying automatically; recent edits are kept in memory until a write succeeds.
-        </div>
-      )}
+      <div className="banner-stack">
+        {saveBroken && (
+          <div className="save-error-banner" role="alert">
+            Changes are not being saved — check free disk space and permissions for the data folder.
+            Retrying automatically; recent edits are kept in memory until a write succeeds.
+          </div>
+        )}
+        {warnings.length > 0 && !warningsDismissed && (
+          <div className="load-warning-banner" role="status" data-testid="load-warnings">
+            <div>
+              {warnings.map((w) => (
+                <div key={w}>{w}</div>
+              ))}
+            </div>
+            <button
+              className="load-warning-dismiss"
+              aria-label="Dismiss warnings"
+              onClick={() => {
+                setWarningsDismissed(true);
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       {toast !== null && <div className="toast">{toast}</div>}
     </div>
   );

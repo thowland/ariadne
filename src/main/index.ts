@@ -7,7 +7,7 @@ import { app, BrowserWindow, net, protocol, shell } from 'electron';
 import { registerIpc } from './ipc';
 import { BackupService } from './services/backup-service';
 import { BlobService } from './services/blob-service';
-import { ConfigService } from './services/config-service';
+import { ConfigService, DEFAULT_WINDOW_BOUNDS } from './services/config-service';
 import { LoggerService } from './services/logger-service';
 import { StorageService } from './services/storage-service';
 
@@ -46,8 +46,8 @@ protocol.registerSchemesAsPrivileged([
 function createWindow(config: ConfigService): void {
   const bounds = config.load().windowBounds;
   const win = new BrowserWindow({
-    width: bounds?.width ?? 1440,
-    height: bounds?.height ?? 900,
+    width: bounds?.width ?? DEFAULT_WINDOW_BOUNDS.width,
+    height: bounds?.height ?? DEFAULT_WINDOW_BOUNDS.height,
     x: bounds?.x,
     y: bounds?.y,
     show: false,
@@ -68,7 +68,12 @@ function createWindow(config: ConfigService): void {
   });
 
   win.on('close', () => {
-    config.save({ ...config.load(), windowBounds: win.getBounds() });
+    try {
+      config.save({ ...config.load(), windowBounds: win.getBounds() });
+    } catch (err) {
+      // Losing window geometry must never block the window from closing.
+      logger?.error(`window-state save failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
   });
   win.on('closed', () => {
     mainWindow = null;

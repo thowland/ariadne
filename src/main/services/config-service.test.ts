@@ -53,6 +53,31 @@ describe('ConfigService', () => {
     writeFileSync(join(dir, 'config.json'), JSON.stringify(null), 'utf8');
     expect(new ConfigService(dir).load().dataDir).toBe(join(dir, 'data'));
   });
+
+  it('drops invalid window bounds instead of passing them to BrowserWindow', () => {
+    const dataDir = join(dir, 'data');
+
+    // Wrong types: bounds vanish, dataDir survives.
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ dataDir, windowBounds: { x: 0, y: 0, width: 'big', height: 900 } }),
+      'utf8',
+    );
+    expect(new ConfigService(dir).load()).toEqual({ dataDir });
+
+    // Absurdly small / negative sizes: also dropped (min 400×300).
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ dataDir, windowBounds: { x: 10, y: 10, width: 20, height: -5 } }),
+      'utf8',
+    );
+    expect(new ConfigService(dir).load()).toEqual({ dataDir });
+
+    // Sane bounds still pass untouched.
+    const bounds = { x: -100, y: 40, width: 1200, height: 800 }; // negative x = left monitor
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ dataDir, windowBounds: bounds }));
+    expect(new ConfigService(dir).load()).toEqual({ dataDir, windowBounds: bounds });
+  });
 });
 
 describe('ConfigService.changeDataDir', () => {

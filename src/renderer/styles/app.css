@@ -696,18 +696,48 @@ p {
 
 /* ============ Toast ============ */
 
-.save-error-banner {
+/* App-level health banners (write failures, load warnings) stack at the top. */
+.banner-stack {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+}
+
+.save-error-banner {
   background: var(--danger-text);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
   text-align: center;
   padding: 8px 20px;
-  z-index: 210;
+}
+
+.load-warning-banner {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.load-warning-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--warn-text);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
 }
 
 .toast {

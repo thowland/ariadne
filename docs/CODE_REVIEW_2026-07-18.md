@@ -75,6 +75,10 @@ highest-value reliability fix in the review.
 
 ### 1.3 MED — Only the first load warning is shown, transiently
 
+> **Status: DONE** — load warnings now render in a dismissable amber banner
+> (all of them, not just the first), stacked with the save-error banner.
+> Verified against the built app with two corrupted documents.
+
 - `src/renderer/App.tsx:76` — `showToast(warnings[0] ?? '')`. If two documents were
   quarantined/restored, the second is never seen; a 2.6-second toast is easy to miss
   for a "your tasks.json was restored from backup" message.
@@ -83,6 +87,11 @@ highest-value reliability fix in the review.
 toast) when any warning mentions quarantine/restore.
 
 ### 1.4 MED — Unguarded `response.json()` in TodoistService + missing catch in `runTodoistSync`
+
+> **Status: DONE** — all four body parses go through a non-throwing `jsonBody`
+> helper (unreadable project list aborts the push; unreadable task-create
+> counts as failed), and `runTodoistSync` / both push call sites catch
+> IPC-level rejections with a toast.
 
 - `src/main/services/todoist-service.ts:163, 245, 295, 348` — `await response.json()`
   is outside try/catch. An HTTP 200 with a non-JSON body (captive portal, proxy)
@@ -97,6 +106,11 @@ toast) when any warning mentions quarantine/restore.
 `runTodoistSync` and the two push call sites as a second line of defense.
 
 ### 1.5 MED — `config.json` is the one persisted document with no schema
+
+> **Status: DONE** — `appConfigSchema` (zod) validates config.json; bounds
+> below 400×300 or with wrong types are dropped wholesale so `createWindow`
+> falls back to `DEFAULT_WINDOW_BOUNDS`; the close-time save is caught and
+> logged.
 
 - `src/main/services/config-service.ts:28–41` — only `dataDir` is manually checked;
   `windowBounds` flows unvalidated into `new BrowserWindow(...)`
