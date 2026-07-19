@@ -1,4 +1,11 @@
-import { copyFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -10,6 +17,8 @@ import {
   tasksFileSchema,
   workspaceMetaSchema,
 } from '@shared/schema/workspace-schema';
+import type { RejectedWrite } from '@shared/schema/write-guard';
+import { screenWorkspaceSave } from '@shared/schema/write-guard';
 import type { CollectionName, Workspace } from '@shared/types';
 import { DEFAULT_SETTINGS, SCHEMA_VERSION } from '@shared/types';
 import type { ZodType, ZodTypeDef } from 'zod';
@@ -98,7 +107,39 @@ export class StorageService {
     ]);
   }
 
-  /** Debounced write-through used by the renderer's auto-save. */
+  /**
+   * The guarded entry point for renderer-originated saves (the IPC boundary):
+   * screens the payload (schema gate + shrink tripwire, see write-guard.ts)
+   * and schedules only the accepted collections. Returns the rejections so
+   * the caller can surface them — a rejected write means renderer memory and
+   * disk have diverged, which the user must hear about.
+   */
+  savePayload(payload: Record<string, unknown>): RejectedWrite[] {
+    const screened = screenWorkspaceSave(payload, (name) => this.currentCount(name));
+    for (const [name, data] of screened.accepted) this.scheduleSave(name, data);
+    return screened.rejected;
+  }
+
+  /**
+   * Entry count of the pending (unflushed) or on-disk document; null when the
+   * document is missing, unreadable, or not a list. Feeds the shrink tripwire
+   * — "unknown" never blocks a write, since the load path already handles
+   * corrupt documents.
+   */
+  private currentCount(name: CollectionName): number | null {
+    const pending = this.pending.get(name);
+    if (pending !== undefined) {
+      return Array.isArray(pending.data) ? pending.data.length : null;
+    }
+    try {
+      const raw = JSON.parse(readFileSync(this.docPath(name), 'utf8')) as unknown;
+      return Array.isArray(raw) ? raw.length : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Debounced write-through; trusted callers only — savePayload is the guarded path. */
   scheduleSave(name: CollectionName, data: unknown): void {
     const existing = this.pending.get(name);
     if (existing !== undefined) clearTimeout(existing.timer);

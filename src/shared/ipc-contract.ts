@@ -39,8 +39,19 @@ export interface WorkspaceLoadResponse {
   firstRun: boolean;
 }
 
-/** Partial write-through: only collections that changed are present. */
-export type WorkspaceSavePayload = Partial<Pick<Workspace, CollectionName>>;
+/**
+ * Partial write-through: only collections that changed are present.
+ * `replaceAll` marks the deliberate wipe-and-replace flows (clearAll, import)
+ * so the storage write guard lets them empty populated collections.
+ */
+export type WorkspaceSavePayload = Partial<Pick<Workspace, CollectionName>> & {
+  replaceAll?: boolean;
+};
+
+/** Collections the write guard refused to persist (renderer should surface). */
+export interface WorkspaceSaveResponse {
+  rejected: { name: CollectionName; reason: string }[];
+}
 
 export interface DataDirResponse {
   path: string;
@@ -99,7 +110,7 @@ export type AiExtractResponse =
 
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
-  saveCollections(payload: WorkspaceSavePayload): Promise<void>;
+  saveCollections(payload: WorkspaceSavePayload): Promise<WorkspaceSaveResponse>;
   getDataDir(): Promise<DataDirResponse>;
   openExternal(url: string): Promise<void>;
   saveBlob(fileId: string, ext: string, bytes: ArrayBuffer): Promise<{ size: number }>;

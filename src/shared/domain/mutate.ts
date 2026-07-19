@@ -24,6 +24,12 @@ export interface MutationCtx {
 export interface MutationResult {
   workspace: Workspace;
   changed: CollectionName[];
+  /**
+   * Set only by the deliberate wipe-and-replace mutations (clearAll,
+   * replaceWorkspace); lets the storage write guard accept emptied
+   * collections it would otherwise refuse to persist.
+   */
+  replaceAll?: boolean;
 }
 
 export interface CreatedResult extends MutationResult {
@@ -337,7 +343,11 @@ export function updateSettings(ws: Workspace, patch: Partial<Settings>): Mutatio
 
 /** Replace everything (import, reset-to-seed). Settings are part of it. */
 export function replaceWorkspace(next: Workspace): MutationResult {
-  return { workspace: next, changed: ['projects', 'tasks', 'files', 'settings'] };
+  return {
+    workspace: next,
+    changed: ['projects', 'tasks', 'files', 'settings'],
+    replaceAll: true,
+  };
 }
 
 /** Clear all projects/tasks/files (cascade); settings survive. */
@@ -345,6 +355,7 @@ export function clearAll(ws: Workspace): DeleteFilesResult {
   return {
     workspace: { ...ws, projects: [], tasks: [], files: [] },
     changed: ['projects', 'tasks', 'files'],
+    replaceAll: true,
     removedBlobIds: ws.files.filter((f) => f.kind === 'file').map((f) => f.id),
   };
 }

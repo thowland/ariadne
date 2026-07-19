@@ -14,7 +14,7 @@ export function setupTestApp(
 ): AriadneApi {
   const api: AriadneApi = {
     loadWorkspace: vi.fn().mockResolvedValue({ workspace, warnings: [], firstRun: false }),
-    saveCollections: vi.fn().mockResolvedValue(undefined),
+    saveCollections: vi.fn().mockResolvedValue({ rejected: [] }),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
     openExternal: vi.fn().mockResolvedValue(undefined),
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),

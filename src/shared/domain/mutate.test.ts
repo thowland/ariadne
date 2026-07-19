@@ -327,11 +327,12 @@ describe('settings & whole-workspace', () => {
     expect(r.changed).toEqual(['settings']);
   });
 
-  it('replaceWorkspace marks everything changed', () => {
+  it('replaceWorkspace marks everything changed and flags the wipe for the write guard', () => {
     const next = ws({ projects: [] });
     const r = replaceWorkspace(next);
     expect(r.workspace).toBe(next);
     expect(r.changed).toEqual(['projects', 'tasks', 'files', 'settings']);
+    expect(r.replaceAll).toBe(true);
   });
 
   it('clearAll empties collections, keeps settings, reports blobs', () => {
@@ -346,6 +347,7 @@ describe('settings & whole-workspace', () => {
     expect(r.workspace.files).toEqual([]);
     expect(r.workspace.settings.todoistToken).toBe('keep');
     expect(r.removedBlobIds).toEqual(['fbin']);
+    expect(r.replaceAll).toBe(true);
   });
 });
 

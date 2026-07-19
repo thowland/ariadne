@@ -94,6 +94,65 @@ describe('StorageService', () => {
     expect(svc.pendingCount()).toBe(0);
   });
 
+  it('savePayload rejects malformed collections and leaves the documents untouched', async () => {
+    const svc = makeService(5);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+
+    const rejected = svc.savePayload({ projects: null, tasks: 'garbage' });
+    expect(rejected.map((r) => r.name)).toEqual(['projects', 'tasks']);
+    expect(svc.pendingCount()).toBe(0);
+    await sleep(30);
+    expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8'))).toEqual(seeded.projects);
+  });
+
+  it('savePayload refuses to wipe a populated collection without replaceAll', async () => {
+    const svc = makeService(5);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+
+    const rejected = svc.savePayload({ tasks: [] });
+    expect(rejected[0]).toMatchObject({ name: 'tasks' });
+    await sleep(30);
+    expect(JSON.parse(readFileSync(join(dir, 'tasks.json'), 'utf8'))).toEqual(seeded.tasks);
+
+    // The deliberate wipe flows (clearAll / import) carry replaceAll.
+    const ok = svc.savePayload({ projects: [], tasks: [], files: [], replaceAll: true });
+    expect(ok).toEqual([]);
+    await sleep(30);
+    expect(JSON.parse(readFileSync(join(dir, 'tasks.json'), 'utf8'))).toEqual([]);
+    expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8'))).toEqual([]);
+  });
+
+  it('savePayload consults pending (unflushed) state, not just disk', async () => {
+    const svc = makeService(10_000);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+
+    // Renderer deletes down to one project (pending, not yet flushed), then
+    // deletes the last one: disk still shows many, pending shows 1 → allowed.
+    const one = seeded.projects.slice(0, 1);
+    expect(svc.savePayload({ projects: one })).toEqual([]);
+    expect(svc.savePayload({ projects: [] })).toEqual([]);
+    await svc.flushAll();
+    expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8'))).toEqual([]);
+  });
+
+  it('savePayload allows a project-delete cascade to empty dependents', async () => {
+    const svc = makeService(5);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+
+    const rejected = svc.savePayload({
+      projects: seeded.projects.slice(0, 1),
+      tasks: [],
+      files: [],
+    });
+    expect(rejected).toEqual([]);
+    await sleep(30);
+    expect(JSON.parse(readFileSync(join(dir, 'tasks.json'), 'utf8'))).toEqual([]);
+  });
+
   it('quarantines a corrupt document and restores from backup', async () => {
     const svc = makeService();
     const seeded = seedWorkspace(TODAY);

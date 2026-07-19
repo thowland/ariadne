@@ -6,7 +6,6 @@ import { seedWorkspace } from '@shared/domain/seed';
 import { IPC } from '@shared/ipc-contract';
 import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
-import { COLLECTION_NAMES } from '@shared/types';
 import { dialog, ipcMain, shell } from 'electron';
 import { app } from 'electron';
 
@@ -46,10 +45,10 @@ export function registerIpc(
   });
 
   ipcMain.handle(IPC.workspaceSave, (_event, payload: WorkspaceSavePayload) => {
-    for (const name of COLLECTION_NAMES) {
-      const data = payload[name];
-      if (data !== undefined) storage.scheduleSave(name, data);
-    }
+    // The renderer is the only caller, but this is still an untrusted
+    // boundary: screen every collection before it can reach disk.
+    const rejected = storage.savePayload(payload);
+    return { rejected };
   });
 
   ipcMain.handle(IPC.dataDirGet, () => ({ path: dataDir }));

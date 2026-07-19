@@ -147,7 +147,18 @@ export const useStore = create<AriadneStore>((set, get) => ({
       // Collections share the Workspace field names by design.
       (payload as Record<string, unknown>)[name] = result.workspace[name];
     }
-    void getApi().saveCollections(payload);
+    if (result.replaceAll === true) payload.replaceAll = true;
+    void getApi()
+      .saveCollections(payload)
+      .then((res) => {
+        // A rejected write means memory and disk have diverged — say so
+        // instead of letting the user believe the change persisted.
+        if (res.rejected.length > 0) {
+          get().showToast(
+            `Some changes were NOT saved (${res.rejected.map((r) => r.name).join(', ')}) — please report this`,
+          );
+        }
+      });
     return result;
   },
 

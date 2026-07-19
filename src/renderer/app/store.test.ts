@@ -1,4 +1,4 @@
-import { createTask, updateSettings } from '@shared/domain/mutate';
+import { clearAll, createTask, updateSettings } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
 import type { AriadneApi } from '@shared/ipc-contract';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,7 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
       warnings: [],
       firstRun: true,
     }),
-    saveCollections: vi.fn().mockResolvedValue(undefined),
+    saveCollections: vi.fn().mockResolvedValue({ rejected: [] }),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
     openExternal: vi.fn().mockResolvedValue(undefined),
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
@@ -123,6 +123,34 @@ describe('store.apply', () => {
     await useStore.getState().load();
     useStore.getState().apply((ws) => ({ workspace: ws, changed: [] }));
     expect(api.saveCollections).not.toHaveBeenCalled();
+  });
+
+  it('forwards replaceAll to the save payload for wipe-and-replace mutations', async () => {
+    const api = installApiMock();
+    await useStore.getState().load();
+
+    useStore.getState().apply((ws) => clearAll(ws));
+    const payload = vi.mocked(api.saveCollections).mock.calls[0]?.[0];
+    expect(payload?.replaceAll).toBe(true);
+    expect(payload?.projects).toEqual([]);
+
+    // Ordinary mutations never carry the flag.
+    useStore.getState().apply((ws, ctx) => createTask(ws, ctx, 'p1', { title: 'x' }));
+    expect(vi.mocked(api.saveCollections).mock.calls[1]?.[0]?.replaceAll).toBeUndefined();
+  });
+
+  it('toasts when the main process rejects a write', async () => {
+    const api = installApiMock({
+      saveCollections: vi.fn().mockResolvedValue({
+        rejected: [{ name: 'tasks', reason: 'tasks payload failed validation' }],
+      }),
+    });
+    await useStore.getState().load();
+    useStore.getState().apply((ws, ctx) => createTask(ws, ctx, 'p1', { title: 'y' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toMatch(/NOT saved \(tasks\)/);
+    });
+    expect(api.saveCollections).toHaveBeenCalledTimes(1);
   });
 });
 
