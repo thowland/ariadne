@@ -18,6 +18,7 @@ export const IPC = {
   importFromFile: 'import:fromFile',
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
+  saveStatus: 'storage:saveStatus',
   todoistCompleted: 'todoist:completed',
   todoistPush: 'todoist:push',
   backupRun: 'backup:run',
@@ -51,6 +52,17 @@ export type WorkspaceSavePayload = Partial<Pick<Workspace, CollectionName>> & {
 /** Collections the write guard refused to persist (renderer should surface). */
 export interface WorkspaceSaveResponse {
   rejected: { name: CollectionName; reason: string }[];
+}
+
+/**
+ * Pushed main → renderer when a debounced disk write fails (`ok: false`,
+ * with the collection and error) and again once writes succeed after a
+ * failure (`ok: true`) so the renderer can clear its warning.
+ */
+export interface SaveStatusEvent {
+  ok: boolean;
+  name?: CollectionName;
+  message?: string;
 }
 
 export interface DataDirResponse {
@@ -111,6 +123,8 @@ export type AiExtractResponse =
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
   saveCollections(payload: WorkspaceSavePayload): Promise<WorkspaceSaveResponse>;
+  /** Subscribe to disk-write health events (fires for the app's lifetime). */
+  onSaveStatus(cb: (status: SaveStatusEvent) => void): void;
   getDataDir(): Promise<DataDirResponse>;
   openExternal(url: string): Promise<void>;
   saveBlob(fileId: string, ext: string, bytes: ArrayBuffer): Promise<{ size: number }>;

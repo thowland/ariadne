@@ -696,6 +696,20 @@ p {
 
 /* ============ Toast ============ */
 
+.save-error-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--danger-text);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 20px;
+  z-index: 210;
+}
+
 .toast {
   position: fixed;
   bottom: 26px;

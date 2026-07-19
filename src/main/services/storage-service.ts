@@ -9,6 +9,7 @@ import {
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { SaveStatusEvent } from '@shared/ipc-contract';
 import {
   filesFileSchema,
   normalizeWorkspace,
@@ -36,6 +37,9 @@ interface PendingWrite {
   data: unknown;
 }
 
+/** How long after a failed write before the kept-pending data is retried. */
+const WRITE_RETRY_MS = 15_000;
+
 /**
  * Owns the workspace JSON documents in the data directory. Writes are
  * debounced per collection and always atomic (write .tmp → rename). Loads are
@@ -44,12 +48,24 @@ interface PendingWrite {
  */
 export class StorageService {
   private readonly pending = new Map<CollectionName, PendingWrite>();
+  /** Collections whose most recent write attempt failed. */
+  private readonly failing = new Set<CollectionName>();
+  private writeListener: ((event: SaveStatusEvent) => void) | null = null;
 
   constructor(
     private readonly dataDir: string,
     private readonly backups: BackupService,
     private readonly debounceMs = 300,
   ) {}
+
+  /**
+   * Observer for disk-write health: called with `ok: false` on every failed
+   * flush and with `ok: true` once writing works again after failures.
+   * Wired to the logger + a renderer push in the main bootstrap.
+   */
+  setWriteListener(listener: (event: SaveStatusEvent) => void): void {
+    this.writeListener = listener;
+  }
 
   private docPath(name: CollectionName): string {
     return join(this.dataDir, `${name}.json`);
@@ -157,7 +173,29 @@ export class StorageService {
     if (entry === undefined) return;
     this.pending.delete(name);
     clearTimeout(entry.timer);
-    await this.atomicWrite(this.docPath(name), entry.data);
+    try {
+      await this.atomicWrite(this.docPath(name), entry.data);
+      if (this.failing.delete(name) && this.failing.size === 0) {
+        this.writeListener?.({ ok: true });
+      }
+    } catch (err) {
+      // Never lose the data to a failed write: keep it pending so the retry
+      // timer, the next user edit, or quit-time flushAll gets another shot —
+      // unless a newer save for this collection arrived while we were writing.
+      this.failing.add(name);
+      if (!this.pending.has(name)) {
+        const timer = setTimeout(() => {
+          void this.flushOne(name);
+        }, WRITE_RETRY_MS);
+        timer.unref();
+        this.pending.set(name, { timer, data: entry.data });
+      }
+      this.writeListener?.({
+        ok: false,
+        name,
+        message: err instanceof Error ? err.message : 'unknown write error',
+      });
+    }
   }
 
   /** Flush every pending write; called on app quit. */

@@ -61,6 +61,9 @@ export interface AriadneStore {
   apply: <R extends MutationResult>(mutation: Mutation<R>) => R | null;
   /** Re-evaluate `today` (window focus / midnight rollover). */
   refreshToday: () => void;
+  /** True while the main process reports failing disk writes (banner). */
+  saveBroken: boolean;
+  setSaveBroken: (broken: boolean) => void;
   /** True while a Todoist completion sync is in flight (guards overlap). */
   todoistSyncing: boolean;
   /**
@@ -164,6 +167,11 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   refreshToday: () => {
     set({ today: todayIso(getApi().fakeToday ?? undefined) });
+  },
+
+  saveBroken: false,
+  setSaveBroken: (broken) => {
+    set({ saveBroken: broken });
   },
 
   todoistSyncing: false,

@@ -50,6 +50,14 @@ only via backups.
 
 ### 1.2 HIGH — Debounced autosave failures are silently swallowed
 
+> **Status: DONE** — `flushOne` now catches write failures, keeps the data
+> pending (15s retry; newer saves supersede), and emits a `SaveStatusEvent`
+> that the main bootstrap logs and pushes to the renderer
+> (`storage:saveStatus`), which shows a persistent `role="alert"` banner until
+> a write succeeds. Quit logs any collections that still couldn't be written.
+> Verified end-to-end against the built app (read-only data dir → banner;
+> healed dir → banner clears).
+
 - `src/main/services/storage-service.ts:104–106` — the debounce timer does
   `void this.flushOne(name)`; a rejected `atomicWrite` (disk full, permissions,
   folder deleted — plausible given the user-configurable, possibly-synced data dir)

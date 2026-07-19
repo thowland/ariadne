@@ -1,6 +1,6 @@
 import { seedWorkspace } from '@shared/domain/seed';
 import { markTasksPushed } from '@shared/domain/todoist';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -109,5 +109,23 @@ describe('App shell', () => {
     render(<App />);
     await screen.findByTestId('home-headline');
     expect(window.ariadne.todoistCompleted).not.toHaveBeenCalled();
+  });
+
+  it('shows a persistent banner while disk writes fail, and clears it on recovery', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+
+    const pushStatus = vi.mocked(window.ariadne.onSaveStatus).mock.calls[0]?.[0];
+    expect(pushStatus).toBeDefined();
+
+    act(() => {
+      pushStatus?.({ ok: false, name: 'tasks', message: 'ENOSPC' });
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('Changes are not being saved');
+
+    act(() => {
+      pushStatus?.({ ok: true });
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

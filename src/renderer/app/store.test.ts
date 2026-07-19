@@ -15,6 +15,7 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
       firstRun: true,
     }),
     saveCollections: vi.fn().mockResolvedValue({ rejected: [] }),
+    onSaveStatus: vi.fn(),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
     openExternal: vi.fn().mockResolvedValue(undefined),
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
@@ -56,6 +57,7 @@ beforeEach(() => {
     q: '',
     scope: 'all',
     toast: null,
+    saveBroken: false,
   });
 });
 

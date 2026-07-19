@@ -15,6 +15,7 @@ export function setupTestApp(
   const api: AriadneApi = {
     loadWorkspace: vi.fn().mockResolvedValue({ workspace, warnings: [], firstRun: false }),
     saveCollections: vi.fn().mockResolvedValue({ rejected: [] }),
+    onSaveStatus: vi.fn(),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
     openExternal: vi.fn().mockResolvedValue(undefined),
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
@@ -52,6 +53,7 @@ export function setupTestApp(
     q: '',
     scope: 'all',
     toast: null,
+    saveBroken: false,
     modal: null,
     confirmState: null,
     calMonth: null,

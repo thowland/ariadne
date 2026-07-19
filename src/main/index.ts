@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { BLOB_PROTOCOL } from '@shared/ipc-contract';
+import { BLOB_PROTOCOL, IPC } from '@shared/ipc-contract';
 import { app, BrowserWindow, net, protocol, shell } from 'electron';
 
 import { registerIpc } from './ipc';
@@ -102,6 +102,13 @@ void app.whenReady().then(() => {
   const blobs = new BlobService(dataDir);
   storage = new StorageService(dataDir, backups);
   storage.init();
+  // Disk-write health: log every failure, and tell the renderer so it can
+  // show (and later clear) its "changes are not being saved" banner.
+  storage.setWriteListener((status) => {
+    if (status.ok) logger?.info('saves recovered');
+    else logger?.error(`save failed (${status.name ?? '?'}): ${status.message ?? ''}`);
+    mainWindow?.webContents.send(IPC.saveStatus, status);
+  });
   registerIpc(storage, backups, blobs, config, dataDir);
 
   // Daily backup: at startup (before any edits this session) and re-checked
@@ -144,7 +151,13 @@ app.on('before-quit', (event) => {
   const b = backups;
   void (async () => {
     try {
-      if (s !== null) await s.flushAll();
+      if (s !== null) {
+        await s.flushAll();
+        // flushOne no longer throws — failed writes stay pending instead.
+        if (s.pendingCount() > 0) {
+          logger?.error(`quit: ${String(s.pendingCount())} collection(s) could not be written`);
+        }
+      }
       const result = b?.runBackup();
       if (result !== undefined && !result.ok)
         logger?.error(`quit backup failed: ${result.error ?? ''}`);

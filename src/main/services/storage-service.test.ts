@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -151,6 +159,60 @@ describe('StorageService', () => {
     expect(rejected).toEqual([]);
     await sleep(30);
     expect(JSON.parse(readFileSync(join(dir, 'tasks.json'), 'utf8'))).toEqual([]);
+  });
+
+  it('reports write failures, keeps the data pending, and reports recovery', async () => {
+    const svc = makeService(5);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+    const events: { ok: boolean; name?: string }[] = [];
+    svc.setWriteListener((e) => events.push(e));
+
+    // Make every write fail: the data directory vanishes out from under us
+    // (same failure surface as a full disk or revoked permissions).
+    rmSync(dir, { recursive: true, force: true });
+    svc.scheduleSave('settings', { ...seeded.settings, todoistToken: 'held' });
+    svc.scheduleSave('projects', seeded.projects);
+    await sleep(40);
+
+    expect(
+      events
+        .filter((e) => !e.ok)
+        .map((e) => e.name)
+        .sort(),
+    ).toEqual(['projects', 'settings']);
+    // Failed writes stay pending so quit-time flushAll (or the retry timer)
+    // gets another chance at them.
+    expect(svc.pendingCount()).toBe(2);
+
+    // Disk comes back: flushing succeeds and recovery fires exactly once,
+    // only after every failing collection has drained.
+    mkdirSync(dir, { recursive: true });
+    await svc.flushAll();
+    expect(events.filter((e) => e.ok)).toHaveLength(1);
+    expect(svc.pendingCount()).toBe(0);
+    const onDisk = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as {
+      todoistToken: string;
+    };
+    expect(onDisk.todoistToken).toBe('held');
+  });
+
+  it('a newer scheduled save supersedes a failed one instead of retrying stale data', async () => {
+    const svc = makeService(5);
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+    rmSync(dir, { recursive: true, force: true });
+
+    svc.scheduleSave('settings', { ...seeded.settings, todoistToken: 'stale' });
+    await sleep(30);
+    svc.scheduleSave('settings', { ...seeded.settings, todoistToken: 'newer' });
+
+    mkdirSync(dir, { recursive: true });
+    await svc.flushAll();
+    const onDisk = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as {
+      todoistToken: string;
+    };
+    expect(onDisk.todoistToken).toBe('newer');
   });
 
   it('quarantines a corrupt document and restores from backup', async () => {

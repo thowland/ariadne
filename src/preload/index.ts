@@ -25,6 +25,11 @@ const api: AriadneApi = {
   importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
   importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
   chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
+  onSaveStatus: (cb: (status: import('@shared/ipc-contract').SaveStatusEvent) => void) => {
+    ipcRenderer.on(IPC.saveStatus, (_event, status) => {
+      cb(status as import('@shared/ipc-contract').SaveStatusEvent);
+    });
+  },
   todoistCompleted: (token: string, since: string, until: string) =>
     ipcRenderer.invoke(IPC.todoistCompleted, { token, since, until }),
   todoistPush: (token: string, items: import('@shared/domain/todoist').TodoistPushCandidate[]) =>

@@ -1,6 +1,7 @@
 import { todoistSyncDue } from '@shared/domain/todoist';
 import { useEffect } from 'react';
 
+import { getApi } from './app/api';
 import { useStore } from './app/store';
 import { Sidebar } from './chrome/Sidebar';
 import { TopBar } from './chrome/TopBar';
@@ -38,11 +39,20 @@ function ViewBody(): React.JSX.Element {
 }
 
 export function App(): React.JSX.Element {
-  const { loaded, workspace, toast, warnings, load, refreshToday, showToast } = useStore();
+  const { loaded, workspace, toast, warnings, saveBroken, load, refreshToday, showToast } =
+    useStore();
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Disk-write health pushed from the main process: show a persistent banner
+  // while autosaves are failing, clear it once writing recovers.
+  useEffect(() => {
+    getApi().onSaveStatus((status) => {
+      useStore.getState().setSaveBroken(!status.ok);
+    });
+  }, []);
 
   // Escape closes the confirm dialog first, then any open modal.
   useEffect(() => {
@@ -115,6 +125,12 @@ export function App(): React.JSX.Element {
       </main>
       <ModalHost />
       <ConfirmDialog />
+      {saveBroken && (
+        <div className="save-error-banner" role="alert">
+          Changes are not being saved — check free disk space and permissions for the data folder.
+          Retrying automatically; recent edits are kept in memory until a write succeeds.
+        </div>
+      )}
       {toast !== null && <div className="toast">{toast}</div>}
     </div>
   );
