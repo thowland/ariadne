@@ -14,7 +14,11 @@ import { Card } from '../components/primitives';
 export function TagsView(): React.JSX.Element {
   const { workspace, setQuery, apply, askConfirm, showToast } = useStore();
   const [renaming, setRenaming] = useState<{ tag: string; value: string } | null>(null);
+  const [filter, setFilter] = useState('');
   const usage = workspace !== null ? tagUsage(workspace) : [];
+
+  const needle = filter.trim().replace(/^#/, '').toLowerCase();
+  const managed = needle === '' ? usage : usage.filter((u) => u.tag.toLowerCase().includes(needle));
 
   const commitRename = (): void => {
     if (renaming === null) return;
@@ -73,14 +77,23 @@ export function TagsView(): React.JSX.Element {
               </button>
             ))}
           </div>
-          <Card title="Manage">
+          <Card title="Manage" count={managed.length}>
             <div className="card-pad settings-section">
               <p className="settings-copy">
                 Rename to clean up variants — renaming onto an existing tag merges them — or delete
                 a tag everywhere.
               </p>
+              <input
+                className="inp tag-filter-input"
+                value={filter}
+                placeholder="Filter tags…"
+                aria-label="Filter tags"
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                }}
+              />
               <div className="tag-manage-list" data-testid="tag-manage-list">
-                {usage.map((u) => (
+                {managed.map((u) => (
                   <div key={u.tag} className="tag-manage-row">
                     {renaming?.tag === u.tag ? (
                       <input
@@ -125,6 +138,9 @@ export function TagsView(): React.JSX.Element {
                     </button>
                   </div>
                 ))}
+                {managed.length === 0 && (
+                  <div className="card-empty">No tags match “{filter.trim()}”.</div>
+                )}
               </div>
             </div>
           </Card>

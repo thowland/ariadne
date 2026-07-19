@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.0 — 2026-07-19
+
+- **Filter box on the Tags manage list.** Type to narrow the management rows
+  (case-insensitive substring, a leading `#` is fine); the card header shows
+  the matching count and the search cloud above stays complete. Built for
+  workspaces that have accumulated dozens of tags.
+
 ## 1.11.0 — 2026-07-19
 
 - **Tag management lives on the Tags page now.** Rename (renaming onto an

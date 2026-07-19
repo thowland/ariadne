@@ -7,7 +7,7 @@ thread_ — the line that guides you through the labyrinth of long-running work.
 All data lives on your local filesystem as human-readable JSON plus ordinary files
 for attachments. No accounts, no cloud, no database, no login.
 
-**Current release: v1.11.0** — see `CHANGELOG.md` for what shipped when.
+**Current release: v1.12.0** — see `CHANGELOG.md` for what shipped when.
 
 ## What it does
 

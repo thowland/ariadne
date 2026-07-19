@@ -98,6 +98,35 @@ describe('TagsView — management (moved from Settings in v1.11)', () => {
     expect(useStore.getState().toast).toBe('Merged #infra into #q3');
   });
 
+  it('filters the manage list without touching the cloud', async () => {
+    renderTags();
+    const box = screen.getByLabelText('Filter tags');
+    await userEvent.type(box, 'wood');
+
+    const list = screen.getByTestId('tag-manage-list');
+    expect(within(list).getByText('#woodworking')).toBeInTheDocument();
+    expect(within(list).queryByText('#infra')).not.toBeInTheDocument();
+    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(1);
+    // The search cloud stays complete.
+    expect(within(screen.getByTestId('tags-cloud')).getByText('#infra')).toBeInTheDocument();
+
+    // A leading # (habit from tag chips) is tolerated; clearing restores all.
+    await userEvent.clear(box);
+    await userEvent.type(box, '#fin');
+    expect(within(list).getByText('#finance')).toBeInTheDocument();
+    await userEvent.clear(box);
+    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(8);
+  });
+
+  it('shows an empty note when the filter matches nothing', async () => {
+    renderTags();
+    await userEvent.type(screen.getByLabelText('Filter tags'), 'zzz');
+    expect(screen.getByText('No tags match “zzz”.')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('tag-manage-list')).queryAllByRole('button', { name: 'Rename…' }),
+    ).toHaveLength(0);
+  });
+
   it('deletes a tag everywhere after confirm', async () => {
     renderTags();
     const list = screen.getByTestId('tag-manage-list');
