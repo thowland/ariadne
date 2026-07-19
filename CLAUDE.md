@@ -6,15 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.3.0** and in maintenance: bug fixes, small features, and dependency
-upkeep. The user daily-drives the **macOS build**; development happens on a Linux
-arm64 VM.
+the app is at **v1.10.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
+the **macOS build**; development happens on a Linux arm64 VM.
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (D1–D10); record any
+source of truth for domain semantics and the decision table (D1–D17); record any
 deliberate behavior change as a new decision row there. `CHANGELOG.md` tracks
 releases.
+
+`docs/CODE_REVIEW_2026-07-18.md` is a standing best-practices review: its P1
+robustness items are done (status notes inline); the remaining P2–P4 sections
+(constants consolidation, color/token cleanup, test-selector hardening) are
+agreed future work — consult it before starting refactors in those areas so the
+same batch conventions are followed.
 
 ## Commands
 
@@ -46,7 +52,16 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
   `renderer/app/store.test.ts` (typecheck fails until the mocks match).
 - **Persisted-schema changes**: extend `types.ts` + `DEFAULT_SETTINGS` + zod
   schemas with `.catch()`/clamped defaults so existing workspaces load silently;
-  never require a migration step for additive fields.
+  never require a migration step for additive fields. `config.json` has its own
+  zod schema in `config-service.ts`.
+- **Renderer saves are screened** (`shared/schema/write-guard.ts` +
+  `StorageService.savePayload`): schema gate plus a tripwire that refuses to
+  overwrite a populated collection with an empty list. A new mutation that
+  legitimately wipes collections must set `replaceAll: true` on its
+  `MutationResult` (see `clearAll`/`replaceWorkspace`) or its saves will be
+  rejected. Failed disk writes retry, stay pending, and surface via the
+  `storage:saveStatus` push + renderer banner — don't reintroduce silent
+  fire-and-forget writes.
 - **Destructive UI** always goes through `askConfirm` (never `window.confirm`),
   and the confirm dialog must never autofocus its destructive button.
 - Domain semantics you must not break: status cycle `Todo→Doing→Waiting→Done→Todo`
@@ -74,16 +89,23 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
 - `mkdirSync` on `/proc/...` paths **hangs** on this VM's filesystem — never use
   /proc paths in tests; use a file-as-directory to provoke fs errors.
 - npm's optional-deps bug can drop native modules on any `npm install`; prefer
-  `npm ci` after lockfile changes.
+  `npm ci`. **package-lock.json is untracked** (gitignored — it churned between
+  the Mac/Linux checkouts) but kept on disk in each checkout; don't delete it,
+  and don't expect it in fresh clones.
 - `npm overrides` pins `@noble/hashes@^1` (electron-builder 26 requires it via
   CJS); keep it when touching dependencies.
 
 ## External services
 
 Todoist: unified API v1 only (`api.todoist.com/api/v1/…`; REST v2 returns 410 for
-everyone). The client already handles pagination, User-Agent, retry/backoff with
-`retry_after`, and idempotent creates (`X-Request-Id`). If Todoist errors change
-shape, `src/main/services/todoist-service.ts` is the only file that speaks HTTP.
+everyone). Two directions, both keyed on the `todoist:<id>` note marker: **push**
+(bulk from Settings, or a single task from the task editor — D16) and the
+**completion sync** (D17: `/tasks/completed/by_completion_date`, 30-day lookback,
+marks pushed tasks Done here; replaced the old pull-everything import in v1.10 —
+there is no Todoist→Ariadne task creation anymore). The client already handles
+pagination, User-Agent, retry/backoff with `retry_after`, idempotent creates
+(`X-Request-Id`), and non-JSON 200 bodies. If Todoist errors change shape,
+`src/main/services/todoist-service.ts` is the only file that speaks HTTP.
 Live token-authenticated verification can only happen on the user's Mac — say so
 rather than claiming end-to-end verification.
 
