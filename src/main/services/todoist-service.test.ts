@@ -170,6 +170,15 @@ describe('TodoistService', () => {
     });
   });
 
+  it('maps a 200 with an unparseable body to a clean error (captive portal case)', async () => {
+    const htmlPage = { ok: true, status: 200, json: () => Promise.reject(new Error('not json')) };
+    const svc = new TodoistService(vi.fn().mockResolvedValue(htmlPage), instantSleep);
+    expect(await svc.fetchCompleted('t', SINCE, UNTIL)).toEqual({
+      ok: false,
+      error: 'Unexpected response from Todoist',
+    });
+  });
+
   it('rejects payloads without an item array', async () => {
     expect(
       await serviceWith(200, { error: 'nope' }).fetchCompleted('t', SINCE, UNTIL),
@@ -306,6 +315,32 @@ describe('TodoistPushService', () => {
     const first = fetchImpl.mock.calls[1] as [string, { headers: Record<string, string> }];
     const second = fetchImpl.mock.calls[2] as [string, { headers: Record<string, string> }];
     expect(first[1].headers['X-Request-Id']).toBe(second[1].headers['X-Request-Id']);
+  });
+
+  it('handles unparseable bodies: project list aborts, task create counts as failed', async () => {
+    const htmlPage = { ok: true, status: 200, json: () => Promise.reject(new Error('not json')) };
+
+    // Unreadable project list must abort — treating it as empty would
+    // duplicate the #Home/#Work projects.
+    const listBroken = vi.fn().mockResolvedValue(htmlPage);
+    expect(await pushService(listBroken).pushTasks('tok', [CANDIDATE])).toEqual({
+      ok: false,
+      error: 'Unexpected response from Todoist',
+    });
+
+    // Good project list, then a create whose body cannot be read: that one
+    // task fails, the push as a whole survives.
+    const createBroken = vi
+      .fn()
+      .mockResolvedValueOnce(
+        page({ results: [{ id: 'proj-work', name: 'Work' }], next_cursor: null }),
+      )
+      .mockResolvedValueOnce(htmlPage);
+    expect(await pushService(createBroken).pushTasks('tok', [CANDIDATE])).toEqual({
+      ok: true,
+      pushed: [],
+      failed: 1,
+    });
   });
 
   it('short-circuits empty pushes and missing tokens', async () => {

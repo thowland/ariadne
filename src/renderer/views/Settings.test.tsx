@@ -193,6 +193,18 @@ describe('Settings — Todoist completion sync', () => {
     });
   });
 
+  it('recovers from an IPC-level rejection with a toast, still stamping the attempt', async () => {
+    loadPushedWorkspace();
+    vi.mocked(window.ariadne.todoistCompleted).mockRejectedValue(new Error('ipc boom'));
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Todoist sync failed unexpectedly — try again');
+    });
+    expect(ws().settings.lastTodoistSyncAt).not.toBeNull();
+    expect(useStore.getState().todoistSyncing).toBe(false);
+  });
+
   it('refuses to sync without a token, and persists the schedule choice', async () => {
     renderSettings();
     await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
@@ -378,6 +390,12 @@ describe('Settings — Todoist push', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
     await vi.waitFor(() => {
       expect(useStore.getState().toast).toMatch(/rejected the token/);
+    });
+
+    vi.mocked(window.ariadne.todoistPush).mockRejectedValue(new Error('ipc boom'));
+    await userEvent.click(screen.getByRole('button', { name: 'Push to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Todoist push failed unexpectedly — try again');
     });
   });
 

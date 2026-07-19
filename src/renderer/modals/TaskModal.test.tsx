@@ -220,6 +220,14 @@ describe('TaskModal · send to Todoist', () => {
       expect(useStore.getState().toast).toBe('Todoist did not accept the task — try again');
     });
     expect(task('t2').notes).not.toContain('todoist:');
+
+    // IPC-level rejection: toast, and the button comes back for a retry.
+    vi.mocked(window.ariadne.todoistPush).mockRejectedValue(new Error('ipc boom'));
+    await userEvent.click(screen.getByRole('button', { name: 'Send to Todoist' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('Todoist push failed unexpectedly — try again');
+    });
+    expect(screen.getByRole('button', { name: 'Send to Todoist' })).toBeEnabled();
   });
 
   it('explains why a closed task cannot be sent, without calling Todoist', async () => {

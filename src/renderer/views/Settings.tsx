@@ -122,6 +122,9 @@ export function Settings(): React.JSX.Element {
             ? `Pushed ${res.pushed.length} of ${res.pushed.length + res.failed} tasks to Todoist`
             : `Pushed ${res.pushed.length} task${res.pushed.length === 1 ? '' : 's'} to Todoist`,
         );
+      })
+      .catch(() => {
+        showToast('Todoist push failed unexpectedly — try again');
       });
   };
 

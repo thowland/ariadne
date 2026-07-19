@@ -4,7 +4,7 @@ import { newId } from '@shared/domain/id';
 import type { MutationCtx, MutationResult } from '@shared/domain/mutate';
 import { createProject, createTask, updateSettings } from '@shared/domain/mutate';
 import { applyTodoistCompletions, TODOIST_SYNC_LOOKBACK_DAYS } from '@shared/domain/todoist';
-import type { WorkspaceSavePayload } from '@shared/ipc-contract';
+import type { TodoistCompletedResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { IsoDate, Workspace } from '@shared/types';
 import { create } from 'zustand';
 
@@ -188,7 +188,14 @@ export const useStore = create<AriadneStore>((set, get) => ({
     try {
       const now = new Date();
       const since = new Date(now.getTime() - TODOIST_SYNC_LOOKBACK_DAYS * 86_400_000);
-      const res = await getApi().todoistCompleted(token, since.toISOString(), now.toISOString());
+      let res: TodoistCompletedResponse;
+      try {
+        res = await getApi().todoistCompleted(token, since.toISOString(), now.toISOString());
+      } catch {
+        // An IPC-level rejection (should not happen — the service maps its
+        // errors) still deserves a clean message, not a dropped promise.
+        res = { ok: false, error: 'Todoist sync failed unexpectedly — try again' };
+      }
       // Stamp the attempt win or lose, so a failing endpoint is retried on
       // the next scheduled slot rather than every minute.
       get().apply((ws) => updateSettings(ws, { lastTodoistSyncAt: now.toISOString() }));

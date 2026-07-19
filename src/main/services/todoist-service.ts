@@ -44,6 +44,19 @@ const defaultSleep: SleepLike = (ms) =>
     setTimeout(resolve, ms);
   });
 
+/**
+ * Body parse that never throws: an HTTP 200 carrying a non-JSON body (captive
+ * portal, intercepting proxy) must surface as a clean error, not an unhandled
+ * rejection escaping through the IPC handler.
+ */
+async function jsonBody(response: { json(): Promise<unknown> }): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 /** Transient statuses worth retrying (rate limit / upstream blips). */
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
@@ -160,7 +173,7 @@ export class TodoistService {
         return { ok: false, error: `Todoist error (HTTP ${String(response.status)})` };
       }
 
-      const raw = await response.json();
+      const raw = await jsonBody(response);
       // Documented shape is { items: [...] }; accept { results: [...] } too.
       let pageItems: unknown[];
       if (typeof raw === 'object' && raw !== null) {
@@ -242,8 +255,13 @@ export class TodoistPushService {
       if (!response.ok) {
         return { ok: false, error: `Todoist error (HTTP ${String(response.status)})` };
       }
-      const raw = await response.json();
-      const doc = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+      const raw = await jsonBody(response);
+      // An unreadable project list must abort: treating it as empty would
+      // recreate (duplicate) the #Home/#Work projects below.
+      if (typeof raw !== 'object' || raw === null) {
+        return { ok: false, error: 'Unexpected response from Todoist' };
+      }
+      const doc = raw as Record<string, unknown>;
       const results = Array.isArray(doc.results)
         ? (doc.results as unknown[])
         : Array.isArray(raw)
@@ -292,8 +310,8 @@ export class TodoistPushService {
           error: `Could not create Todoist project "${name}" (HTTP ${String(response.status)})`,
         };
       }
-      const created = (await response.json()) as TodoistApiProject;
-      if (typeof created.id === 'string' || typeof created.id === 'number') {
+      const created = (await jsonBody(response)) as TodoistApiProject | null;
+      if (created !== null && (typeof created.id === 'string' || typeof created.id === 'number')) {
         projectIds.set(name.toLowerCase(), String(created.id));
       } else {
         return { ok: false, error: `Could not create Todoist project "${name}"` };
@@ -345,8 +363,8 @@ export class TodoistPushService {
         failed += 1;
         continue;
       }
-      const created = (await response.json()) as TodoistApiTask;
-      if (typeof created.id === 'string' || typeof created.id === 'number') {
+      const created = (await jsonBody(response)) as TodoistApiTask | null;
+      if (created !== null && (typeof created.id === 'string' || typeof created.id === 'number')) {
         pushed.push({ taskId: item.taskId, todoistId: String(created.id) });
       } else {
         failed += 1;

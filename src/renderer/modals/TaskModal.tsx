@@ -103,6 +103,9 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
           showToast('Sent to Todoist');
         }
       })
+      .catch(() => {
+        showToast('Todoist push failed unexpectedly — try again');
+      })
       .finally(() => {
         setSendingToTodoist(false);
       });
