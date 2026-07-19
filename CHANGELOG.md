@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.0 — 2026-07-19
+
+- **Tag management lives on the Tags page now.** Rename (renaming onto an
+  existing tag still merges after a confirm) and delete moved from Settings
+  into the top-level **Tags** view, under the click-to-search cloud. The
+  Settings screen loses its ever-growing tag list, so Backups, Todoist, and
+  the other cards are reachable without scrolling past it.
+
 ## 1.10.0 — 2026-07-18
 
 - **Todoist completion sync replaces the import.** Ariadne no longer pulls

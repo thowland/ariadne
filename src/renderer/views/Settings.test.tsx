@@ -1,6 +1,6 @@
 import { seedWorkspace } from '@shared/domain/seed';
 import { markTasksPushed } from '@shared/domain/todoist';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -274,60 +274,6 @@ describe('Settings — Backups', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back up now' }));
     await vi.waitFor(() => {
       expect(useStore.getState().toast).toBe('Nothing to back up yet');
-    });
-  });
-});
-
-describe('Settings — Tags', () => {
-  it('lists every tag with usage counts', () => {
-    renderSettings();
-    const list = screen.getByTestId('tag-manage-list');
-    const infraRow = within(list).getByText('#infra').closest('.tag-manage-row');
-    expect(infraRow).toHaveTextContent('1 project');
-    // Seed has 8 distinct project tags.
-    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(8);
-  });
-
-  it('renames a tag inline', async () => {
-    renderSettings();
-    const list = screen.getByTestId('tag-manage-list');
-    const row = within(list).getByText('#woodworking').closest<HTMLElement>('.tag-manage-row');
-    await userEvent.click(within(row!).getByRole('button', { name: 'Rename…' }));
-    const input = screen.getByLabelText('New name for woodworking');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'boatwork{Enter}');
-    expect(ws().projects.find((p) => p.id === 'p3')?.tags).toEqual(['boatwork']);
-    expect(useStore.getState().toast).toBe('Renamed #woodworking to #boatwork');
-  });
-
-  it('renaming onto an existing tag asks to merge, then merges', async () => {
-    renderSettings();
-    const list = screen.getByTestId('tag-manage-list');
-    const row = within(list).getByText('#infra').closest<HTMLElement>('.tag-manage-row');
-    await userEvent.click(within(row!).getByRole('button', { name: 'Rename…' }));
-    const input = screen.getByLabelText('New name for infra');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'q3{Enter}');
-
-    const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
-    expect(dialog).toHaveTextContent('Merge #infra into existing tag #q3?');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
-    await vi.waitFor(() => {
-      expect(ws().projects.find((p) => p.id === 'p1')?.tags).toEqual(['q3']);
-    });
-    expect(useStore.getState().toast).toBe('Merged #infra into #q3');
-  });
-
-  it('deletes a tag everywhere after confirm', async () => {
-    renderSettings();
-    const list = screen.getByTestId('tag-manage-list');
-    const row = within(list).getByText('#finance').closest<HTMLElement>('.tag-manage-row');
-    await userEvent.click(within(row!).getByRole('button', { name: 'Delete tag finance' }));
-    const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
-    expect(dialog).toHaveTextContent('Remove #finance from 1 item?');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
-    await vi.waitFor(() => {
-      expect(ws().projects.find((p) => p.id === 'p4')?.tags).toEqual([]);
     });
   });
 });

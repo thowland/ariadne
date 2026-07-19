@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.10.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+the app is at **v1.11.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
 maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
 the **macOS build**; development happens on a Linux arm64 VM.
 

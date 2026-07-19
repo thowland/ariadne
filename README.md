@@ -7,7 +7,7 @@ thread_ — the line that guides you through the labyrinth of long-running work.
 All data lives on your local filesystem as human-readable JSON plus ordinary files
 for attachments. No accounts, no cloud, no database, no login.
 
-**Current release: v1.10.0** — see `CHANGELOG.md` for what shipped when.
+**Current release: v1.11.0** — see `CHANGELOG.md` for what shipped when.
 
 ## What it does
 
@@ -32,8 +32,8 @@ for attachments. No accounts, no cloud, no database, no login.
   roll-up (with progress bars), date-ranged retrospective (range presets + a
   completions-over-time chart), and at-risk — all filterable by Work/Home/tag
   (work reports can never leak personal projects) and copyable as plain text.
-- **Tags** — prefix autocomplete everywhere, click-to-search, a **Tags** view showing
-  every tag with usage counts, and Settings-based rename/merge/delete.
+- **Tags** — prefix autocomplete everywhere, click-to-search, and a **Tags** view
+  showing every tag with usage counts plus rename / merge / delete management.
 - **Todoist** — push upcoming tasks (the primary direction: into #Home/#Work with
   @project labels, or a single task from its editor) and a completion sync that
   marks pushed tasks Done here when you complete them in Todoist (manual, hourly,

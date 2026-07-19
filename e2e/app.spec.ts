@@ -285,7 +285,7 @@ test('backups: daily on startup, refreshed on quit, and on demand', async () => 
   await second.close();
 });
 
-test('tags: autocomplete while typing, chip click searches, settings management', async () => {
+test('tags: autocomplete while typing, chip click searches, management on the Tags page', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(userData);
   const win = await app.firstWindow();
@@ -307,9 +307,9 @@ test('tags: autocomplete while typing, chip click searches, settings management'
   await expect(win.getByTestId('project-card-p1')).toBeVisible(); // tagged infra
   await expect(win.getByTestId('project-card-p3')).toBeVisible(); // just tagged
 
-  // Settings: merge #infra into #q3, then it disappears from the list.
+  // Tags page: merge #infra into #q3, then it disappears from the list.
   await win.getByPlaceholder('Search tasks & projects…').fill('');
-  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByRole('button', { name: 'Tags', exact: true }).click();
   const list = win.getByTestId('tag-manage-list');
   const infraRow = list.locator('.tag-manage-row', { hasText: '#infra' });
   await infraRow.getByRole('button', { name: 'Rename…' }).click();
@@ -365,7 +365,7 @@ test('archive lifecycle, files library, and tags view', async () => {
   // Tags view shows workspace tags; clicking one searches for it.
   await win.getByRole('button', { name: 'Tags', exact: true }).click();
   await expect(win.getByTestId('tags-cloud')).toBeVisible();
-  await win.getByText('#woodworking').click();
+  await win.getByTestId('tags-cloud').getByText('#woodworking').click();
   await expect(win.getByTestId('search-summary')).toContainText('matching “woodworking”');
   await win.getByPlaceholder('Search tasks & projects…').fill('');
 
