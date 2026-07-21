@@ -365,3 +365,60 @@ describe('Settings — Claude AI', () => {
     expect(useStore.getState().modal).toEqual({ type: 'aiImport' });
   });
 });
+
+describe('Settings — Debug logging', () => {
+  it('shows the default log folder and toggles the setting', async () => {
+    renderSettings();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId('log-dir')).toHaveTextContent('/tmp/userData/logs (default)');
+    });
+    const toggle = screen.getByLabelText('Enable debug logging');
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+    expect(ws().settings.debugLogging).toBe(true);
+    await userEvent.click(toggle);
+    expect(ws().settings.debugLogging).toBe(false);
+  });
+
+  it('changes and resets the log folder', async () => {
+    vi.mocked(window.ariadne.chooseLogDir).mockResolvedValue({ path: '/var/log/ariadne' });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Change log folder' }));
+    await vi.waitFor(() => {
+      expect(ws().settings.debugLogDir).toBe('/var/log/ariadne');
+    });
+    expect(screen.getByTestId('log-dir')).toHaveTextContent('/var/log/ariadne');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use default' }));
+    expect(ws().settings.debugLogDir).toBeNull();
+  });
+
+  it('a cancelled log-folder dialog changes nothing', async () => {
+    renderSettings(); // default mock resolves { path: null }
+    await userEvent.click(screen.getByRole('button', { name: 'Change log folder' }));
+    await vi.waitFor(() => {
+      expect(vi.mocked(window.ariadne.chooseLogDir)).toHaveBeenCalled();
+    });
+    expect(ws().settings.debugLogDir).toBeNull();
+  });
+
+  it('Show log file toasts the error when there is no log yet', async () => {
+    vi.mocked(window.ariadne.revealLogFile).mockResolvedValue({
+      ok: false,
+      error: 'No log file yet — enable debug logging first',
+    });
+    renderSettings();
+    await userEvent.click(screen.getByRole('button', { name: 'Show log file' }));
+    await vi.waitFor(() => {
+      expect(useStore.getState().toast).toBe('No log file yet — enable debug logging first');
+    });
+
+    vi.mocked(window.ariadne.revealLogFile).mockResolvedValue({ ok: true });
+    useStore.setState({ toast: null });
+    await userEvent.click(screen.getByRole('button', { name: 'Show log file' }));
+    await vi.waitFor(() => {
+      expect(vi.mocked(window.ariadne.revealLogFile)).toHaveBeenCalledTimes(2);
+    });
+    expect(useStore.getState().toast).toBeNull();
+  });
+});

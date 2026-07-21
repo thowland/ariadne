@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.13.0 — 2026-07-21
+
+- **Opt-in debug logging (D18).** A new Settings card turns on a plain-text
+  activity log for tracking down problems: your edits and navigation, backup
+  runs and pruning, Todoist push/sync attempts and failures, disk-save
+  failures and write-guard rejections, imports/exports, AI extraction, and
+  app start/quit — each line timestamped and category-tagged. Off by default;
+  the log goes to `ariadne-debug.log` in the app's logs folder (next to
+  `main.log`) or any folder you pick, rotates at 5 MB, and never leaves your
+  machine. A "Show log file" button reveals it in the Finder/file manager.
+
 ## 1.12.0 — 2026-07-19
 
 - **Filter box on the Tags manage list.** Type to narrow the management rows

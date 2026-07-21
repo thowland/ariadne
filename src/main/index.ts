@@ -8,6 +8,7 @@ import { registerIpc } from './ipc';
 import { BackupService } from './services/backup-service';
 import { BlobService } from './services/blob-service';
 import { ConfigService, DEFAULT_WINDOW_BOUNDS } from './services/config-service';
+import { DebugLogService } from './services/debug-log-service';
 import { LoggerService } from './services/logger-service';
 import { StorageService } from './services/storage-service';
 
@@ -21,6 +22,7 @@ if (testUserData) {
 let storage: StorageService | null = null;
 let backups: BackupService | null = null;
 let logger: LoggerService | null = null;
+let debugLog: DebugLogService | null = null;
 let quitting = false;
 let mainWindow: BrowserWindow | null = null;
 
@@ -103,18 +105,29 @@ void app.whenReady().then(() => {
   logger = new LoggerService(app.getPath('userData'));
   logger.info(`Ariadne starting (v${app.getVersion()})`);
   const dataDir = config.resolveDataDir();
-  backups = new BackupService(dataDir);
+  const debug = new DebugLogService(join(app.getPath('userData'), 'logs'));
+  debug.configureFromSettingsFile(dataDir);
+  debug.log('app', `Ariadne starting (v${app.getVersion()}) — data dir: ${dataDir}`);
+  debugLog = debug;
+  backups = new BackupService(dataDir, undefined, (message) => {
+    debug.log('backup', message);
+  });
   const blobs = new BlobService(dataDir);
   storage = new StorageService(dataDir, backups);
   storage.init();
   // Disk-write health: log every failure, and tell the renderer so it can
   // show (and later clear) its "changes are not being saved" banner.
   storage.setWriteListener((status) => {
-    if (status.ok) logger?.info('saves recovered');
-    else logger?.error(`save failed (${status.name ?? '?'}): ${status.message ?? ''}`);
+    if (status.ok) {
+      logger?.info('saves recovered');
+      debug.log('storage', 'saves recovered');
+    } else {
+      logger?.error(`save failed (${status.name ?? '?'}): ${status.message ?? ''}`);
+      debug.log('storage', `save FAILED (${status.name ?? '?'}): ${status.message ?? ''}`);
+    }
     mainWindow?.webContents.send(IPC.saveStatus, status);
   });
-  registerIpc(storage, backups, blobs, config, dataDir);
+  registerIpc(storage, backups, blobs, config, dataDir, debug);
 
   // Daily backup: at startup (before any edits this session) and re-checked
   // hourly so a machine that never restarts still gets one per day.
@@ -154,6 +167,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   const s = storage;
   const b = backups;
+  debugLog?.log('app', 'quit requested — flushing saves and refreshing today’s backup');
   void (async () => {
     try {
       if (s !== null) {
@@ -161,11 +175,16 @@ app.on('before-quit', (event) => {
         // flushOne no longer throws — failed writes stay pending instead.
         if (s.pendingCount() > 0) {
           logger?.error(`quit: ${String(s.pendingCount())} collection(s) could not be written`);
+          debugLog?.log(
+            'app',
+            `quit: ${String(s.pendingCount())} collection(s) could not be written`,
+          );
         }
       }
       const result = b?.runBackup();
       if (result !== undefined && !result.ok)
         logger?.error(`quit backup failed: ${result.error ?? ''}`);
+      debugLog?.log('app', 'quitting');
     } catch (err) {
       logger?.error(`quit flush failed: ${err instanceof Error ? err.message : 'unknown'}`);
     } finally {

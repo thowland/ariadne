@@ -87,6 +87,8 @@ export const settingsSchema = z.object({
     )
     .catch(7),
   anthropicApiKey: z.string().catch(''),
+  debugLogging: z.boolean().catch(false),
+  debugLogDir: z.string().min(1).nullable().catch(null),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

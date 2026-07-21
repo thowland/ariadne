@@ -67,6 +67,20 @@ describe('document schemas', () => {
     expect(projectsFileSchema.safeParse([{ id: '', createdAt: TODAY }]).success).toBe(false);
   });
 
+  it('defaults the debug-logging fields absent from pre-1.13 settings documents', () => {
+    const pre113: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+    delete pre113.debugLogging;
+    delete pre113.debugLogDir;
+    const parsed = settingsSchema.parse(pre113);
+    expect(parsed.debugLogging).toBe(false);
+    expect(parsed.debugLogDir).toBeNull();
+    // Malformed values clamp to the safe defaults instead of failing the load.
+    expect(settingsSchema.parse({ debugLogging: 'yes', debugLogDir: '' })).toMatchObject({
+      debugLogging: false,
+      debugLogDir: null,
+    });
+  });
+
   it('strips unknown keys (forward compatibility)', () => {
     const parsed = settingsSchema.parse({
       ...DEFAULT_SETTINGS,

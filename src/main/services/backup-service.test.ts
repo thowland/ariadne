@@ -148,4 +148,26 @@ describe('BackupService', () => {
     expect(service().runBackup()).toMatchObject({ ok: false, error: 'Nothing to back up yet' });
     expect(existsSync(join(dir, 'backups'))).toBe(false);
   });
+
+  it('reports run and prune events to the debug-log sink', () => {
+    const lines: string[] = [];
+    const debug = (message: string): void => {
+      lines.push(message);
+    };
+    writeWorkspace('v1');
+    writeSettings({ backupKeep: 1 });
+    new BackupService(dir, () => '2026-07-01', debug).runBackup();
+    new BackupService(dir, () => '2026-07-02', debug).runBackup();
+    expect(lines).toEqual([
+      `backup starting → ${join(dir, 'backups', '2026-07-01')}`,
+      `backup complete: ${join(dir, 'backups', '2026-07-01')}`,
+      `backup starting → ${join(dir, 'backups', '2026-07-02')}`,
+      'pruned 1 old backup folder(s)',
+      `backup complete: ${join(dir, 'backups', '2026-07-02')}`,
+    ]);
+
+    lines.length = 0;
+    new BackupService(join(dir, 'empty-nowhere'), () => '2026-07-02', debug).runBackup();
+    expect(lines).toEqual(['backup skipped: nothing to back up yet']);
+  });
 });

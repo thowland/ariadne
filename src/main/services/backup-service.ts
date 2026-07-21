@@ -34,6 +34,8 @@ export class BackupService {
   constructor(
     private readonly dataDir: string,
     private readonly today: () => IsoDate = () => todayIso(process.env.ARIADNE_FAKE_TODAY),
+    /** Debug-log sink (D18); wired to DebugLogService in the main bootstrap. */
+    private readonly debug: (message: string) => void = () => undefined,
   ) {}
 
   /** Effective config, read from settings.json best-effort. */
@@ -72,11 +74,13 @@ export class BackupService {
    */
   runBackup(): BackupResult {
     if (!existsSync(join(this.dataDir, 'projects.json'))) {
+      this.debug('backup skipped: nothing to back up yet');
       return { ok: false, error: 'Nothing to back up yet' };
     }
     const { backupDir, keep } = this.resolveConfig();
     const target = join(backupDir, this.today());
     const tmp = `${target}.tmp`;
+    this.debug(`backup starting → ${target}`);
     try {
       rmSync(tmp, { recursive: true, force: true });
       mkdirSync(tmp, { recursive: true });
@@ -90,10 +94,13 @@ export class BackupService {
       rmSync(target, { recursive: true, force: true });
       renameSync(tmp, target);
       this.prune(backupDir, keep);
+      this.debug(`backup complete: ${target}`);
       return { ok: true, path: target };
     } catch (err) {
       rmSync(tmp, { recursive: true, force: true });
-      return { ok: false, error: err instanceof Error ? err.message : 'Backup failed' };
+      const error = err instanceof Error ? err.message : 'Backup failed';
+      this.debug(`backup FAILED: ${error}`);
+      return { ok: false, error };
     }
   }
 
@@ -103,11 +110,14 @@ export class BackupService {
       .filter((e) => e.isDirectory() && DAY_FOLDER_RE.test(e.name))
       .map((e) => e.name)
       .sort(); // ISO dates sort chronologically
+    let pruned = 0;
     while (days.length > keep) {
       const oldest = days.shift();
       if (oldest === undefined) break;
       rmSync(join(backupDir, oldest), { recursive: true, force: true });
+      pruned += 1;
     }
+    if (pruned > 0) this.debug(`pruned ${String(pruned)} old backup folder(s)`);
   }
 
   /** Newest backup containing `document` (corrupt-file recovery), or null. */

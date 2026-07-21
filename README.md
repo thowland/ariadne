@@ -88,7 +88,7 @@ Three strictly isolated Electron layers:
 │                  single-instance lock, backup scheduling         │
 │   ipc.ts         ipcMain.handle registrations → services (glue)  │
 │   services/      Config, Storage, Blob, Backup, ImportExport,    │
-│                  Todoist (+push), Logger — all unit-tested       │
+│                  Todoist (+push), Logger, DebugLog — unit-tested │
 │                  against real temp dirs / mocked HTTP            │
 ├──────────────────────────────────────────────────────────────────┤
 │ PRELOAD          src/preload/index.ts                            │
@@ -136,10 +136,10 @@ On disk (`Settings → Data` shows the location; user-configurable):
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                        |
 | `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                 |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                             |
-| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction — `.test.ts` twins                          |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins         |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                    |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day modals |
-| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags                              |
+| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                   |
 
 ## Adding a feature (the recipe)
 

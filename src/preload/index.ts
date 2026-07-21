@@ -1,6 +1,7 @@
 import type {
   AiExtractRequest,
   AriadneApi,
+  DebugLogCategory,
   DownloadRequest,
   WorkspaceSavePayload,
 } from '@shared/ipc-contract';
@@ -37,6 +38,12 @@ const api: AriadneApi = {
   runBackupNow: () => ipcRenderer.invoke(IPC.backupRun),
   chooseBackupDir: () => ipcRenderer.invoke(IPC.backupDirChoose),
   aiExtract: (request: AiExtractRequest) => ipcRenderer.invoke(IPC.aiExtract, request),
+  logEvent: (category: DebugLogCategory, message: string) => {
+    ipcRenderer.send(IPC.logEvent, { category, message });
+  },
+  chooseLogDir: () => ipcRenderer.invoke(IPC.logDirChoose),
+  revealLogFile: () => ipcRenderer.invoke(IPC.logReveal),
+  getLogInfo: () => ipcRenderer.invoke(IPC.logInfo),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
 };
 

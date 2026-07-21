@@ -285,6 +285,41 @@ test('backups: daily on startup, refreshed on quit, and on demand', async () => 
   await second.close();
 });
 
+test('debug logging: enabled in Settings, records activity, survives restart', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const logFile = join(userData, 'logs', 'ariadne-debug.log');
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await expect(win.getByTestId('log-dir')).toContainText('logs (default)');
+  expect(existsSync(logFile)).toBe(false);
+  await win.getByLabel('Enable debug logging').check();
+
+  // Some activity to record: navigate home and create a project.
+  await win.getByRole('button', { name: 'Command Center' }).click();
+  await win.getByTitle('New project').click();
+  await expect(win.getByLabel('Project name')).toHaveValue('Untitled project');
+  await first.close();
+
+  const content = readFileSync(logFile, 'utf8');
+  expect(content).toContain('[app] debug logging enabled');
+  expect(content).toContain('[activity] edit applied: settings');
+  expect(content).toContain('[activity] navigate: home');
+  expect(content).toContain('[activity] edit applied: projects 6→7');
+  expect(content).toContain('[backup] backup starting');
+  expect(content).toContain('[app] quit requested');
+
+  // The setting persists: the next session logs its own startup line.
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await second.close();
+  expect(readFileSync(logFile, 'utf8')).toContain('[app] Ariadne starting');
+});
+
 test('tags: autocomplete while typing, chip click searches, management on the Tags page', async () => {
   const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(userData);

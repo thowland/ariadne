@@ -126,6 +126,10 @@ export interface Settings {
   todoistPushDays: number;
   /** Anthropic API key for the AI task import (spec D12); plaintext like D10. */
   anthropicApiKey: string;
+  /** Debug logging (D18): record app activity to a plain-text log file. */
+  debugLogging: boolean;
+  /** Debug log folder; null = <userData>/logs (next to main.log). */
+  debugLogDir: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -136,6 +140,8 @@ export const DEFAULT_SETTINGS: Settings = {
   backupKeep: BACKUP_KEEP_DEFAULT,
   todoistPushDays: 7,
   anthropicApiKey: '',
+  debugLogging: false,
+  debugLogDir: null,
 };
 
 /** The full in-memory domain state. */

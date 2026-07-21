@@ -4,11 +4,20 @@ import { newId } from '@shared/domain/id';
 import type { MutationCtx, MutationResult } from '@shared/domain/mutate';
 import { createProject, createTask, updateSettings } from '@shared/domain/mutate';
 import { applyTodoistCompletions, TODOIST_SYNC_LOOKBACK_DAYS } from '@shared/domain/todoist';
-import type { TodoistCompletedResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
+import type {
+  DebugLogCategory,
+  TodoistCompletedResponse,
+  WorkspaceSavePayload,
+} from '@shared/ipc-contract';
 import type { IsoDate, Workspace } from '@shared/types';
 import { create } from 'zustand';
 
 import { getApi } from './api';
+
+/** Send a debug-log line to the main process (D18); silent unless enabled. */
+function logDebug(ws: Workspace | null, category: DebugLogCategory, message: string): void {
+  if (ws?.settings.debugLogging === true) getApi().logEvent(category, message);
+}
 
 export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCtx) => R;
 
@@ -162,6 +171,20 @@ export const useStore = create<AriadneStore>((set, get) => ({
           );
         }
       });
+    // Activity trail: which collections changed and how their sizes moved.
+    // Gated on the post-mutation settings so toggling logging off is silent;
+    // sent after the save so the edit that turns logging ON is itself logged
+    // (the main process enables the log while handling that save).
+    const summary = result.changed
+      .map((name) => {
+        const before = workspace[name];
+        const after = result.workspace[name];
+        return Array.isArray(before) && Array.isArray(after)
+          ? `${name} ${String(before.length)}→${String(after.length)}`
+          : name;
+      })
+      .join(', ');
+    logDebug(result.workspace, 'activity', `edit applied: ${summary}`);
     return result;
   },
 
@@ -185,6 +208,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
       return;
     }
     set({ todoistSyncing: true });
+    logDebug(workspace, 'todoist', `completion sync started (${auto ? 'scheduled' : 'manual'})`);
     try {
       const now = new Date();
       const since = new Date(now.getTime() - TODOIST_SYNC_LOOKBACK_DAYS * 86_400_000);
@@ -205,6 +229,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
       }
       const result = get().apply((ws, ctx) => applyTodoistCompletions(ws, ctx, res.items));
       const n = result?.completed ?? 0;
+      logDebug(get().workspace, 'todoist', `completion sync: ${String(n)} task(s) marked done`);
       if (n > 0) {
         get().showToast(`Marked ${String(n)} task${n === 1 ? '' : 's'} done from Todoist`);
       } else if (!auto) {
@@ -229,15 +254,18 @@ export const useStore = create<AriadneStore>((set, get) => ({
   fileMode: 'preview',
 
   go: (view) => {
+    logDebug(get().workspace, 'activity', `navigate: ${view}`);
     set({ view, q: '' });
   },
 
   openProject: (id) => {
+    logDebug(get().workspace, 'activity', `navigate: project ${id}`);
     set({ view: 'project', activeProjectId: id, q: '' });
   },
 
   openTask: (id) => {
     if (get().workspace?.tasks.some((x) => x.id === id) === true) {
+      logDebug(get().workspace, 'activity', `open task ${id}`);
       const current = get().modal;
       const back = current?.type === 'day' ? current : undefined;
       set({ modal: { type: 'task', id, back } });

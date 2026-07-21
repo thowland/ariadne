@@ -38,6 +38,10 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
     aiExtract: vi
       .fn()
       .mockResolvedValue({ ok: false, error: 'Add your Anthropic API key in Settings first' }),
+    logEvent: vi.fn(),
+    chooseLogDir: vi.fn().mockResolvedValue({ path: null }),
+    revealLogFile: vi.fn().mockResolvedValue({ ok: true }),
+    getLogInfo: vi.fn().mockResolvedValue({ defaultDir: '/tmp/userData/logs' }),
     fakeToday: TODAY,
     ...overrides,
   };
@@ -255,5 +259,51 @@ describe('ui slice', () => {
     useStore.getState().newTaskGlobal();
     expect(useStore.getState().workspace?.projects).toHaveLength(1);
     expect(useStore.getState().workspace?.tasks).toHaveLength(0);
+  });
+});
+
+describe('debug activity logging (D18)', () => {
+  it('stays silent while the toggle is off, then reports edits with size deltas', async () => {
+    const api = installApiMock();
+    await useStore.getState().load();
+
+    useStore.getState().apply((ws, ctx) => createTask(ws, ctx, 'p1', { title: 'quiet' }));
+    expect(api.logEvent).not.toHaveBeenCalled();
+
+    // The enabling edit itself is the first logged activity.
+    useStore.getState().apply((ws) => updateSettings(ws, { debugLogging: true }));
+    expect(api.logEvent).toHaveBeenCalledWith('activity', 'edit applied: settings');
+
+    useStore.getState().apply((ws, ctx) => createTask(ws, ctx, 'p1', { title: 'loud' }));
+    const last = vi.mocked(api.logEvent).mock.calls.at(-1);
+    expect(last?.[0]).toBe('activity');
+    expect(last?.[1]).toMatch(/^edit applied: tasks \d+→\d+$/);
+  });
+
+  it('turning the toggle off logs nothing, including the disabling edit', async () => {
+    const api = installApiMock();
+    await useStore.getState().load();
+    useStore.getState().apply((ws) => updateSettings(ws, { debugLogging: true }));
+    vi.mocked(api.logEvent).mockClear();
+
+    useStore.getState().apply((ws) => updateSettings(ws, { debugLogging: false }));
+    useStore.getState().apply((ws, ctx) => createTask(ws, ctx, 'p1', { title: 'silent again' }));
+    expect(api.logEvent).not.toHaveBeenCalled();
+  });
+
+  it('logs navigation only while enabled', async () => {
+    const api = installApiMock();
+    await useStore.getState().load();
+
+    useStore.getState().go('reports');
+    expect(api.logEvent).not.toHaveBeenCalled();
+
+    useStore.getState().apply((ws) => updateSettings(ws, { debugLogging: true }));
+    useStore.getState().go('settings');
+    expect(api.logEvent).toHaveBeenLastCalledWith('activity', 'navigate: settings');
+    useStore.getState().openProject('p1');
+    expect(api.logEvent).toHaveBeenLastCalledWith('activity', 'navigate: project p1');
+    useStore.getState().openTask('t1');
+    expect(api.logEvent).toHaveBeenLastCalledWith('activity', 'open task t1');
   });
 });

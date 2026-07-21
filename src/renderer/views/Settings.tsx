@@ -25,6 +25,7 @@ export function Settings(): React.JSX.Element {
     todoistSyncing,
   } = useStore();
   const [dataDir, setDataDir] = useState('…');
+  const [defaultLogDir, setDefaultLogDir] = useState('…');
   const [importText, setImportText] = useState('');
 
   useEffect(() => {
@@ -32,6 +33,11 @@ export function Settings(): React.JSX.Element {
       .getDataDir()
       .then((res) => {
         setDataDir(res.path);
+      });
+    void getApi()
+      .getLogInfo()
+      .then((res) => {
+        setDefaultLogDir(res.defaultDir);
       });
   }, []);
 
@@ -152,6 +158,25 @@ export function Settings(): React.JSX.Element {
     if (!Number.isFinite(n)) return;
     const clamped = Math.min(BACKUP_KEEP_MAX, Math.max(1, Math.round(n)));
     apply((ws2) => updateSettings(ws2, { backupKeep: clamped }));
+  };
+
+  const chooseLogDir = (): void => {
+    void getApi()
+      .chooseLogDir()
+      .then((res) => {
+        if (res.path !== null) {
+          apply((ws2) => updateSettings(ws2, { debugLogDir: res.path }));
+          showToast('Log folder updated');
+        }
+      });
+  };
+
+  const revealLogFile = (): void => {
+    void getApi()
+      .revealLogFile()
+      .then((res) => {
+        if (!res.ok) showToast(res.error ?? 'No log file yet');
+      });
   };
 
   const changeDataDir = (): void => {
@@ -395,6 +420,53 @@ export function Settings(): React.JSX.Element {
               pasted text is sent to Anthropic for that one request and nothing else leaves your
               machine.
             </p>
+          </div>
+        </Card>
+
+        <Card title="Debug logging">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              When something misbehaves, turn this on: Ariadne records its activity — your edits and
+              navigation, backups, Todoist sync attempts, disk saves, imports — to a plain-text log
+              file you can read or send along with a bug report. Nothing leaves your machine.
+            </p>
+            <label className="settings-copy">
+              <input
+                type="checkbox"
+                checked={workspace?.settings.debugLogging ?? false}
+                aria-label="Enable debug logging"
+                onChange={(e) => {
+                  apply((ws2) => updateSettings(ws2, { debugLogging: e.target.checked }));
+                }}
+              />{' '}
+              Enable debug logging
+            </label>
+            <div className="data-dir-row">
+              <div>
+                <div className="field-label">LOG FOLDER</div>
+                <code className="data-dir-path" data-testid="log-dir">
+                  {workspace?.settings.debugLogDir ?? `${defaultLogDir} (default)`}
+                </code>
+              </div>
+              <div className="settings-actions">
+                {workspace?.settings.debugLogDir !== null && (
+                  <button
+                    className="btn subtle"
+                    onClick={() => {
+                      apply((ws2) => updateSettings(ws2, { debugLogDir: null }));
+                    }}
+                  >
+                    Use default
+                  </button>
+                )}
+                <button className="btn ghost" aria-label="Change log folder" onClick={chooseLogDir}>
+                  Change…
+                </button>
+                <button className="btn ghost" onClick={revealLogFile}>
+                  Show log file
+                </button>
+              </div>
+            </div>
           </div>
         </Card>
 

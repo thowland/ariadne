@@ -24,7 +24,23 @@ export const IPC = {
   backupRun: 'backup:run',
   backupDirChoose: 'backupDir:choose',
   aiExtract: 'ai:extract',
+  logEvent: 'log:event',
+  logDirChoose: 'logDir:choose',
+  logReveal: 'log:reveal',
+  logInfo: 'log:info',
 } as const;
+
+/** Debug-log entry categories (D18); the main process drops anything else. */
+export const DEBUG_LOG_CATEGORIES = [
+  'app',
+  'activity',
+  'storage',
+  'backup',
+  'todoist',
+  'import',
+  'ai',
+] as const;
+export type DebugLogCategory = (typeof DEBUG_LOG_CATEGORIES)[number];
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
 export const BLOB_PROTOCOL = 'ariadne-blob';
@@ -142,6 +158,13 @@ export interface AriadneApi {
   runBackupNow(): Promise<{ ok: boolean; path?: string; error?: string }>;
   chooseBackupDir(): Promise<{ path: string | null }>;
   aiExtract(request: AiExtractRequest): Promise<AiExtractResponse>;
+  /** Fire-and-forget debug log line; a no-op unless debug logging is on (D18). */
+  logEvent(category: DebugLogCategory, message: string): void;
+  chooseLogDir(): Promise<{ path: string | null }>;
+  /** Reveal the debug log file in the OS file manager. */
+  revealLogFile(): Promise<{ ok: boolean; error?: string }>;
+  /** Where the debug log goes when no custom folder is set. */
+  getLogInfo(): Promise<{ defaultDir: string }>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
 }

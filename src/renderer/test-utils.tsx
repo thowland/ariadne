@@ -38,6 +38,10 @@ export function setupTestApp(
     aiExtract: vi
       .fn()
       .mockResolvedValue({ ok: false, error: 'Add your Anthropic API key in Settings first' }),
+    logEvent: vi.fn(),
+    chooseLogDir: vi.fn().mockResolvedValue({ path: null }),
+    revealLogFile: vi.fn().mockResolvedValue({ ok: true }),
+    getLogInfo: vi.fn().mockResolvedValue({ defaultDir: '/tmp/userData/logs' }),
     fakeToday: TEST_TODAY,
     ...overrides,
   };
