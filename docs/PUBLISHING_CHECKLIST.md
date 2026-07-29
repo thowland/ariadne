@@ -141,14 +141,33 @@ config point at.
 CI runs on the first push. Let it go green before tagging, since the release
 workflow doesn't depend on CI and will happily build a broken tag.
 
-The current code is already tagged `v1.13.0`, and that tag was pushed in step 3
-before the release workflow existed on GitHub, so it won't have triggered a
-build. Two ways forward:
+**Expect the Actions tab to show only CI at first.** GitHub surfaces a workflow
+once one of its triggers has actually fired. `ci.yml` fires on the first push to
+`master`, so it appears immediately; `release.yml` only fires on a tag push, and
+every tag pushed in step 3 points at a commit from before `.github/` existed, so
+nothing matched it. Until then there is no Release entry in the sidebar and
+therefore no **Run workflow** button — `workflow_dispatch` is configured, but you
+can't reach it. This is a chicken-and-egg, not a broken workflow file. Confirm
+what GitHub actually registered with:
 
-- **Build the existing tag by hand.** Actions → Release → **Run workflow**, enter
-  `v1.13.0`. This is what the `workflow_dispatch` input is for.
+```sh
+curl -s https://api.github.com/repos/<you>/ariadne/actions/workflows | grep '"path"'
+```
+
+Break the cycle by pushing a tag from a commit that contains `release.yml`:
+
+- **Re-point the existing tag.** `git tag -f v1.13.0 HEAD && git push <remote> v1.13.0 --force`.
+  Force-updating a published tag is normally off limits, but it's harmless on a
+  repository this new — no release published, no clones. Check `git diff` against
+  the old tag first and make sure nothing user-visible moved, or you'll ship a
+  build that disagrees with its own changelog entry.
 - **Ship a fresh tag.** Do a normal release per the README (changelog entry,
   version bump, commit, tag, push) and let the tag push trigger it.
+
+Once either has run, Release is registered for good, and **Run workflow** becomes
+available for rebuilding any tag by hand — it runs the workflow file from the
+default branch and checks out whatever tag you name, so it works on tags that
+predate the workflow.
 
 Either way the workflow builds an AppImage and a .deb on Ubuntu, a universal DMG
 and zip on macOS, and an NSIS installer on Windows, attaches the end-user guide
