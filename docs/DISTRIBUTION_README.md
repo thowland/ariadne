@@ -139,27 +139,50 @@ settings file — treat that file like a password.
 
 Connect a Todoist account under **Settings → Integrations · Todoist** by
 pasting your API token (find it in Todoist under
-**Settings → Integrations → Developer**). Two one-way syncs:
+**Settings → Integrations → Developer**). Ariadne sends tasks to Todoist and
+watches for them coming back completed; it never creates Ariadne tasks from
+Todoist.
 
-- **Import now** copies your active Todoist tasks into a "Todoist Inbox"
-  project in Ariadne. Re-importing updates due dates and priorities of
-  previously imported tasks and never deletes anything.
 - **Push to Todoist** sends open Ariadne tasks due in the next **7** days
   (adjustable 1–60) into a **#Home** or **#Work** Todoist project, labelled
   `@ariadne` plus the Ariadne project's name. Already-pushed tasks are
-  remembered, so pushing again never creates duplicates.
+  remembered, so pushing again never creates duplicates. You can also push a
+  single task from its editor, whatever its due date.
+- **Completion sync** watches the tasks you pushed and, when you tick one off
+  in Todoist, marks it Done here with Todoist's completion date. It looks at
+  the last 30 days of completions, touches open tasks only, and is safe to run
+  repeatedly — nothing is created, deleted, or reopened. Run it with **Sync
+  now**, or set the schedule to hourly or daily.
 
 Like the AI key, the token is stored in plain text on your computer.
 
 ## Updating
 
-Ariadne does not auto-update. To upgrade, install a newer version the same
-way you installed this one — your data folder and backups are untouched.
+Ariadne does not auto-update. To upgrade, download a newer version from
+https://github.com/thowland/ariadne/releases and install it the same way you
+installed this one — your data folder and backups are untouched.
 
 ## If something goes wrong
 
 Ariadne keeps a log at `logs/main.log` next to the data folder (inside the
 Ariadne folder listed above). If the app misbehaves, quit and relaunch it
 first; your data is written to disk continuously and again on quit, and the
-daily backups above are your safety net. Send questions — and that log
-file, if it's relevant — to whoever gave you this build.
+daily backups above are your safety net.
+
+If a problem is repeatable and you want it looked at, turn on **Settings →
+Debug logging** first, reproduce the problem, then click **Show log file** to
+find `ariadne-debug.log`. That log records what the app was doing —
+navigation, saves, backup runs, sync attempts, and failures — and stays on
+your machine until you choose to send it. It does not contain the text of
+your tasks or notes.
+
+Report problems at https://github.com/thowland/ariadne/issues, and attach the
+debug log if it is relevant.
+
+## Source and license
+
+Ariadne is free software under the GNU General Public License, version 3 or
+later. The source is at https://github.com/thowland/ariadne, and the full
+license text ships with it. You may use, study, modify, and pass it along;
+if you distribute a modified version, you have to offer the source under the
+same terms. There is no warranty.

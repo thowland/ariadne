@@ -4,8 +4,15 @@
   "description": "Ariadne — a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
-  "author": "th@wdogsystems.com",
-  "license": "UNLICENSED",
+  "author": "Tim Howland <th@wdogsystems.com>",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thowland/ariadne.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thowland/ariadne/issues"
+  },
   "engines": {
     "node": ">=18.18"
   },
@@ -31,6 +38,7 @@
     "package:linux": "electron-vite build && electron-builder --linux --publish never",
     "package:mac": "electron-vite build && electron-builder --mac --publish never",
     "package:win": "electron-vite build && bash scripts/package-win.sh",
+    "package:win:native": "electron-vite build && electron-builder --win --publish never",
     "package:mac:universal": "electron-vite build && electron-builder --mac --universal --publish never"
   },
   "dependencies": {
@@ -73,6 +81,7 @@
   "build": {
     "appId": "com.wdogsystems.ariadne",
     "productName": "Ariadne",
+    "copyright": "Copyright © 2026 Tim Howland — GPL-3.0-or-later",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -133,5 +142,5 @@
   "overrides": {
     "@noble/hashes": "^1.8.0"
   },
-  "homepage": "https://github.com/wdogsystems/ariadne"
+  "homepage": "https://github.com/thowland/ariadne#readme"
 }

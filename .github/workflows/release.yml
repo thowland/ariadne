@@ -1,0 +1,125 @@
+name: Release
+
+# Builds installers for all three platforms when a version tag is pushed, then
+# collects them into a DRAFT GitHub release for review before publishing.
+#
+#   npm run format && npm run verify && xvfb-run -a npm run test:e2e
+#   git tag v1.14.0 && git push origin v1.14.0
+#
+# Can also be run by hand from the Actions tab against an existing tag.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build (e.g. v1.13.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            script: package:linux
+          - name: macos
+            os: macos-latest
+            script: package:mac:universal
+          - name: windows
+            os: windows-latest
+            script: package:win:native
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      # package-lock.json is not tracked (it churns between the Mac and Linux
+      # checkouts), so this is `npm install` rather than `npm ci`.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build installers
+        run: npm run ${{ matrix.script }}
+
+      # The end-user guide rides along with the Windows installer and the Linux
+      # packages; the DMG already embeds it via build.dmg.contents.
+      - name: Stage the end-user guide (unix)
+        if: matrix.name != 'windows'
+        run: cp docs/DISTRIBUTION_README.md release/README.txt
+
+      - name: Stage the end-user guide (windows)
+        if: matrix.name == 'windows'
+        run: copy docs\DISTRIBUTION_README.md release\README.txt
+        shell: cmd
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ariadne-${{ matrix.name }}
+          retention-days: 14
+          if-no-files-found: error
+          # Installers only — skip electron-builder's unpacked dirs and metadata.
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+            release/README.txt
+
+  draft-release:
+    name: draft release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List what was built
+        run: ls -la artifacts
+
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/* --clobber
+          else
+            gh release create "$TAG" artifacts/* \
+              --draft \
+              --title "Ariadne $TAG" \
+              --notes "See CHANGELOG.md for what changed in this release.
+
+          The macOS and Windows builds are unsigned. On Windows, SmartScreen will
+          show \"Windows protected your PC\" — choose **More info → Run anyway**.
+          On macOS 15 or later, launch once, dismiss the warning, then go to
+          **System Settings → Privacy & Security** and click **Open Anyway**; on
+          macOS 14 and earlier, right-click the app and choose **Open**.
+
+          README.txt in the asset list is the end-user guide."
+          fi

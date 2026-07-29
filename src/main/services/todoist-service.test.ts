@@ -21,7 +21,7 @@ const WINDOW = `since=${encodeURIComponent(SINCE)}&until=${encodeURIComponent(UN
 
 const EXPECTED_HEADERS = {
   Authorization: 'Bearer t',
-  'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/wdogsystems/ariadne)',
+  'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/thowland/ariadne)',
   Accept: 'application/json',
 };
 

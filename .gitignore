@@ -46,3 +46,6 @@ Thumbs.db
 .vscode/
 !.vscode/extensions.json
 *.swp
+
+# Local agent/tool settings — machine-specific, never shared
+.claude/settings.local.json

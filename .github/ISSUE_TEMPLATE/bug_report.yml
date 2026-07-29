@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in Ariadne behaves differently than it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, it is worth checking the decision table (D1–D18) in
+        `docs/TECHNICAL_SPEC.md` — a dozen behaviors that look surprising are
+        deliberate, and the table says why.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what the app did instead.
+      placeholder: |
+        1. Opened the Command Center with the scope set to Work
+        2. Clicked the status circle on a task due tomorrow
+        3. Expected it to move to Doing; it moved to Done instead
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Ariadne version
+      description: Shown under Settings → About.
+      placeholder: '1.13.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Windows
+        - Linux (AppImage)
+        - Linux (deb)
+        - Running from source
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug log (optional)
+      description: |
+        If the problem is repeatable, turn on Settings → Debug logging, reproduce
+        it, then use "Show log file" and paste the relevant lines. The log records
+        what the app was doing, not the text of your tasks or notes.
+      render: text

@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest something Ariadne should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ariadne is deliberately single-user, local-first, and offline by default.
+        Multi-user, cloud sync, mobile, and two-way Todoist sync are explicit
+        non-goals — see the end of §1 in `docs/TECHNICAL_SPEC.md`.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that Ariadne makes hard or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: A sketch is fine. If you already know how it should look, say so.
+    validations:
+      required: false

@@ -120,7 +120,7 @@ export class TodoistService {
   private headers(token: string): Record<string, string> {
     return {
       Authorization: `Bearer ${token.trim()}`,
-      'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/wdogsystems/ariadne)',
+      'User-Agent': 'Ariadne-Tracker (Electron; +https://github.com/thowland/ariadne)',
       Accept: 'application/json',
     };
   }
