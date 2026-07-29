@@ -72,5 +72,18 @@ export default tseslint.config(
     files: ['**/*.{js,mjs,cjs}'],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    // Build/tooling scripts run under Node, but their page.evaluate() callbacks
+    // are serialized into the renderer, so both sets of globals are legitimate.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        document: 'readonly',
+        process: 'readonly',
+        window: 'readonly',
+      },
+    },
+  },
   prettier,
 );

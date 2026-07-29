@@ -13,7 +13,25 @@ readable in any text editor and the attachments are still files in a folder.
 
 **Current release: v1.13.0.** `CHANGELOG.md` records what shipped when.
 
+<!-- prettier-ignore -->
+![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
+
 ## Screens and behavior
+
+Every screenshot below comes from the sample workspace the app seeds on first
+run, so you can reproduce all of it by launching a fresh copy. Regenerate them
+with `npm run screenshots` (see [Screenshots](#screenshots)).
+
+|                                                                                                                                         |                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [![Project detail with the dependency map](docs/screenshots/project-detail.png)](docs/screenshots/project-detail.png)                   | [![The task editor](docs/screenshots/task-editor.png)](docs/screenshots/task-editor.png)                                            |
+| **Project and dependency map** — tasks, notes, links, tags, and files on one screen, over a layered graph of the project's task chains. | **Task editor** — status, priority, due date, subtasks, "Blocked by" dependencies, attachments, links, and a one-task Todoist push. |
+| [![The calendar month view](docs/screenshots/calendar.png)](docs/screenshots/calendar.png)                                              | [![The weekly status report](docs/screenshots/reports.png)](docs/screenshots/reports.png)                                           |
+| **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                 | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
+| [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                   | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
+| **Retrospective** — what actually got finished over a date range, with completions over time.                                           | **Files library** — every attachment across every project in one place.                                                             |
+| [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
+| **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                      | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
 
 - **Command Center** — the daily review. Stat cards, an overdue banner, and focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked),
@@ -104,6 +122,24 @@ Coverage thresholds live in `vitest.config.ts` and are never lowered; an obsolet
 test is deleted rather than skipped, because a skipped test is a coverage claim
 nobody is checking. E2E runs use a throwaway data directory and pin the date
 through `ARIADNE_FAKE_TODAY`, since the seed dataset assumes `2026-07-08`.
+
+## Screenshots
+
+The images in this README are generated, not hand-captured, so a UI change can't
+quietly leave them stale:
+
+```sh
+npm run screenshots      # xvfb-run -a npm run screenshots on a headless machine
+```
+
+`scripts/screenshots.mjs` drives the built app through Playwright and writes
+`docs/screenshots/*.png`. It borrows the E2E determinism trick — a throwaway user
+data directory so each shot starts from the freshly seeded sample workspace, and
+`ARIADNE_FAKE_TODAY=2026-07-08` so the counts, the calendar grid, and the
+retrospective range are identical every run. Adding a shot means adding one entry
+to the `SHOTS` array with the clicks that reach that screen. Regenerate whenever
+a change alters one of the pictured screens, and check the diff — a screenshot
+that changed for reasons you can't explain is a bug report.
 
 ## Architecture
 
@@ -381,5 +417,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
   specs, `Throughline.dc.html` is the annotated prototype the app was built from,
   and `Ariadne.html` is the runnable prototype (login `admin`/`admin`, removed
   from the real app by decision D1).
+- `docs/screenshots/` — the README images, generated by `npm run screenshots`
+  rather than captured by hand. Regenerate them when a pictured screen changes.
 - `CHANGELOG.md` — user-facing history per release.
 - `CLAUDE.md` — working notes for AI-assisted maintenance.
