@@ -1,5 +1,10 @@
 name: Release
 
+# Without run-name, GitHub titles each run after the head commit's subject, so a
+# release shows up in the Actions list as whatever happened to be committed last
+# rather than as the version it builds.
+run-name: Release ${{ inputs.tag || github.ref_name }}
+
 # Builds installers for all three platforms when a version tag is pushed, then
 # collects them into a DRAFT GitHub release for review before publishing.
 #
@@ -39,11 +44,11 @@ jobs:
             os: windows-latest
             script: package:win:native
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20.x'
 
@@ -67,7 +72,7 @@ jobs:
         shell: cmd
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ariadne-${{ matrix.name }}
           retention-days: 14
@@ -88,12 +93,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
 
       - name: Download all installers
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
