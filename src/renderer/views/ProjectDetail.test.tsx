@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -149,6 +149,44 @@ describe('ProjectDetail', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(ws().projects.some((p) => p.id === 'p3')).toBe(true);
     expect(useStore.getState().view).toBe('project');
+  });
+
+  it('persists dependency-map drags and resets them on demand', async () => {
+    useStore.setState({ activeProjectId: 'p1' }); // p1 is the project with a dep graph
+    render(<ProjectDetail />);
+    expect(screen.queryByRole('button', { name: 'Reset layout' })).not.toBeInTheDocument();
+
+    const node = screen.getByTestId('dep-node-t3');
+    const down = new MouseEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent(node, down);
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 90, clientY: 40 }));
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientX: 90, clientY: 40 }));
+
+    const placed = ws().projects.find((p) => p.id === 'p1')?.depLayout?.t3;
+    expect(placed).toBeDefined();
+    // Node stays where it was dropped across a re-render.
+    expect(screen.getByTestId('dep-node-t3').querySelector('rect')).toHaveAttribute(
+      'x',
+      String(placed?.x),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+    expect(ws().projects.find((p) => p.id === 'p1')?.depLayout).toEqual({});
+  });
+
+  it('persists the dependency-map height', async () => {
+    useStore.setState({ activeProjectId: 'p1' });
+    render(<ProjectDetail />);
+    screen.getByTestId('dep-map-resize').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    const h = ws().projects.find((p) => p.id === 'p1')?.depMapHeight;
+    expect(h).toBeGreaterThan(160);
+    expect(screen.getByTestId('dependency-map')).toHaveStyle({ height: `${String(h)}px` });
   });
 
   it('shows a not-found stub for a missing project', () => {

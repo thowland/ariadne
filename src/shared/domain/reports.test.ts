@@ -40,6 +40,16 @@ describe('filterProjects', () => {
     const archivedWs = { ...ws, projects };
     expect(weeklyStatus(archivedWs, 'all', TODAY).some((b) => b.project.id === 'p1')).toBe(false);
   });
+
+  it('includes archived projects when asked (the retrospective case)', () => {
+    const projects = ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p));
+    const opts = { includeArchived: true };
+    expect(filterProjects(projects, 'all', opts).some((p) => p.id === 'p1')).toBe(true);
+    expect(filterProjects(projects, 'work', opts).some((p) => p.id === 'p1')).toBe(true);
+    expect(filterProjects(projects, 'tag:infra', opts).map((p) => p.id)).toEqual(['p1']);
+    // Scoping still holds: an archived work project stays out of the home report.
+    expect(filterProjects(projects, 'home', opts).some((p) => p.id === 'p1')).toBe(false);
+  });
 });
 
 describe('weeklyStatus', () => {
@@ -117,6 +127,22 @@ describe('retrospective', () => {
 
     const workOnly = retrospective(ws, 'work', isoAdd(TODAY, -30), TODAY);
     expect(workOnly.groups.every((g) => g.project.category === 'work')).toBe(true);
+  });
+
+  it('still counts completions from archived projects (D19)', () => {
+    const projects = ws.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p));
+    const archivedWs = { ...ws, projects };
+    const from = isoAdd(TODAY, -30);
+    const before = retrospective(ws, 'all', from, TODAY);
+    const after = retrospective(archivedWs, 'all', from, TODAY);
+    expect(after.total).toBe(before.total);
+    expect(after.groups.some((g) => g.project.id === 'p1')).toBe(true);
+    // Every other report keeps parking it.
+    expect(weeklyStatus(archivedWs, 'all', TODAY).some((b) => b.project.id === 'p1')).toBe(false);
+    expect(portfolioRollup(archivedWs, 'all', TODAY).some((r) => r.project.id === 'p1')).toBe(
+      false,
+    );
+    expect(atRiskReport(archivedWs, 'all', TODAY).some((r) => r.project.id === 'p1')).toBe(false);
   });
 
   it('serializes with dates and project names', () => {

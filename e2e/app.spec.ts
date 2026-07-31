@@ -158,7 +158,36 @@ test('calendar and dependency map are wired end-to-end', async () => {
   await win.getByTestId('dep-node-t5').click();
   const dialog = win.getByRole('dialog', { name: 'Edit task' });
   await expect(dialog.getByPlaceholder('Task title')).toHaveValue('Cutover & DNS switch');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+
+  // Drag a node to a new spot; it stays there and survives a restart.
+  const node = win.getByTestId('dep-node-t3');
+  const rect = node.locator('rect');
+  const before = await rect.getAttribute('x');
+  const box = await node.boundingBox();
+  if (box === null) throw new Error('no node box');
+  await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await win.mouse.down();
+  await win.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 60, { steps: 8 });
+  await win.mouse.up();
+  const after = await rect.getAttribute('x');
+  expect(after).not.toBe(before);
+  // A drag is not a click — the editor stayed shut.
+  await expect(win.getByRole('dialog', { name: 'Edit task' })).toHaveCount(0);
   await app.close();
+
+  const app2 = await launch(userData);
+  const win2 = await app2.firstWindow();
+  await win2
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Q3 Platform Migration/ })
+    .click();
+  await expect(win2.getByTestId('dep-node-t3').locator('rect')).toHaveAttribute('x', after ?? '');
+
+  // Reset puts it back on the automatic layer.
+  await win2.getByRole('button', { name: 'Reset layout' }).click();
+  await expect(win2.getByTestId('dep-node-t3').locator('rect')).toHaveAttribute('x', before ?? '');
+  await app2.close();
 });
 
 test('document library: markdown editing, CSV upload/preview, persistence', async () => {

@@ -19,10 +19,18 @@ import { byDue } from './sort';
 
 export type ReportFilter = 'all' | 'work' | 'home' | `tag:${string}`;
 
-/** Archived projects never report — they are parked, not in flight. */
-export function filterProjects(projects: readonly Project[], filter: ReportFilter): Project[] {
+/**
+ * Archived projects never report — they are parked, not in flight. The
+ * retrospective is the one exception (D19): it looks backwards, and work
+ * finished before a project was archived still counts as work done.
+ */
+export function filterProjects(
+  projects: readonly Project[],
+  filter: ReportFilter,
+  opts: { includeArchived?: boolean } = {},
+): Project[] {
   return projects.filter((p) => {
-    if (isArchived(p)) return false;
+    if (isArchived(p) && opts.includeArchived !== true) return false;
     if (filter === 'all') return true;
     if (filter === 'work' || filter === 'home') return p.category === filter;
     return p.tags.includes(filter.slice(4));
@@ -133,13 +141,17 @@ export interface RetroResult {
   groups: RetroGroup[];
 }
 
+/**
+ * Completions in `[from, to]`, grouped by project. Archived projects are
+ * included (D19) — a project parked last month still did the work.
+ */
 export function retrospective(
   ws: Workspace,
   filter: ReportFilter,
   from: IsoDate,
   to: IsoDate,
 ): RetroResult {
-  const projects = filterProjects(ws.projects, filter);
+  const projects = filterProjects(ws.projects, filter, { includeArchived: true });
   const ids = new Set(projects.map((p) => p.id));
   const done = ws.tasks
     .filter(

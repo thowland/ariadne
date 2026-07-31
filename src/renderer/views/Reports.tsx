@@ -344,6 +344,7 @@ export function Reports(): React.JSX.Element {
               <div className="report-project-head">
                 <Dot color={g.project.color} size={10} />
                 <span className="report-project-name">{g.project.name}</span>
+                {g.project.archived === true && <span className="card-hint">archived</span>}
                 <span className="card-count">{g.tasks.length}</span>
               </div>
               {g.tasks.map((t) => (

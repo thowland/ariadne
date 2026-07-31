@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.14.0 — 2026-07-31
+
+- **Archived projects count in the retrospective (D19).** Work you finished
+  before parking a project no longer vanishes from the retrospective when you
+  archive it — completions in the date range are included, and the group
+  header is labelled "archived" so it's clear why a parked project is listed.
+  Every other report (weekly status, portfolio roll-up, at-risk) still leaves
+  archived projects out, and work/home scoping is unchanged.
+- **Arrangeable dependency map (D20).** Drag the nodes on a project's
+  dependency map into an arrangement that reads well; the connecting lines
+  rubber-band as you go and re-anchor to whichever sides of the boxes face
+  each other, so chains stop crossing over themselves. Positions are saved
+  per project, a drag handle under the map grows or shrinks the card (arrow
+  keys work too), and "Reset layout" in the card header puts everything back
+  on the automatic layers. Clicking a node still opens the task editor.
+
 ## 1.13.0 — 2026-07-21
 
 - **Opt-in debug logging (D18).** A new Settings card turns on a plain-text

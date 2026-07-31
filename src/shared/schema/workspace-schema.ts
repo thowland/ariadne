@@ -36,6 +36,11 @@ export const projectSchema = z.object({
   links: z.array(linkRefSchema).catch([]),
   // Optional so pre-1.6 documents round-trip byte-identical.
   archived: z.boolean().optional().catch(false),
+  depLayout: z
+    .record(z.string(), z.object({ x: z.number().finite(), y: z.number().finite() }))
+    .optional()
+    .catch(undefined),
+  depMapHeight: z.number().finite().optional().catch(undefined),
   createdAt: isoDate,
 });
 

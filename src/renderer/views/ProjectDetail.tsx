@@ -44,6 +44,18 @@ export function ProjectDetail(): React.JSX.Element {
   const done = tasks.filter((t) => t.status === 'Done').length;
   const total = tasks.filter((t) => t.status !== 'Dropped').length;
 
+  const depLayout = project.depLayout ?? {};
+  const moveDepNode = (taskId: string, x: number, y: number): void => {
+    apply((ws) =>
+      updateProject(ws, project.id, {
+        depLayout: { ...depLayout, [taskId]: { x: Math.round(x), y: Math.round(y) } },
+      }),
+    );
+  };
+  const resetDepLayout = (): void => {
+    apply((ws) => updateProject(ws, project.id, { depLayout: {} }));
+  };
+
   const quickAdd = (): void => {
     const title = quickTitle.trim();
     if (title === '') return;
@@ -163,10 +175,27 @@ export function ProjectDetail(): React.JSX.Element {
           </Card>
           <Card
             title="Dependency map"
-            headRight={<span className="card-hint">click a node to edit</span>}
+            headRight={
+              <div className="lib-actions dep-head">
+                {Object.keys(depLayout).length > 0 && (
+                  <button className="lib-btn" onClick={resetDepLayout}>
+                    Reset layout
+                  </button>
+                )}
+                <span className="card-hint">drag to arrange · click to edit</span>
+              </div>
+            }
           >
             <div className="card-pad">
-              <DependencyMap tasks={tasks} />
+              <DependencyMap
+                tasks={tasks}
+                positions={depLayout}
+                onMove={moveDepNode}
+                height={project.depMapHeight}
+                onResize={(h) => {
+                  apply((ws) => updateProject(ws, project.id, { depMapHeight: h }));
+                }}
+              />
             </div>
           </Card>
         </div>

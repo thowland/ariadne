@@ -98,6 +98,22 @@ describe('Reports', () => {
     expect(screen.getByTestId('retro-headline')).toHaveTextContent('1');
   });
 
+  it('retro keeps archived projects, flagged as archived', async () => {
+    const w = useStore.getState().workspace!;
+    useStore.setState({
+      workspace: {
+        ...w,
+        projects: w.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p)),
+      },
+    });
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Retrospective' }));
+    // p1's completions still count, and its group is labelled.
+    expect(screen.getByTestId('retro-headline')).toHaveTextContent('6');
+    const head = screen.getByText('Q3 Platform Migration').closest('.report-project-head');
+    expect(within(head as HTMLElement).getByText('archived')).toBeInTheDocument();
+  });
+
   it('retro presets fill the date range; manual edits switch to custom', async () => {
     render(<Reports />);
     await userEvent.click(screen.getByRole('tab', { name: 'Retrospective' }));

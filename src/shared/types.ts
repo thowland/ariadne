@@ -60,8 +60,20 @@ export interface Project {
    * Optional so pre-1.6 workspaces and fixtures need no migration.
    */
   archived?: boolean;
+  /**
+   * Hand-placed dependency-map node positions in SVG units, keyed by task id
+   * (D20). Task ids not listed keep their computed layer slot, so the map
+   * degrades to the automatic layout when this is absent or stale.
+   */
+  depLayout?: Record<string, { x: number; y: number }>;
+  /** Dependency-map canvas height in px; absent = fit the layout. */
+  depMapHeight?: number;
   createdAt: IsoDate;
 }
+
+/** Bounds for the resizable dependency-map card. */
+export const DEP_MAP_MIN_H = 160;
+export const DEP_MAP_MAX_H = 2000;
 
 export interface Task {
   id: string;

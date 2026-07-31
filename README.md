@@ -47,7 +47,8 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   be archived, either by the checkbox on the project screen or by dragging the
   project onto the sidebar's archive zone, at which point they leave every active
   surface but stay intact under the sidebar's ARCHIVED section.
-- **Dependency map** — a layered SVG graph of each project's task chains.
+- **Dependency map** — a layered SVG graph of each project's task chains;
+  drag the nodes to arrange it and the lines follow, or reset to the auto layout.
 - **Calendar** — a month grid or a single Sun–Sat week, with priority-colored
   chips, a single-day drill-in modal, and an Upcoming list.
 - **Document library** — per-project markdown notes with a sanitized live

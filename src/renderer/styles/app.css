@@ -1322,6 +1322,44 @@ input.inp.full {
 .dep-node {
   cursor: pointer;
 }
+.dep-node.draggable {
+  cursor: grab;
+  /* Without this a drag paints a text selection across the node labels. */
+  user-select: none;
+  touch-action: none;
+}
+.dep-node.dragging {
+  cursor: grabbing;
+}
+.dep-node.dragging rect {
+  filter: drop-shadow(0 3px 8px rgba(20, 20, 15, 0.22));
+}
+.dep-head {
+  align-items: center;
+  gap: 8px;
+}
+
+/* Drag-to-resize strip under the dependency canvas. */
+.dep-resize {
+  height: 14px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  border-radius: 7px;
+  touch-action: none;
+}
+.dep-resize:hover,
+.dep-resize:focus-visible {
+  background: rgba(20, 20, 15, 0.05);
+}
+.dep-resize-grip {
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--faint);
+}
 
 /* ============ File rows & badges ============ */
 
