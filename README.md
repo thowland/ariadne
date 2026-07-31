@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v1.13.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v1.14.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -22,16 +22,16 @@ Every screenshot below comes from the sample workspace the app seeds on first
 run, so you can reproduce all of it by launching a fresh copy. Regenerate them
 with `npm run screenshots` (see [Screenshots](#screenshots)).
 
-|                                                                                                                                         |                                                                                                                                     |
-| --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [![Project detail with the dependency map](docs/screenshots/project-detail.png)](docs/screenshots/project-detail.png)                   | [![The task editor](docs/screenshots/task-editor.png)](docs/screenshots/task-editor.png)                                            |
-| **Project and dependency map** — tasks, notes, links, tags, and files on one screen, over a layered graph of the project's task chains. | **Task editor** — status, priority, due date, subtasks, "Blocked by" dependencies, attachments, links, and a one-task Todoist push. |
-| [![The calendar month view](docs/screenshots/calendar.png)](docs/screenshots/calendar.png)                                              | [![The weekly status report](docs/screenshots/reports.png)](docs/screenshots/reports.png)                                           |
-| **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                 | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
-| [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                   | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
-| **Retrospective** — what actually got finished over a date range, with completions over time.                                           | **Files library** — every attachment across every project in one place.                                                             |
-| [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
-| **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                      | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
+|                                                                                                                                           |                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [![Project detail with the dependency map](docs/screenshots/project-detail.png)](docs/screenshots/project-detail.png)                     | [![The task editor](docs/screenshots/task-editor.png)](docs/screenshots/task-editor.png)                                            |
+| **Project and dependency map** — tasks, notes, links, tags, and files on one screen, over a draggable graph of the project's task chains. | **Task editor** — status, priority, due date, subtasks, "Blocked by" dependencies, attachments, links, and a one-task Todoist push. |
+| [![The calendar month view](docs/screenshots/calendar.png)](docs/screenshots/calendar.png)                                                | [![The weekly status report](docs/screenshots/reports.png)](docs/screenshots/reports.png)                                           |
+| **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                   | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
+| [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                     | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
+| **Retrospective** — what actually got finished over a date range, with completions over time; archived projects still count.              | **Files library** — every attachment across every project in one place.                                                             |
+| [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                  | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
+| **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                        | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
 
 - **Command Center** — the daily review. Stat cards, an overdue banner, and focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked),
@@ -47,8 +47,12 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   be archived, either by the checkbox on the project screen or by dragging the
   project onto the sidebar's archive zone, at which point they leave every active
   surface but stay intact under the sidebar's ARCHIVED section.
-- **Dependency map** — a layered SVG graph of each project's task chains;
-  drag the nodes to arrange it and the lines follow, or reset to the auto layout.
+- **Dependency map** — a layered SVG graph of each project's task chains. The
+  automatic layering is a starting point: drag any node where you want it and
+  the edges rubber-band along, re-anchoring to whichever sides of the boxes face
+  each other, so a graph whose lines cross can be pulled into something readable.
+  The arrangement is saved per project, the strip under the canvas resizes the
+  card, and "Reset layout" returns everything to the computed rows.
 - **Calendar** — a month grid or a single Sun–Sat week, with priority-colored
   chips, a single-day drill-in modal, and an Upcoming list.
 - **Document library** — per-project markdown notes with a sanitized live
@@ -60,7 +64,9 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   a completions-over-time chart, and an at-risk report. All of them filter by
   Work/Home/tag, and a work-scoped report can never leak a personal project,
   which is the property that makes the weekly status safe to paste into a work
-  channel. Every report copies out as plain text.
+  channel. Archived projects drop out of every report except the retrospective,
+  which looks backwards and so still credits work finished before the project
+  was parked (decision D19). Every report copies out as plain text.
 - **Tags** — prefix autocomplete everywhere, click-to-search, and a **Tags** view
   listing every tag with usage counts plus rename, merge, and delete management.
 - **Todoist** — push upcoming tasks into #Home or #Work with @project labels
@@ -405,7 +411,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D18. Record any deliberate behavior change as a new row
+  decision table D1–D20. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.

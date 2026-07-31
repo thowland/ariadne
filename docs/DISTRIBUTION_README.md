@@ -43,7 +43,14 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   only available from the status dropdown, so you can't hit it by accident.
 - **Dependencies**: a task can depend on other tasks in the same project.
   A task with an unfinished dependency shows as **Blocked**; each project
-  page has a **Dependency map** that draws the chain.
+  page has a **Dependency map** that draws the chain. The map lays itself
+  out automatically, but you can drag any box where you want it — the
+  connecting lines follow and re-route to whichever sides face each other,
+  so a tangled graph can be pulled into something readable. Your
+  arrangement is saved with the project; the strip under the map drags
+  (or arrow-keys) to make the card taller, and **Reset layout** in the
+  card header puts everything back on the automatic rows. A plain click
+  still opens the task.
 - **At risk** means a task is overdue, or directly waiting on an overdue
   task (it will tell you which one).
 - The **Command Center** (home screen) groups what matters now: Overdue,
@@ -59,7 +66,9 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   appears at the bottom of the sidebar while dragging. Archived projects
   vanish from the sidebar, Command Center, calendar, and reports, but
   nothing is deleted: open the sidebar's **ARCHIVED** section and un-tick
-  the box to bring one back.
+  the box to bring one back. The one report that still counts them is the
+  **Retrospective** — it looks backwards, so work you finished before
+  parking a project keeps showing up there, marked "archived".
 - The **search box** in the top bar searches all tasks and projects as you
   type. **Escape** closes any dialog.
 - **Calendar** shows tasks by due date, as a month grid or a single
@@ -68,7 +77,8 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   At-risk — each scopable to All / Work / Home / a #tag, with a
   **Copy report** button that puts a plain-text version on the clipboard.
   The retrospective has quick range presets (last week, last month, month
-  to date, year to date) and a chart of completions over time.
+  to date, year to date) and a chart of completions over time; it is the
+  only report that includes archived projects.
 - Each project has a **Files & documents** card: create markdown notes
   in-app or upload files (PDF, CSV, DOCX, XLSX, PPTX, RTF, images). Images,
   PDFs, and CSVs preview inside Ariadne. The **Files** view in the sidebar

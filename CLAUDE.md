@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.12.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+the app is at **v1.14.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
 maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
 the **macOS build**; development happens on a Linux arm64 VM.
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (D1–D17); record any
+source of truth for domain semantics and the decision table (D1–D20); record any
 deliberate behavior change as a new decision row there. `CHANGELOG.md` tracks
 releases.
 
@@ -71,7 +71,9 @@ user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
   report scoping must never leak; `todoist:<id>` note markers drive push dedupe
   and the completion sync join (D17); archived projects (D13) stay out of every active surface (sidebar,
   Command Center, calendar, reports, Todoist push, project picker) but remain
-  intact and searchable.
+  intact and searchable — the retrospective is the sole report that still
+  counts them (D19); dependency-map node positions and card height are
+  hand-placed, per-project, optional-additive fields (D20).
 
 ## Environment gotchas (this VM)
 
