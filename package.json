@@ -1,7 +1,7 @@
 {
   "name": "ariadne",
   "version": "1.14.0",
-  "description": "Ariadne — a single-user, local-first personal project & task tracker",
+  "description": "Ariadne \u2014 a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
   "author": "Tim Howland <th@wdogsystems.com>",
@@ -33,6 +33,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "electron-vite build && playwright test",
     "screenshots": "electron-vite build && node scripts/screenshots.mjs",
+    "release:tag": "node scripts/tag-release.mjs",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
     "package": "npm run package:linux",
     "package:dir": "electron-vite build && electron-builder --dir --publish never",
@@ -82,7 +83,7 @@
   "build": {
     "appId": "com.wdogsystems.ariadne",
     "productName": "Ariadne",
-    "copyright": "Copyright © 2026 Tim Howland — GPL-3.0-or-later",
+    "copyright": "Copyright \u00a9 2026 Tim Howland \u2014 GPL-3.0-or-later",
     "directories": {
       "output": "release",
       "buildResources": "build"

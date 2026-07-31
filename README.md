@@ -386,10 +386,19 @@ module. Never assume `node_modules` is healthy after a failed launch; check
 
 1. `npm run format && npm run verify && xvfb-run -a npm run test:e2e` — all green.
 2. Update `CHANGELOG.md` and bump `version` in `package.json`.
-3. Commit, `git tag vX.Y.Z`, and push the tag. The
-   `.github/workflows/release.yml` workflow builds the Linux, macOS, and Windows
-   packages on tag push and attaches them to a draft GitHub release, which you
-   then review and publish.
+3. Commit, push the branch, then `npm run release:tag`. It tags the version in
+   `package.json` and pushes the tag, which is what the
+   `.github/workflows/release.yml` workflow triggers on: it builds the Linux,
+   macOS, and Windows packages and attaches them to a draft GitHub release,
+   which you then review and publish.
+
+`npm run release:tag -- --dry-run` prints the plan without touching anything,
+and `--remote=X` overrides the auto-detected remote (`github` here, `origin` in
+a plain clone; `vmshare` is refused outright). The preflight refuses a dirty
+tree, a version with no `CHANGELOG.md` section, a commit that isn't on the
+remote branch, and — the one that matters — a tag that already exists on the
+remote. Published tags are immutable: somebody has that installer, so cut the
+next version rather than repointing it.
 
 Fixes ship as plain commits; features get a `[vX.Y.0]` commit and a tag.
 

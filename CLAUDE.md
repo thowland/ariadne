@@ -32,13 +32,19 @@ same batch conventions are followed.
 - `npm run package:linux` / `package:mac` (mac only on a Mac) / `package:win`
   (cross-builds on this VM: needs `apt` NSIS + the `patches/` +
   `scripts/nsis-linux-arm64/` shims — see README "Packaging") — installers
+- `npm run release:tag` — tag `package.json`'s version and push it to the
+  `github` remote, which triggers the release build. `-- --dry-run` previews.
+  It refuses a dirty tree, a missing `CHANGELOG.md` section, an unpushed
+  commit, and any tag that already exists on the remote (released tags are
+  immutable — cut the next version instead).
 
 ## The gate (unchanged from delivery, applies to every change)
 
 Entire suite green (not just new tests) → coverage ≥80% → lint/format/typecheck
 clean → E2E green → commit. Obsolete tests are deleted, never skipped. For
 user-visible changes: update `CHANGELOG.md`, bump `package.json` version, tag
-`vX.Y.Z`. Fixes ship as plain commits; features get a `[vX.Y.0]` commit + tag.
+`vX.Y.Z` (`npm run release:tag` once the branch is pushed). Fixes ship as plain
+commits; features get a `[vX.Y.0]` commit + tag.
 
 ## Maintenance rules of thumb
 

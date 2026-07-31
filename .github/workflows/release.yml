@@ -9,7 +9,7 @@ run-name: Release ${{ inputs.tag || github.ref_name }}
 # collects them into a DRAFT GitHub release for review before publishing.
 #
 #   npm run format && npm run verify && xvfb-run -a npm run test:e2e
-#   git tag v1.14.0 && git push origin v1.14.0
+#   npm run release:tag      # tags package.json's version and pushes it here
 #
 # Can also be run by hand from the Actions tab against an existing tag.
 
