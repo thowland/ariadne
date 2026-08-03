@@ -14,7 +14,9 @@ import {
   deleteProject,
   deleteTask,
   moveProject,
+  moveTasksToProject,
   registerUploadedFile,
+  rescheduleTasks,
   replaceWorkspace,
   updateFile,
   updateProject,
@@ -390,5 +392,106 @@ describe('moveProject', () => {
     expect(moveProject(three, 'b', 1).changed).toEqual([]);
     expect(moveProject(three, 'ghost', 0).changed).toEqual([]);
     expect(moveProject(three, 'b', 1).workspace).toBe(three);
+  });
+});
+
+describe('rescheduleTasks', () => {
+  const base = ws({
+    projects: [project()],
+    tasks: [
+      task({ id: 'a', dueDate: '2026-07-01' }),
+      task({ id: 'b', dueDate: '2026-07-02' }),
+      task({ id: 'c', dueDate: TODAY }),
+      task({ id: 'd', dueDate: null }),
+    ],
+  });
+
+  it('sets the due date on every named task and counts the moves', () => {
+    const r = rescheduleTasks(base, ['a', 'b'], TODAY);
+    expect(r.changed).toEqual(['tasks']);
+    expect(r.count).toBe(2);
+    expect(r.workspace.tasks.map((t) => t.dueDate)).toEqual([TODAY, TODAY, TODAY, null]);
+  });
+
+  it('skips tasks already on that date, and unknown ids', () => {
+    const r = rescheduleTasks(base, ['c', 'ghost'], TODAY);
+    expect(r.count).toBe(0);
+    expect(r.changed).toEqual([]);
+    expect(r.workspace).toBe(base); // untouched, so no save is queued
+  });
+
+  it('can clear a due date', () => {
+    const r = rescheduleTasks(base, ['a'], null);
+    expect(r.count).toBe(1);
+    expect(r.workspace.tasks.find((t) => t.id === 'a')?.dueDate).toBeNull();
+  });
+
+  it('leaves every other field alone, including completedAt', () => {
+    const done = ws({
+      tasks: [task({ id: 'a', status: 'Done', completedAt: '2026-07-01', dueDate: '2026-06-30' })],
+    });
+    const moved = rescheduleTasks(done, ['a'], TODAY).workspace.tasks[0];
+    expect(moved).toMatchObject({ status: 'Done', completedAt: '2026-07-01', dueDate: TODAY });
+  });
+});
+
+describe('moveTasksToProject', () => {
+  const two = [project(), project({ id: 'p2', name: 'Other' })];
+
+  it('moves the named tasks and counts them', () => {
+    const before = ws({
+      projects: two,
+      tasks: [task({ id: 'a' }), task({ id: 'b' }), task({ id: 'c' })],
+    });
+    const r = moveTasksToProject(before, ['a', 'b'], 'p2');
+    expect(r.changed).toEqual(['tasks']);
+    expect(r.count).toBe(2);
+    expect(r.workspace.tasks.map((t) => t.projectId)).toEqual(['p2', 'p2', 'p1']);
+  });
+
+  it('keeps dependencies whose other end travels too (whole-project move)', () => {
+    const before = ws({
+      projects: two,
+      tasks: [task({ id: 'a' }), task({ id: 'b', dependsOn: ['a'] })],
+    });
+    const r = moveTasksToProject(before, ['a', 'b'], 'p2');
+    expect(r.count).toBe(2);
+    expect(r.workspace.tasks.find((t) => t.id === 'b')?.dependsOn).toEqual(['a']);
+  });
+
+  it('scrubs dependencies in both directions when only one end moves', () => {
+    const before = ws({
+      projects: two,
+      tasks: [
+        task({ id: 'a' }),
+        task({ id: 'b', dependsOn: ['a'] }),
+        task({ id: 'c', dependsOn: ['b'] }),
+      ],
+    });
+    const r = moveTasksToProject(before, ['b'], 'p2');
+    // b leaves its blocker behind…
+    expect(r.workspace.tasks.find((t) => t.id === 'b')?.dependsOn).toEqual([]);
+    // …and c can no longer be blocked by a task in another project.
+    expect(r.workspace.tasks.find((t) => t.id === 'c')?.dependsOn).toEqual([]);
+  });
+
+  it('re-homes files attached to a moved task', () => {
+    const before = ws({
+      projects: two,
+      tasks: [task({ id: 'a' })],
+      files: [file({ id: 'f1', taskId: 'a' }), file({ id: 'f2', taskId: null })],
+    });
+    const r = moveTasksToProject(before, ['a'], 'p2');
+    expect(r.changed).toEqual(['tasks', 'files']);
+    expect(r.workspace.files.map((f) => f.projectId)).toEqual(['p2', 'p1']);
+  });
+
+  it('is a no-op for an unknown target, unknown ids, or tasks already there', () => {
+    const before = ws({ projects: two, tasks: [task({ id: 'a', projectId: 'p2' })] });
+    expect(moveTasksToProject(before, ['a'], 'ghost').changed).toEqual([]);
+    expect(moveTasksToProject(before, ['nope'], 'p2').changed).toEqual([]);
+    const same = moveTasksToProject(before, ['a'], 'p2');
+    expect(same.count).toBe(0);
+    expect(same.workspace).toBe(before);
   });
 });

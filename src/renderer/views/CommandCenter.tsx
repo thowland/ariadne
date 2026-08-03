@@ -11,6 +11,7 @@ import {
   projectsInScope,
   tasksInScope,
 } from '@shared/domain/derive';
+import { rescheduleTasks } from '@shared/domain/mutate';
 import { byDue } from '@shared/domain/sort';
 import type { Task } from '@shared/types';
 
@@ -29,10 +30,12 @@ function FocusSection({
   title,
   tasks,
   accent,
+  footer,
 }: {
   title: string;
   tasks: Task[];
   accent: string;
+  footer?: React.ReactNode;
 }): React.JSX.Element | null {
   if (tasks.length === 0) return null;
   return (
@@ -47,13 +50,15 @@ function FocusSection({
           <TaskRow key={t.id} task={t} showProject />
         ))}
       </div>
+      {footer !== undefined && <div className="focus-section-foot">{footer}</div>}
     </div>
   );
 }
 
 /** The daily-review home view (prototype viewHome). */
 export function CommandCenter(): React.JSX.Element {
-  const { workspace, today, scope, setScope, newProject } = useStore();
+  const { workspace, today, scope, setScope, newProject, apply, askConfirm, showToast } =
+    useStore();
   const projects = workspace?.projects ?? [];
   const allTasks = workspace?.tasks ?? [];
 
@@ -71,6 +76,29 @@ export function CommandCenter(): React.JSX.Element {
   const need = overdue.length + dueToday.length;
   const showBanner =
     overdue.length > 0 || dueToday.some((t) => t.priority === 'Critical' || t.priority === 'High');
+
+  /**
+   * Bulk-reschedule the overdue list onto today (D21). It rewrites many due
+   * dates at once and the app has no undo, so it confirms first — but it isn't
+   * a deletion, so the accept button says what it does.
+   */
+  const rescheduleOverdue = (): void => {
+    const ids = overdue.map((t) => t.id);
+    const n = ids.length;
+    void askConfirm(
+      `Move ${String(n)} overdue task${n === 1 ? '' : 's'} to today (${fmtShort(today)})?`,
+      { confirmLabel: 'Reschedule', danger: false },
+    ).then((ok) => {
+      if (!ok) return;
+      const result = apply((ws) => rescheduleTasks(ws, ids, today));
+      const moved = result?.count ?? 0;
+      showToast(
+        moved === 0
+          ? 'Nothing to reschedule'
+          : `Rescheduled ${String(moved)} task${moved === 1 ? '' : 's'} for today`,
+      );
+    });
+  };
 
   const sections = [
     { key: 'overdue', title: 'Overdue', tasks: overdue, accent: '#d94c3a' },
@@ -121,7 +149,23 @@ export function CommandCenter(): React.JSX.Element {
         <div className="focus-col">
           {sections.length > 0 ? (
             sections.map((s) => (
-              <FocusSection key={s.key} title={s.title} tasks={s.tasks} accent={s.accent} />
+              <FocusSection
+                key={s.key}
+                title={s.title}
+                tasks={s.tasks}
+                accent={s.accent}
+                footer={
+                  s.key === 'overdue' ? (
+                    <button
+                      className="btn ghost"
+                      data-testid="reschedule-overdue"
+                      onClick={rescheduleOverdue}
+                    >
+                      Reschedule for today
+                    </button>
+                  ) : undefined
+                }
+              />
             ))
           ) : (
             <div className="all-clear">You are all caught up. 🎉</div>

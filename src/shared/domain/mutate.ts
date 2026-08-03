@@ -41,6 +41,11 @@ export interface DeleteFilesResult extends MutationResult {
   removedBlobIds: string[];
 }
 
+/** Bulk mutations report how many tasks they actually touched (for the toast). */
+export interface BulkResult extends MutationResult {
+  count: number;
+}
+
 function unchanged(workspace: Workspace): MutationResult {
   return { workspace, changed: [] };
 }
@@ -232,6 +237,67 @@ export function deleteTask(ws: Workspace, id: string): MutationResult {
     },
     changed,
   };
+}
+
+/**
+ * Bulk due-date set (D21) — the Command Center's "Reschedule for today" and the
+ * task context menu's today/tomorrow items. Ids that don't exist, and tasks
+ * already on that date, are skipped, so `count` is the honest number moved.
+ */
+export function rescheduleTasks(
+  ws: Workspace,
+  ids: readonly string[],
+  due: IsoDate | null,
+): BulkResult {
+  const wanted = new Set(ids);
+  let count = 0;
+  const tasks = ws.tasks.map((t) => {
+    if (!wanted.has(t.id) || t.dueDate === due) return t;
+    count += 1;
+    return { ...t, dueDate: due };
+  });
+  if (count === 0) return { ...unchanged(ws), count: 0 };
+  return { workspace: { ...ws, tasks }, changed: ['tasks'], count };
+}
+
+/**
+ * Bulk project move (D21). Dependencies are same-project by construction, so a
+ * link survives only when both ends travel together: moving a whole project's
+ * task list keeps its chains intact, while moving one task out of the middle
+ * scrubs the link from both directions. Attached files follow their task.
+ */
+export function moveTasksToProject(
+  ws: Workspace,
+  ids: readonly string[],
+  toProjectId: string,
+): BulkResult {
+  if (!ws.projects.some((p) => p.id === toProjectId)) return { ...unchanged(ws), count: 0 };
+  const wanted = new Set(ids);
+  const moving = new Set(
+    ws.tasks.filter((t) => wanted.has(t.id) && t.projectId !== toProjectId).map((t) => t.id),
+  );
+  if (moving.size === 0) return { ...unchanged(ws), count: 0 };
+
+  const tasks = ws.tasks.map((t) => {
+    if (moving.has(t.id)) {
+      const dependsOn = t.dependsOn.filter((d) => moving.has(d));
+      return { ...t, projectId: toProjectId, dependsOn };
+    }
+    return t.dependsOn.some((d) => moving.has(d))
+      ? { ...t, dependsOn: t.dependsOn.filter((d) => !moving.has(d)) }
+      : t;
+  });
+
+  const changed: CollectionName[] = ['tasks'];
+  let files = ws.files;
+  if (ws.files.some((f) => f.taskId !== null && moving.has(f.taskId))) {
+    files = ws.files.map((f) =>
+      f.taskId !== null && moving.has(f.taskId) ? { ...f, projectId: toProjectId } : f,
+    );
+    changed.push('files');
+  }
+
+  return { workspace: { ...ws, tasks, files }, changed, count: moving.size };
 }
 
 /** Todo → Doing → Waiting → Done → Todo; Dropped resets to Todo. */

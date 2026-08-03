@@ -69,6 +69,18 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   the box to bring one back. The one report that still counts them is the
   **Retrospective** — it looks backwards, so work you finished before
   parking a project keeps showing up there, marked "archived".
+- **Right-click shortcuts.** Right-click any task row for its common edits —
+  due today, tomorrow or next week, clear the due date, mark complete or
+  reopen, drop it, move it to another project, or delete it. Right-click a
+  project in the sidebar to archive or restore it, move all its tasks into
+  another project, reschedule just its overdue tasks, add a task, or delete
+  it. Nothing lives only in these menus; they are shortcuts for things the
+  normal screens already do. Escape or a click elsewhere closes one, and the
+  arrow keys walk it.
+- **Clearing an overdue backlog.** The Overdue card on the Command Center has
+  a **Reschedule for today** button that moves every task in that list onto
+  today at once. It asks first, and it only touches what the current
+  All/Work/Home filter is showing.
 - The **search box** in the top bar searches all tasks and projects as you
   type. **Escape** closes any dialog.
 - **Calendar** shows tasks by due date, as a month grid or a single

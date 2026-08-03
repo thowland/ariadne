@@ -496,3 +496,75 @@ test('calendar week view, retro presets, and report visuals', async () => {
 
   await app.close();
 });
+
+test('context menus and bulk reschedule drive real edits (D21)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // --- Command Center: reschedule every overdue task onto today.
+  const overdueCard = win.getByTestId('focus-overdue');
+  await expect(overdueCard).toBeVisible();
+  await win.getByTestId('reschedule-overdue').click();
+  const confirm = win.getByRole('alertdialog', { name: 'Confirm' });
+  await expect(confirm).toContainText('overdue task');
+  await confirm.getByRole('button', { name: 'Reschedule' }).click();
+  // Nothing is overdue any more, so the card and the sidebar badge go.
+  await expect(win.getByTestId('focus-overdue')).toHaveCount(0);
+  await expect(win.getByTestId('focus-due-today')).toBeVisible();
+
+  // --- Task row: right-click → due tomorrow.
+  const row = win.locator('.trow', { hasText: 'Migrate auth service' }).first();
+  await row.click({ button: 'right' });
+  const taskMenu = win.getByRole('menu');
+  await expect(taskMenu).toBeVisible();
+  await taskMenu.getByRole('menuitem', { name: 'Due tomorrow' }).click();
+  await expect(win.getByRole('menu')).toHaveCount(0);
+  // It leaves "due today" for the week section.
+  await expect(
+    win.getByTestId('focus-due-today').locator('.trow', { hasText: 'Migrate auth service' }),
+  ).toHaveCount(0);
+
+  // Escape closes a menu without acting.
+  await row.click({ button: 'right' });
+  await expect(win.getByRole('menu')).toBeVisible();
+  await win.keyboard.press('Escape');
+  await expect(win.getByRole('menu')).toHaveCount(0);
+
+  // --- Sidebar: right-click a project → move all its tasks elsewhere.
+  const nav = win.getByRole('navigation', { name: 'Projects' });
+  await nav.getByRole('button', { name: /Q3 Platform Migration/ }).click({ button: 'right' });
+  const projMenu = win.getByRole('menu');
+  await projMenu.getByRole('menuitem', { name: /Move 6 tasks to project/ }).click();
+  const moveDialog = win.getByRole('dialog', { name: 'Move tasks to project' });
+  await expect(moveDialog).toBeVisible();
+  await moveDialog.getByText('Refinish boat table').click();
+  await moveDialog.getByRole('button', { name: 'Move 6 tasks' }).click();
+  await expect(moveDialog).toHaveCount(0);
+
+  // The source project is empty and the destination absorbed the work.
+  await nav.getByRole('button', { name: /Q3 Platform Migration/ }).click();
+  await expect(win.getByText('0 / 0 done')).toBeVisible();
+  await nav.getByRole('button', { name: /Refinish boat table/ }).click();
+  await expect(win.locator('.trow', { hasText: 'Migrate auth service' })).toBeVisible();
+  // The chain travelled with them: the map draws it in its new home.
+  await expect(win.getByTestId('dependency-map').getByTestId('dep-node-t5')).toBeVisible();
+
+  // --- Sidebar: archive via the menu, and it moves to ARCHIVED.
+  await nav.getByRole('button', { name: /Q3 Platform Migration/ }).click({ button: 'right' });
+  await win.getByRole('menuitem', { name: 'Archive project' }).click();
+  await expect(nav.getByRole('button', { name: /Q3 Platform Migration/ })).toHaveCount(0);
+  await expect(win.getByRole('button', { name: /ARCHIVED \(1\)/ })).toBeVisible();
+  await app.close();
+
+  // Every one of those edits is on disk.
+  const app2 = await launch(userData);
+  const win2 = await app2.firstWindow();
+  await win2
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+  await expect(win2.locator('.trow', { hasText: 'Migrate auth service' })).toBeVisible();
+  await app2.close();
+});

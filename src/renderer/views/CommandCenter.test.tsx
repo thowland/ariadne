@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useStore } from '../app/store';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { loadTestWorkspace, setupTestApp, TEST_TODAY } from '../test-utils';
 
 import { CommandCenter } from './CommandCenter';
@@ -134,5 +135,86 @@ describe('CommandCenter', () => {
     loadTestWorkspace(ws);
     render(<CommandCenter />);
     expect(screen.queryByTestId('ambient-banner')).not.toBeInTheDocument();
+  });
+});
+
+describe('CommandCenter bulk reschedule (D21)', () => {
+  /** Open (not Done/Dropped) tasks past their due date — what the card lists. */
+  const overdueIds = () => {
+    const w = useStore.getState().workspace!;
+    return w.tasks
+      .filter(
+        (t) =>
+          t.status !== 'Done' &&
+          t.status !== 'Dropped' &&
+          t.dueDate !== null &&
+          t.dueDate < TEST_TODAY,
+      )
+      .map((t) => t.id);
+  };
+
+  it('moves every overdue task to today after confirming', async () => {
+    const before = overdueIds();
+    expect(before.length).toBe(3);
+    render(
+      <>
+        <CommandCenter />
+        <ConfirmDialog />
+      </>,
+    );
+    await userEvent.click(screen.getByTestId('reschedule-overdue'));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
+    expect(dialog).toHaveTextContent('Move 3 overdue tasks to today');
+    // Not a deletion: the accept button says what it does.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reschedule' }));
+
+    const w = useStore.getState().workspace!;
+    for (const id of before) {
+      expect(w.tasks.find((t) => t.id === id)?.dueDate).toBe(TEST_TODAY);
+    }
+    expect(useStore.getState().toast).toBe('Rescheduled 3 tasks for today');
+    // The overdue card is gone now that nothing is overdue.
+    expect(screen.queryByTestId('focus-overdue')).not.toBeInTheDocument();
+  });
+
+  it('cancelling changes nothing', async () => {
+    const before = overdueIds();
+    render(
+      <>
+        <CommandCenter />
+        <ConfirmDialog />
+      </>,
+    );
+    await userEvent.click(screen.getByTestId('reschedule-overdue'));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(overdueIds()).toEqual(before);
+  });
+
+  it('only the overdue card offers the button', () => {
+    render(<CommandCenter />);
+    expect(
+      within(screen.getByTestId('focus-overdue')).getByTestId('reschedule-overdue'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('focus-due-today')).queryByTestId('reschedule-overdue'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('respects the Work/Home scope — a home report never reschedules work tasks', async () => {
+    useStore.setState({ scope: 'home' });
+    const workOverdue = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'Migrate auth service')!;
+    render(
+      <>
+        <CommandCenter />
+        <ConfirmDialog />
+      </>,
+    );
+    await userEvent.click(screen.getByTestId('reschedule-overdue'));
+    await userEvent.click(screen.getByRole('button', { name: 'Reschedule' }));
+    const after = useStore.getState().workspace!.tasks.find((t) => t.id === workOverdue.id);
+    expect(after?.dueDate).toBe(workOverdue.dueDate); // untouched
   });
 });

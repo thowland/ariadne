@@ -48,12 +48,12 @@ export function ConfirmDialog(): React.JSX.Element | null {
             Cancel
           </button>
           <button
-            className="btn danger"
+            className={`btn ${confirmState.danger ? 'danger' : 'primary'}`}
             onClick={() => {
               resolveConfirm(true);
             }}
           >
-            Delete
+            {confirmState.confirmLabel}
           </button>
         </div>
       </div>

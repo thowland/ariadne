@@ -2403,3 +2403,119 @@ input.inp.full {
 .pc-spark-bar.current {
   background: var(--accent);
 }
+
+/* ============ Context menus (D21) ============ */
+
+/* Above modals (100) and the confirm (150) — a menu can be raised from a
+   modal's own rows, and it must sit over whatever opened it. */
+.context-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+}
+.context-menu {
+  position: fixed;
+  min-width: 210px;
+  max-width: 300px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow-modal);
+  animation: modalin 0.12s ease;
+  display: flex;
+  flex-direction: column;
+}
+.context-menu-item {
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-menu-item:hover:not(:disabled),
+.context-menu-item:focus-visible:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.context-menu-item:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+.context-menu-item.danger {
+  color: var(--danger-text);
+}
+.context-menu-item.danger:hover:not(:disabled),
+.context-menu-item.danger:focus-visible:not(:disabled) {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+.context-menu-item.sep {
+  margin-top: 5px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border2);
+  border-radius: 0 0 7px 7px;
+}
+
+/* Bulk action footer on a focus card (Reschedule for today). */
+.focus-section-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 10px 10px;
+}
+
+/* ============ Move tasks to project (D21) ============ */
+
+.move-modal {
+  width: min(420px, 94vw);
+  padding-bottom: 14px;
+}
+.move-what {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.move-body {
+  max-height: 48vh;
+  overflow: auto;
+  padding: 2px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.move-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.move-option:hover {
+  background: var(--surface2);
+}
+.move-option.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.move-option-name {
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.move-modal .modal-footer {
+  justify-content: flex-end;
+  margin: 0 14px;
+  padding-top: 12px;
+}

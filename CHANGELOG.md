@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.15.0 — 2026-08-03
+
+- **Reschedule every overdue task at once.** The Command Center's Overdue card
+  has a "Reschedule for today" button that moves the whole list onto today's
+  date. It respects the Work/Home scope you are in, and confirms first, since
+  it rewrites a lot of due dates and there is no undo.
+- **Right-click a project in the sidebar.** Open it, archive or restore it,
+  move all of its tasks into another project, reschedule just its overdue
+  tasks, add a task, or delete it. Works on archived projects too, where the
+  archive item becomes "Restore from archive".
+- **Right-click any task, anywhere.** Set it due today, tomorrow, or next week,
+  clear the due date, mark it complete (or reopen it), drop it, move it to
+  another project, jump to its project, or delete it. The same menu is on task
+  rows in the Command Center, project pages, search results, the calendar, and
+  the day view.
+- **New "Move tasks to project" dialog** behind both menus. Moving a whole
+  project's tasks keeps their dependency chains intact; moving a single task
+  out of a chain drops the links that would otherwise point across projects.
+  Attached files follow their task. Archived projects are never offered as a
+  destination.
+- Menus close on Escape, on scroll, and on a click elsewhere; the keyboard
+  drives them with the arrow keys, and a destructive item is never the one
+  focused first. Everything the menus do is still reachable the ordinary way.
+
 ## 1.14.0 — 2026-07-31
 
 - **Archived projects count in the retrospective (D19).** Work you finished

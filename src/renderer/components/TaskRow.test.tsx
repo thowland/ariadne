@@ -1,11 +1,13 @@
 import { seedWorkspace } from '@shared/domain/seed';
-import { render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useStore } from '../app/store';
 import { loadTestWorkspace, setupTestApp, TEST_TODAY } from '../test-utils';
 
+import { ConfirmDialog } from './ConfirmDialog';
+import { ContextMenu } from './ContextMenu';
 import { TaskRow } from './TaskRow';
 
 beforeEach(() => {
@@ -78,5 +80,119 @@ describe('TaskRow', () => {
     loadTestWorkspace({ ...ws, tasks: [...ws.tasks, t] });
     render(<TaskRow task={t} />);
     expect(screen.getByText('Untitled task')).toBeInTheDocument();
+  });
+});
+
+describe('TaskRow context menu (D21)', () => {
+  const TOMORROW = '2026-07-09';
+
+  /**
+   * Re-reads the task from the store on every render, the way the real views
+   * do — a row holding a snapshot would build its second menu from stale data.
+   */
+  function LiveRow({ id, showProject }: { id: string; showProject?: boolean }) {
+    const t = useStore((s) => s.workspace?.tasks.find((x) => x.id === id));
+    return t === undefined ? null : <TaskRow task={t} showProject={showProject} />;
+  }
+
+  async function openMenu(id: string, showProject = false): Promise<HTMLElement> {
+    render(
+      <>
+        <LiveRow id={id} showProject={showProject} />
+        <ContextMenu />
+        <ConfirmDialog />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByText(task(id).title));
+    return screen.findByRole('menu');
+  }
+
+  it('schedules for today and for tomorrow', async () => {
+    const menu = await openMenu('t3'); // overdue "Migrate auth service"
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Due today' }));
+    expect(find('t3')?.dueDate).toBe(TEST_TODAY);
+    expect(useStore.getState().toast).toBe('Due today');
+
+    fireEvent.contextMenu(screen.getByText(task('t3').title));
+    const again = await screen.findByRole('menu');
+    await userEvent.click(within(again).getByRole('menuitem', { name: 'Due tomorrow' }));
+    expect(find('t3')?.dueDate).toBe(TOMORROW);
+  });
+
+  it('greys out the date it is already on', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Due today' }));
+    fireEvent.contextMenu(screen.getByText(task('t3').title));
+    const again = await screen.findByRole('menu');
+    expect(within(again).getByRole('menuitem', { name: 'Due today' })).toBeDisabled();
+    expect(within(again).getByRole('menuitem', { name: 'Due tomorrow' })).toBeEnabled();
+  });
+
+  it('clears a due date', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Clear due date' }));
+    expect(find('t3')?.dueDate).toBeNull();
+  });
+
+  it('marks complete, stamping completedAt, then reopens', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Mark complete' }));
+    expect(find('t3')).toMatchObject({ status: 'Done', completedAt: TEST_TODAY });
+
+    fireEvent.contextMenu(screen.getByText(task('t3').title));
+    const again = await screen.findByRole('menu');
+    await userEvent.click(within(again).getByRole('menuitem', { name: 'Reopen (back to Todo)' }));
+    expect(find('t3')).toMatchObject({ status: 'Todo', completedAt: null });
+  });
+
+  it('drops a task', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Drop task' }));
+    expect(find('t3')?.status).toBe('Dropped');
+  });
+
+  it('opens the move picker for just this task', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Move to project…' }));
+    expect(useStore.getState().modal).toMatchObject({
+      type: 'moveTasks',
+      taskIds: ['t3'],
+      fromProjectId: 'p1',
+    });
+  });
+
+  it('offers "go to project" only where the project line is shown', async () => {
+    const withProject = await openMenu('t3', true);
+    expect(
+      within(withProject).getByRole('menuitem', { name: /Go to Q3 Platform Migration/ }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    const without = await openMenu('t3');
+    expect(within(without).queryByRole('menuitem', { name: /^Go to/ })).not.toBeInTheDocument();
+  });
+
+  it('deletes only after the confirm', async () => {
+    const menu = await openMenu('t3');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Delete task…' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
+    expect(dialog).toHaveTextContent('Migrate auth service');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(find('t3')).toBeDefined();
+
+    fireEvent.contextMenu(screen.getByText(task('t3').title));
+    const again = await screen.findByRole('menu');
+    await userEvent.click(within(again).getByRole('menuitem', { name: 'Delete task…' }));
+    await userEvent.click(
+      within(screen.getByRole('alertdialog', { name: 'Confirm' })).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+    expect(find('t3')).toBeUndefined();
+  });
+
+  it('right-clicking a row does not also open the task editor', async () => {
+    await openMenu('t3');
+    expect(useStore.getState().modal).toBeNull();
   });
 });

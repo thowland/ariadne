@@ -42,13 +42,46 @@ export interface FileModalState {
 export interface AiImportModalState {
   type: 'aiImport';
 }
+/** Bulk "move tasks to project…" picker (D21), from either context menu. */
+export interface MoveTasksModalState {
+  type: 'moveTasks';
+  taskIds: string[];
+  /** Project the tasks come from; excluded from the target list. */
+  fromProjectId: string | null;
+  /** Sentence describing what is being moved, e.g. "5 tasks in Q3 Migration". */
+  what: string;
+}
 export type ModalState =
-  TaskModalState | FileModalState | DayModalState | AiImportModalState | null;
+  TaskModalState | FileModalState | DayModalState | AiImportModalState | MoveTasksModalState | null;
+
+/** One row of a context menu. */
+export interface ContextMenuItem {
+  label: string;
+  onSelect: () => void;
+  /** Renders in the danger color and is never the initially focused row. */
+  danger?: boolean;
+  disabled?: boolean;
+  /** Draws a divider above this row, grouping related actions. */
+  separatorBefore?: boolean;
+}
+
+export interface ContextMenuState {
+  /** Viewport coordinates of the click that opened it. */
+  x: number;
+  y: number;
+  /** Accessible name — what the menu acts on, e.g. a project or task title. */
+  label: string;
+  items: ContextMenuItem[];
+}
 
 export type FileMode = 'preview' | 'edit';
 
 export interface ConfirmState {
   message: string;
+  /** Label of the accept button; "Delete" unless the action isn't one. */
+  confirmLabel: string;
+  /** False for reversible bulk edits, which get a neutral accept button. */
+  danger: boolean;
   resolve: (confirmed: boolean) => void;
 }
 
@@ -107,6 +140,8 @@ export interface AriadneStore {
   openDay: (iso: IsoDate) => void;
   /** Opens the AI task import wizard. */
   openAiImport: () => void;
+  /** Opens the bulk move-to-project picker (D21). */
+  openMoveTasks: (state: Omit<MoveTasksModalState, 'type'>) => void;
   /** Opens the file viewer; remembers an open task modal to return to. */
   openFile: (id: string, mode?: FileMode) => void;
   setFileMode: (mode: FileMode) => void;
@@ -114,9 +149,20 @@ export interface AriadneStore {
   setQuery: (q: string) => void;
   setScope: (scope: Scope) => void;
   showToast: (message: string) => void;
-  /** In-app confirm dialog; resolves true when the user confirms. */
-  askConfirm: (message: string) => Promise<boolean>;
+  /**
+   * In-app confirm dialog; resolves true when the user confirms. `opts` retitles
+   * the accept button for actions that aren't deletions (bulk reschedules and
+   * moves, which are heavy enough to confirm but not destructive).
+   */
+  askConfirm: (
+    message: string,
+    opts?: { confirmLabel?: string; danger?: boolean },
+  ) => Promise<boolean>;
   resolveConfirm: (confirmed: boolean) => void;
+  /** Right-click menu (D21); only one is ever open. */
+  contextMenu: ContextMenuState | null;
+  openContextMenu: (menu: ContextMenuState) => void;
+  closeContextMenu: () => void;
   setCalMonth: (month: string | null) => void;
   setCalMode: (mode: 'month' | 'week') => void;
   setCalWeek: (anchor: IsoDate | null) => void;
@@ -252,6 +298,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
   calMode: 'month',
   calWeek: null,
   fileMode: 'preview',
+  // (contextMenu is declared with its actions below.)
 
   go: (view) => {
     logDebug(get().workspace, 'activity', `navigate: ${view}`);
@@ -278,6 +325,10 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   openAiImport: () => {
     set({ modal: { type: 'aiImport' } });
+  },
+
+  openMoveTasks: (state) => {
+    set({ modal: { type: 'moveTasks', ...state } });
   },
 
   openFile: (id, mode = 'preview') => {
@@ -312,15 +363,32 @@ export const useStore = create<AriadneStore>((set, get) => ({
     set({ scope });
   },
 
-  askConfirm: (message) =>
+  askConfirm: (message, opts) =>
     new Promise<boolean>((resolve) => {
-      set({ confirmState: { message, resolve } });
+      set({
+        confirmState: {
+          message,
+          confirmLabel: opts?.confirmLabel ?? 'Delete',
+          danger: opts?.danger ?? true,
+          resolve,
+        },
+      });
     }),
 
   resolveConfirm: (confirmed) => {
     const pending = get().confirmState;
     set({ confirmState: null });
     pending?.resolve(confirmed);
+  },
+
+  contextMenu: null,
+
+  openContextMenu: (menu) => {
+    set({ contextMenu: menu });
+  },
+
+  closeContextMenu: () => {
+    set({ contextMenu: null });
   },
 
   setCalMonth: (month) => {

@@ -21,6 +21,7 @@ import { STATUS_COLORS } from '../styles/colors';
 import { AiImportWizard } from './AiImportWizard';
 import { DayModal } from './DayModal';
 import { FileViewerModal } from './FileViewerModal';
+import { MoveTasksModal } from './MoveTasksModal';
 
 function FieldLabel({ text }: { text: string }): React.JSX.Element {
   return <div className="field-label">{text.toUpperCase()}</div>;
@@ -406,5 +407,6 @@ export function ModalHost(): React.JSX.Element | null {
   if (modal.type === 'file') return <FileViewerModal fileId={modal.id} />;
   if (modal.type === 'day') return <DayModal iso={modal.iso} />;
   if (modal.type === 'aiImport') return <AiImportWizard />;
+  if (modal.type === 'moveTasks') return <MoveTasksModal state={modal} />;
   return <TaskModal taskId={modal.id} />;
 }

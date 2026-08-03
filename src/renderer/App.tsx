@@ -6,6 +6,7 @@ import { useStore } from './app/store';
 import { Sidebar } from './chrome/Sidebar';
 import { TopBar } from './chrome/TopBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { ContextMenu } from './components/ContextMenu';
 import { Logo } from './components/Logo';
 import { ModalHost } from './modals/TaskModal';
 import { Calendar } from './views/Calendar';
@@ -54,12 +55,13 @@ export function App(): React.JSX.Element {
     });
   }, []);
 
-  // Escape closes the confirm dialog first, then any open modal.
+  // Escape unwinds one layer at a time: context menu, confirm, then modal.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       const s = useStore.getState();
-      if (s.confirmState !== null) s.resolveConfirm(false);
+      if (s.contextMenu !== null) s.closeContextMenu();
+      else if (s.confirmState !== null) s.resolveConfirm(false);
       else if (s.modal !== null) s.closeModal();
     };
     window.addEventListener('keydown', onKey);
@@ -121,6 +123,7 @@ export function App(): React.JSX.Element {
       </main>
       <ModalHost />
       <ConfirmDialog />
+      <ContextMenu />
       <div className="banner-stack">
         {saveBroken && (
           <div className="save-error-banner" role="alert">

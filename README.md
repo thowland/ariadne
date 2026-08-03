@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v1.14.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v1.15.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -67,6 +67,14 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   channel. Archived projects drop out of every report except the retrospective,
   which looks backwards and so still credits work finished before the project
   was parked (decision D19). Every report copies out as plain text.
+- **Right-click accelerators** — a context menu on every task row (due today /
+  tomorrow / next week, clear the date, complete, drop, move to another
+  project, delete) and on every sidebar project (archive or restore, move all
+  its tasks, reschedule its overdue, add a task, delete). Plus a
+  "Reschedule for today" button on the Command Center's Overdue card that
+  clears the whole backlog onto today in one go. None of it is the only route
+  to anything: the menus are shortcuts over actions the ordinary UI already
+  has, so the surface stays discoverable for everyone else.
 - **Tags** — prefix autocomplete everywhere, click-to-search, and a **Tags** view
   listing every tag with usage counts plus rename, merge, and delete management.
 - **Todoist** — push upcoming tasks into #Home or #Work with @project labels
@@ -201,18 +209,18 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 
 ### Module map
 
-| Where                             | What                                                                                                                   |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                                             |
-| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                            |
-| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                           |
-| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                        |
-| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                 |
-| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                             |
-| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins         |
-| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                    |
-| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day modals |
-| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                   |
+| Where                             | What                                                                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                                                       |
+| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                      |
+| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                     |
+| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                  |
+| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                           |
+| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                       |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                   |
+| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                              |
+| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks modals |
+| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                             |
 
 ## Adding a feature
 
@@ -420,7 +428,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D20. Record any deliberate behavior change as a new row
+  decision table D1–D21. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.

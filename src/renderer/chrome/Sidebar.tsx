@@ -1,9 +1,18 @@
 import { isArchived, isOpen, isOverdue } from '@shared/domain/derive';
-import { moveProject, updateProject } from '@shared/domain/mutate';
+import {
+  createTask,
+  deleteProject,
+  moveProject,
+  rescheduleTasks,
+  updateProject,
+} from '@shared/domain/mutate';
+import type { Project } from '@shared/types';
 import { useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
-import type { ViewName } from '../app/store';
+import type { ContextMenuItem, ViewName } from '../app/store';
+import { menuHandler } from '../components/ContextMenu';
 import { Logo } from '../components/Logo';
 import { Dot } from '../components/primitives';
 
@@ -25,7 +34,11 @@ export function Sidebar(): React.JSX.Element {
     q,
     go,
     openProject,
+    openTask,
     newProject,
+    openMoveTasks,
+    openContextMenu,
+    askConfirm,
     apply,
     showToast,
   } = useStore();
@@ -42,6 +55,83 @@ export function Sidebar(): React.JSX.Element {
   const overdueTotal = tasks.filter(
     (t) => activeIds.has(t.projectId) && isOverdue(t, today),
   ).length;
+
+  /**
+   * Right-click actions for a project (D21). Everything here is also reachable
+   * the long way — the project screen's own controls — so the menu stays an
+   * accelerator rather than the only route.
+   */
+  const projectMenu = (p: Project): ContextMenuItem[] => {
+    const archived = isArchived(p);
+    const own = tasks.filter((t) => t.projectId === p.id);
+    const openCount = own.filter(isOpen).length;
+    const overdueCount = own.filter((t) => isOverdue(t, today)).length;
+    return [
+      {
+        label: 'Open project',
+        onSelect: () => {
+          openProject(p.id);
+        },
+      },
+      {
+        label: archived ? 'Restore from archive' : 'Archive project',
+        onSelect: () => {
+          apply((ws) => updateProject(ws, p.id, { archived: !archived }));
+          showToast(archived ? `${p.name} restored` : `${p.name} archived`);
+        },
+      },
+      {
+        label: `Move ${String(own.length)} task${own.length === 1 ? '' : 's'} to project…`,
+        disabled: own.length === 0,
+        separatorBefore: true,
+        onSelect: () => {
+          openMoveTasks({
+            taskIds: own.map((t) => t.id),
+            fromProjectId: p.id,
+            what: `${String(own.length)} task${own.length === 1 ? '' : 's'} in ${p.name}`,
+          });
+        },
+      },
+      {
+        label: `Reschedule ${String(overdueCount)} overdue for today`,
+        disabled: overdueCount === 0,
+        onSelect: () => {
+          const ids = own.filter((t) => isOverdue(t, today)).map((t) => t.id);
+          const result = apply((ws) => rescheduleTasks(ws, ids, today));
+          const n = result?.count ?? 0;
+          showToast(`Rescheduled ${String(n)} task${n === 1 ? '' : 's'} for today`);
+        },
+      },
+      {
+        label: 'New task in this project',
+        separatorBefore: true,
+        onSelect: () => {
+          const result = apply((ws, ctx) => createTask(ws, ctx, p.id, {}));
+          if (result !== null) openTask(result.id);
+        },
+      },
+      {
+        label: 'Delete project…',
+        danger: true,
+        separatorBefore: true,
+        onSelect: () => {
+          void askConfirm(
+            openCount > 0
+              ? `Delete ${p.name}? Its ${String(own.length)} task${own.length === 1 ? '' : 's'} and files go too.`
+              : `Delete ${p.name} and all its tasks?`,
+          ).then((ok) => {
+            if (!ok) return;
+            const result = apply((ws) => deleteProject(ws, p.id));
+            if (result !== null && result.removedBlobIds.length > 0) {
+              void getApi().deleteBlobs(result.removedBlobIds);
+            }
+            if (activeProjectId === p.id) go('home');
+            showToast(`${p.name} deleted`);
+          });
+        },
+      },
+    ];
+  };
 
   const archiveDragged = (): void => {
     if (dragId !== null) {
@@ -133,6 +223,7 @@ export function Sidebar(): React.JSX.Element {
               onClick={() => {
                 openProject(p.id);
               }}
+              onContextMenu={menuHandler(openContextMenu, p.name, () => projectMenu(p))}
             >
               <Dot color={p.color} size={8} />
               <span className="nav-label">{p.name}</span>
@@ -187,6 +278,7 @@ export function Sidebar(): React.JSX.Element {
                     onClick={() => {
                       openProject(p.id);
                     }}
+                    onContextMenu={menuHandler(openContextMenu, p.name, () => projectMenu(p))}
                   >
                     <Dot color={p.color} size={8} />
                     <span className="nav-label">{p.name}</span>
