@@ -66,7 +66,10 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   which is the property that makes the weekly status safe to paste into a work
   channel. Archived projects drop out of every report except the retrospective,
   which looks backwards and so still credits work finished before the project
-  was parked (decision D19). Every report copies out as plain text.
+  was parked (decision D19). A **deferred** report ranks the tasks whose due
+  date keeps sliding by reschedule count, with churn analytics, so chronic
+  slippage is visible rather than buried (decision D23). Every report copies
+  out as plain text.
 - **Right-click accelerators** — a context menu on every task row (due today /
   tomorrow / next week, clear the date, complete, drop, move to another
   project, delete) and on every sidebar project (archive or restore, move all
@@ -82,8 +85,16 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   sync that marks a pushed task Done here once you complete it in Todoist,
   running manually, hourly, or daily.
 - **Data ownership** — a configurable data folder, daily and on-quit backups with
-  retention, JSON export and import, atomic writes, and recovery from a corrupt
-  file by quarantining it and restoring from the newest backup.
+  retention, **zip archive export and import** (the workspace plus every uploaded
+  file in one file, openable with any zip tool), legacy JSON export and import,
+  atomic writes, and recovery from a corrupt file by quarantining it and
+  restoring from the newest backup.
+- **Native menus and help** — a real application menu (decision D22): the macOS
+  app menu carries About, Settings, Services, Hide, and Quit under a
+  hidden-inset titlebar, while Windows and Linux put Settings and Quit under
+  File. There is an About box with version and runtime details, and bundled
+  offline help with a platform-correct keyboard-shortcut table. Files can be
+  added by dragging them onto the library.
 
 ## Installing a release
 
@@ -164,11 +175,14 @@ Three strictly isolated Electron layers:
 ┌──────────────────────────────────────────────────────────────────┐
 │ MAIN (Node)      src/main/                                       │
 │   index.ts       bootstrap, window, ariadne-blob:// protocol,    │
-│                  single-instance lock, backup scheduling         │
+│                  single-instance lock, backup scheduling, menu   │
+│   menu.ts        application-menu template (pure; type-only      │
+│                  electron import, so it is unit-tested)          │
 │   ipc.ts         ipcMain.handle registrations → services (glue)  │
 │   services/      Config, Storage, Blob, Backup, ImportExport,    │
-│                  Todoist (+push), Logger, DebugLog — unit-tested │
-│                  against real temp dirs / mocked HTTP            │
+│                  Archive (zip), Todoist (+push), Logger,         │
+│                  DebugLog — unit-tested against real temp dirs   │
+│                  / mocked HTTP                                   │
 ├──────────────────────────────────────────────────────────────────┤
 │ PRELOAD          src/preload/index.ts                            │
 │   exposes window.ariadne implementing AriadneApi                 │
@@ -176,6 +190,8 @@ Three strictly isolated Electron layers:
 ├──────────────────────────────────────────────────────────────────┤
 │ RENDERER (React) src/renderer/                                   │
 │   app/store.ts   Zustand store: data slice + ui slice            │
+│   app/menu-commands.ts + workspace-io.ts — menu dispatch and     │
+│                  the import/export flows the buttons share       │
 │   views/ modals/ components/ — thin shells over shared/          │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -209,18 +225,19 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 
 ### Module map
 
-| Where                             | What                                                                                                                             |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                                                       |
-| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                      |
-| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                     |
-| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                  |
-| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                           |
-| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                       |
-| `src/main/services/`              | Filesystem, backups, blobs, import/export, Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                   |
-| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                              |
-| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks modals |
-| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                             |
+| Where                             | What                                                                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                                                                  |
+| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                                 |
+| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                |
+| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                             |
+| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                                      |
+| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                  |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins          |
+| `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                 |
+| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                         |
+| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
+| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                                        |
 
 ## Adding a feature
 

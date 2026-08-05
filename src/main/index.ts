@@ -2,9 +2,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { BLOB_PROTOCOL, IPC } from '@shared/ipc-contract';
-import { app, BrowserWindow, net, protocol, shell } from 'electron';
+import type { MenuCommand } from '@shared/ipc-contract';
+import { app, BrowserWindow, Menu, net, protocol, shell } from 'electron';
 
 import { registerIpc } from './ipc';
+import { buildAppMenuTemplate } from './menu';
 import { BackupService } from './services/backup-service';
 import { BlobService } from './services/blob-service';
 import { ConfigService, DEFAULT_WINDOW_BOUNDS } from './services/config-service';
@@ -45,6 +47,29 @@ protocol.registerSchemesAsPrivileged([
   { scheme: BLOB_PROTOCOL, privileges: { stream: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
 
+const isMac = process.platform === 'darwin';
+
+/**
+ * Install the application menu. Data-touching items are pushed to the focused
+ * renderer as MenuCommands (see main/menu.ts); the main process keeps only
+ * window roles and external links.
+ */
+function installAppMenu(): void {
+  const send = (command: MenuCommand): void => {
+    const target = BrowserWindow.getFocusedWindow() ?? mainWindow;
+    target?.webContents.send(IPC.menuCommand, command);
+  };
+  const template = buildAppMenuTemplate({
+    isMac,
+    isDev: process.env.ELECTRON_RENDERER_URL !== undefined,
+    send,
+    openExternal: (url) => {
+      void shell.openExternal(url);
+    },
+  });
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 function createWindow(config: ConfigService): void {
   const bounds = config.load().windowBounds;
   const win = new BrowserWindow({
@@ -53,7 +78,9 @@ function createWindow(config: ConfigService): void {
     x: bounds?.x,
     y: bounds?.y,
     show: false,
-    autoHideMenuBar: true,
+    // macOS: the traffic lights float over the app's own top bar (the
+    // renderer reserves room for them via the ariadne-inset-titlebar class).
+    ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : { autoHideMenuBar: true }),
     title: 'Ariadne',
     backgroundColor: '#f6f6f4',
     webPreferences: {
@@ -152,6 +179,7 @@ void app.whenReady().then(() => {
     return new Response(res.body, { status: res.status, headers });
   });
 
+  installAppMenu();
   createWindow(config);
 
   app.on('activate', () => {

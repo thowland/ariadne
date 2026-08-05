@@ -9,7 +9,10 @@ const FAKE_TODAY = '2026-07-08';
 
 function launch(userDataDir: string): Promise<ElectronApplication> {
   return electron.launch({
-    args: ['out/main/index.js'],
+    // The project root, not out/main/index.js: Electron then reads the real
+    // package.json (via its "main" entry), so app.getName()/getVersion()
+    // report Ariadne's identity in tests exactly as they do when packaged.
+    args: ['.'],
     env: {
       ...process.env,
       ARIADNE_TEST_USER_DATA: userDataDir,
@@ -567,4 +570,109 @@ test('context menus and bulk reschedule drive real edits (D21)', async () => {
     .click();
   await expect(win2.locator('.trow', { hasText: 'Migrate auth service' })).toBeVisible();
   await app2.close();
+});
+
+test('menu commands drive the app: help, about, and the deferred report', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // The real application menu is installed (not Electron's default).
+  const topLevel = await app.evaluate(({ Menu }) =>
+    (Menu.getApplicationMenu()?.items ?? []).map((i) => i.label),
+  );
+  expect(topLevel).toEqual(expect.arrayContaining(['File', 'Edit', 'View', 'Window', 'Help']));
+
+  /** Click a menu item by label, wherever it lives in the tree. */
+  const clickMenu = async (label: string): Promise<void> => {
+    await app.evaluate(({ Menu }, wanted) => {
+      const walk = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+        for (const i of items) {
+          if (i.label === wanted) return i;
+          // Electron types submenu as Menu | undefined, but a leaf item reports
+          // null at runtime on macOS — widen so both are actually guarded.
+          const sub = i.submenu as Electron.Menu | null | undefined;
+          const found = sub == null ? null : walk(sub.items);
+          if (found !== null) return found;
+        }
+        return null;
+      };
+      const item = walk(Menu.getApplicationMenu()?.items ?? []);
+      if (item === null) throw new Error(`no menu item "${wanted}"`);
+      (item.click as () => void)();
+    }, label);
+  };
+
+  // Help → Ariadne Help opens the bundled help window and switches sections.
+  await clickMenu('Ariadne Help');
+  const help = win.getByRole('dialog', { name: 'Ariadne help' });
+  await expect(help).toBeVisible();
+  await help.getByRole('button', { name: 'Reports' }).click();
+  await expect(win.getByTestId('help-body')).toContainText('The five reports');
+  await help.getByLabel('Close').click();
+
+  // About carries the version and the outbound links.
+  await clickMenu('About Ariadne');
+  await expect(win.getByTestId('about-version')).toContainText('Version 1.16.0');
+  await expect(win.getByText('Source on GitHub ↗')).toBeVisible();
+  await expect(win.getByTestId('about-runtime')).toContainText('Electron');
+  await win.getByRole('dialog', { name: 'About Ariadne' }).getByLabel('Close').click();
+
+  // View → Reports navigates, then the Deferred report renders its empty state
+  // (the seeded workspace has no recorded push-outs yet).
+  await clickMenu('Reports');
+  await win.getByRole('tab', { name: 'Deferred' }).click();
+  await expect(win.getByTestId('defer-clear')).toBeVisible();
+
+  // Push a due date out twice from the task editor; the report picks it up.
+  await clickMenu('Command Center');
+  await win.getByText('Sand to 220 grit').first().click();
+  const editor = win.getByRole('dialog', { name: 'Edit task' });
+  await editor.getByLabel('Due date').fill('2026-07-20');
+  await editor.getByLabel('Due date').fill('2026-08-20');
+  await editor.getByLabel('Close').click();
+
+  await clickMenu('Reports');
+  await win.getByRole('tab', { name: 'Deferred' }).click();
+  await win.getByLabel('Minimum reschedules').selectOption('2');
+  await expect(win.getByTestId('defer-rows')).toContainText('Sand to 220 grit');
+  await expect(win.getByTestId('defer-rows')).toContainText('2×');
+
+  await app.close();
+});
+
+test('the file library accepts a drag-and-drop upload', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Q3 Platform Migration/ })
+    .click();
+  const zone = win.getByTestId('upload-dropzone');
+  await expect(zone).toBeVisible();
+
+  // Synthesize an OS-style drop with a real File on the DataTransfer.
+  // The e2e project typechecks without the DOM lib, so the browser globals are
+  // reached through a locally-typed view of globalThis.
+  await zone.evaluate((el) => {
+    const g = globalThis as unknown as {
+      DataTransfer: new () => { items: { add: (file: unknown) => void } };
+      File: new (bits: string[], name: string, opts: { type: string }) => unknown;
+      DragEvent: new (type: string, init: Record<string, unknown>) => Event;
+    };
+    const dt = new g.DataTransfer();
+    dt.items.add(new g.File(['col1,col2\n1,2\n'], 'dropped.csv', { type: 'text/csv' }));
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- `el` has no resolvable type without the DOM lib */
+    el.dispatchEvent(new g.DragEvent('drop', { dataTransfer: dt, bubbles: true }));
+    /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+  });
+
+  await expect(win.getByText('dropped.csv')).toBeVisible();
+  await expect(win.getByText('1 file added to library')).toBeVisible();
+
+  await app.close();
 });

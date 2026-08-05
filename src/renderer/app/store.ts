@@ -51,9 +51,6 @@ export interface MoveTasksModalState {
   /** Sentence describing what is being moved, e.g. "5 tasks in Q3 Migration". */
   what: string;
 }
-export type ModalState =
-  TaskModalState | FileModalState | DayModalState | AiImportModalState | MoveTasksModalState | null;
-
 /** One row of a context menu. */
 export interface ContextMenuItem {
   label: string;
@@ -73,6 +70,23 @@ export interface ContextMenuState {
   label: string;
   items: ContextMenuItem[];
 }
+export interface AboutModalState {
+  type: 'about';
+}
+export type HelpSection = 'start' | 'tasks' | 'reports' | 'data' | 'shortcuts';
+export interface HelpModalState {
+  type: 'help';
+  section: HelpSection;
+}
+export type ModalState =
+  | TaskModalState
+  | FileModalState
+  | DayModalState
+  | AiImportModalState
+  | MoveTasksModalState
+  | AboutModalState
+  | HelpModalState
+  | null;
 
 export type FileMode = 'preview' | 'edit';
 
@@ -142,6 +156,10 @@ export interface AriadneStore {
   openAiImport: () => void;
   /** Opens the bulk move-to-project picker (D21). */
   openMoveTasks: (state: Omit<MoveTasksModalState, 'type'>) => void;
+  /** Opens the About box (Help/app menu). */
+  openAbout: () => void;
+  /** Opens the in-app help window at a section. */
+  openHelp: (section?: HelpSection) => void;
   /** Opens the file viewer; remembers an open task modal to return to. */
   openFile: (id: string, mode?: FileMode) => void;
   setFileMode: (mode: FileMode) => void;
@@ -329,6 +347,14 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   openMoveTasks: (state) => {
     set({ modal: { type: 'moveTasks', ...state } });
+  },
+
+  openAbout: () => {
+    set({ modal: { type: 'about' } });
+  },
+
+  openHelp: (section = 'start') => {
+    set({ modal: { type: 'help', section } });
   },
 
   openFile: (id, mode = 'preview') => {

@@ -1,3 +1,4 @@
+import { isoAdd } from '@shared/domain/dates';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -178,5 +179,106 @@ describe('Reports', () => {
     render(<Reports />);
     await userEvent.click(screen.getByTestId('weekly-p1').querySelector('.report-line')!);
     expect(useStore.getState().modal?.type).toBe('task');
+  });
+});
+
+describe('Reports — deferred (D23)', () => {
+  /** Give a seeded task a due-date history of `count` push-outs. */
+  function seedDeferrals(taskId: string, count: number, dueDate: string): void {
+    const w = useStore.getState().workspace!;
+    let from = '2026-06-01';
+    const deferrals = Array.from({ length: count }, (_, i) => {
+      const to = isoAdd(from, 2);
+      const record = { from, to, on: isoAdd('2026-06-02', i) };
+      from = to;
+      return record;
+    });
+    useStore.setState({
+      workspace: {
+        ...w,
+        tasks: w.tasks.map((t) => (t.id === taskId ? { ...t, deferrals, dueDate } : t)),
+      },
+    });
+  }
+
+  /** The headline number sitting above a given analytics label. */
+  function stat(label: string): string | undefined {
+    return within(screen.getByTestId('defer-stats'))
+      .getByText(label)
+      .previousElementSibling?.textContent.trim();
+  }
+
+  async function openDeferred(): Promise<void> {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Deferred' }));
+  }
+
+  it('says so plainly when nothing has ever been deferred', async () => {
+    await openDeferred();
+    expect(screen.getByTestId('defer-clear')).toBeInTheDocument();
+  });
+
+  it('ranks deferred tasks worst-first with their analytics', async () => {
+    seedDeferrals('t2', 5, '2026-07-01');
+    seedDeferrals('t4', 2, '2026-08-01');
+    await openDeferred();
+
+    expect(stat('ever deferred')).toBe('2');
+    expect(stat('reschedules total')).toBe('7');
+    expect(stat('days pushed out')).toBe('14d');
+    expect(stat('at 3+ reschedules')).toBe('1');
+    expect(stat('still open & overdue')).toBe('1');
+
+    const rows = screen.getByTestId('defer-rows');
+    const titles = within(rows)
+      .getAllByRole('button')
+      .map((r) => r.querySelector('.risk-title')?.textContent);
+    expect(titles[0]).toBe('Provision new k8s cluster'); // t2, 5 pushes
+    expect(within(rows).getByText('5×')).toBeInTheDocument();
+  });
+
+  it('respects the threshold picker', async () => {
+    seedDeferrals('t2', 5, '2026-07-01');
+    seedDeferrals('t4', 2, '2026-08-01');
+    await openDeferred();
+    // Default threshold is 3, so only the 5× task is listed.
+    expect(within(screen.getByTestId('defer-rows')).getAllByRole('button')).toHaveLength(1);
+
+    await userEvent.selectOptions(screen.getByLabelText('Minimum reschedules'), '2');
+    expect(within(screen.getByTestId('defer-rows')).getAllByRole('button')).toHaveLength(2);
+
+    await userEvent.selectOptions(screen.getByLabelText('Minimum reschedules'), '8');
+    expect(screen.getByTestId('defer-empty')).toBeInTheDocument();
+    // The headline analytics still describe every deferred task.
+    expect(stat('reschedules total')).toBe('7');
+  });
+
+  it('breaks the churn down by project and priority, and opens what you click', async () => {
+    seedDeferrals('t2', 4, '2026-07-01');
+    await openDeferred();
+    expect(
+      within(screen.getByTestId('defer-by-project')).getByText('Q3 Platform Migration'),
+    ).toBeInTheDocument();
+    expect(within(screen.getByTestId('defer-by-priority')).getByText('High')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Provision new k8s cluster'));
+    expect(useStore.getState().modal).toMatchObject({ type: 'task', id: 't2' });
+  });
+
+  it('copies a plain-text version of the deferred report', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    seedDeferrals('t2', 4, '2026-07-01');
+    await openDeferred();
+    await userEvent.click(screen.getByText('Copy report'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('REPEATEDLY DEFERRED'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('4× deferred'));
+  });
+
+  it('scopes like every other report — work never leaks home', async () => {
+    seedDeferrals('t2', 4, '2026-07-01'); // p1 = work
+    await openDeferred();
+    await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'home');
+    expect(screen.getByTestId('defer-clear')).toBeInTheDocument();
   });
 });

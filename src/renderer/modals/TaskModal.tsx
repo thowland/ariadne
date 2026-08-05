@@ -18,9 +18,11 @@ import { Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { STATUS_COLORS } from '../styles/colors';
 
+import { AboutModal } from './AboutModal';
 import { AiImportWizard } from './AiImportWizard';
 import { DayModal } from './DayModal';
 import { FileViewerModal } from './FileViewerModal';
+import { HelpModal } from './HelpModal';
 import { MoveTasksModal } from './MoveTasksModal';
 
 function FieldLabel({ text }: { text: string }): React.JSX.Element {
@@ -408,5 +410,7 @@ export function ModalHost(): React.JSX.Element | null {
   if (modal.type === 'day') return <DayModal iso={modal.iso} />;
   if (modal.type === 'aiImport') return <AiImportWizard />;
   if (modal.type === 'moveTasks') return <MoveTasksModal state={modal} />;
+  if (modal.type === 'about') return <AboutModal />;
+  if (modal.type === 'help') return <HelpModal section={modal.section} />;
   return <TaskModal taskId={modal.id} />;
 }

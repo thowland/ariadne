@@ -1,4 +1,5 @@
-import type { IsoDate, Project, Task, Workspace } from '../types';
+import type { Deferral, IsoDate, Project, Task, TaskPriority, Workspace } from '../types';
+import { TASK_PRIORITIES } from '../types';
 
 import { dayDiff, fmtLong, fmtShort, isoAdd, isValidIsoDate, weekStart } from './dates';
 import {
@@ -312,6 +313,192 @@ export function atRiskText(rows: readonly RiskRow[], today: IsoDate): string {
   let out = `AT-RISK — ${fmtLong(today)}\n\n`;
   for (const r of rows) {
     out += `- ${r.project.name}: ${r.task.title} (${r.reason})\n`;
+  }
+  return out;
+}
+
+// ---------- Repeatedly deferred (D23) ----------
+
+/** Threshold choices for "delayed more than X times". */
+export const DEFER_THRESHOLDS = [2, 3, 5, 8] as const;
+export const DEFER_THRESHOLD_DEFAULT = 3;
+
+export interface DeferralRow {
+  task: Task;
+  project: Project;
+  /** Recorded push-outs. */
+  count: number;
+  /** Days added across every push-out (the cost of the churn). */
+  totalDays: number;
+  /** Days from the first recorded due date to the current one. */
+  slipDays: number;
+  /** Days since the most recent push-out. */
+  daysSinceLast: number;
+  first: Deferral;
+  last: Deferral;
+  /** Still open and already past its (latest) due date. */
+  overdueNow: boolean;
+}
+
+export interface DeferralProjectRow {
+  project: Project;
+  tasks: number;
+  deferrals: number;
+  days: number;
+}
+
+export interface DeferralAnalytics {
+  /** Tasks in scope with at least one recorded push-out. */
+  tasksEverDeferred: number;
+  /** Tasks in scope at or over the threshold (i.e. `rows.length`). */
+  tasksOverThreshold: number;
+  /** Push-outs across every deferred task in scope (not just the rows). */
+  totalDeferrals: number;
+  /** Days added across every push-out in scope. */
+  totalDaysSlipped: number;
+  /** Mean days added per push-out, one decimal. */
+  avgDaysPerDeferral: number;
+  /** Median push-out count among tasks that have ever been deferred. */
+  medianDeferrals: number;
+  /** Of the over-threshold rows, how many are still open and overdue. */
+  chronicOverdue: number;
+  /** Of the over-threshold rows, how many eventually got done. */
+  completedAnyway: number;
+  /** Worst offenders first. */
+  byProject: DeferralProjectRow[];
+  /** Which priorities absorb the churn — Low here is fine, Critical is not. */
+  byPriority: { priority: TaskPriority; deferrals: number }[];
+}
+
+export interface DeferralResult {
+  rows: DeferralRow[];
+  analytics: DeferralAnalytics;
+  threshold: number;
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[mid] ?? 0;
+  return ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
+}
+
+function deferralDays(list: readonly Deferral[]): number {
+  return list.reduce((sum, d) => sum + Math.max(0, dayDiff(d.to, d.from)), 0);
+}
+
+/**
+ * Tasks whose due date keeps sliding (D23). `minCount` is the "delayed more
+ * than X times" threshold for the listed rows; the analytics deliberately
+ * summarize *every* deferred task in scope, so the headline numbers do not
+ * move when the user changes the threshold.
+ *
+ * Dropped tasks are excluded (abandoned work is not deferred work); Done
+ * tasks stay in, since a task that shipped after eight reschedules is exactly
+ * what this report exists to surface.
+ */
+export function deferredReport(
+  ws: Workspace,
+  filter: ReportFilter,
+  minCount: number,
+  today: IsoDate,
+): DeferralResult {
+  const projects = filterProjects(ws.projects, filter);
+  const byProjectId = new Map(projects.map((p) => [p.id, p]));
+
+  const all: DeferralRow[] = [];
+  for (const task of ws.tasks) {
+    const project = byProjectId.get(task.projectId);
+    if (project === undefined || task.status === 'Dropped') continue;
+    const list = task.deferrals ?? [];
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (first === undefined || last === undefined) continue;
+    all.push({
+      task,
+      project,
+      count: list.length,
+      totalDays: deferralDays(list),
+      slipDays: Math.max(0, dayDiff(task.dueDate ?? last.to, first.from)),
+      daysSinceLast: Math.max(0, dayDiff(today, last.on)),
+      first,
+      last,
+      overdueNow: isOverdue(task, today),
+    });
+  }
+
+  const rows = all
+    .filter((r) => r.count >= minCount)
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        b.totalDays - a.totalDays ||
+        a.daysSinceLast - b.daysSinceLast ||
+        a.task.title.localeCompare(b.task.title),
+    );
+
+  const projectRows = new Map<string, DeferralProjectRow>();
+  for (const r of all) {
+    const entry = projectRows.get(r.project.id) ?? {
+      project: r.project,
+      tasks: 0,
+      deferrals: 0,
+      days: 0,
+    };
+    entry.tasks += 1;
+    entry.deferrals += r.count;
+    entry.days += r.totalDays;
+    projectRows.set(r.project.id, entry);
+  }
+
+  const totalDeferrals = all.reduce((sum, r) => sum + r.count, 0);
+  const totalDaysSlipped = all.reduce((sum, r) => sum + r.totalDays, 0);
+
+  return {
+    threshold: minCount,
+    rows,
+    analytics: {
+      tasksEverDeferred: all.length,
+      tasksOverThreshold: rows.length,
+      totalDeferrals,
+      totalDaysSlipped,
+      avgDaysPerDeferral:
+        totalDeferrals === 0 ? 0 : Math.round((totalDaysSlipped / totalDeferrals) * 10) / 10,
+      medianDeferrals: median(all.map((r) => r.count)),
+      chronicOverdue: rows.filter((r) => r.overdueNow).length,
+      completedAnyway: rows.filter((r) => r.task.status === 'Done').length,
+      byProject: [...projectRows.values()].sort(
+        (a, b) => b.deferrals - a.deferrals || b.days - a.days,
+      ),
+      byPriority: TASK_PRIORITIES.map((priority) => ({
+        priority,
+        deferrals: all
+          .filter((r) => r.task.priority === priority)
+          .reduce((sum, r) => sum + r.count, 0),
+      })).filter((p) => p.deferrals > 0),
+    },
+  };
+}
+
+export function deferredText(result: DeferralResult, today: IsoDate): string {
+  const a = result.analytics;
+  let out = `REPEATEDLY DEFERRED — ${fmtLong(today)}\n`;
+  out += `Threshold: ${result.threshold}+ reschedules\n\n`;
+  out += `${a.tasksOverThreshold} task(s) over threshold of ${a.tasksEverDeferred} ever deferred; `;
+  out += `${a.totalDeferrals} reschedule(s) costing ${a.totalDaysSlipped} day(s) `;
+  out += `(avg ${a.avgDaysPerDeferral} days each, median ${a.medianDeferrals} per task).\n`;
+  out += `${a.chronicOverdue} still open and overdue; ${a.completedAnyway} eventually completed.\n\n`;
+  for (const r of result.rows) {
+    out += `- ${r.project.name}: ${r.task.title || 'Untitled task'} — ${r.count}× deferred, `;
+    out += `+${r.totalDays}d, first due ${fmtShort(r.first.from)} → now ${fmtShort(r.task.dueDate ?? r.last.to)}`;
+    out += r.overdueNow ? ' (OVERDUE)\n' : '\n';
+  }
+  if (a.byProject.length > 0) {
+    out += '\nBy project:\n';
+    for (const p of a.byProject) {
+      out += `- ${p.project.name}: ${p.deferrals} reschedule(s) across ${p.tasks} task(s), +${p.days}d\n`;
+    }
   }
   return out;
 }

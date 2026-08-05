@@ -17,11 +17,24 @@ export function setupTestApp(
     saveCollections: vi.fn().mockResolvedValue({ rejected: [] }),
     onSaveStatus: vi.fn(),
     getDataDir: vi.fn().mockResolvedValue({ path: '/tmp/data' }),
+    getAppInfo: vi.fn().mockResolvedValue({
+      version: '1.14.0',
+      electron: '39.8.10',
+      chrome: '140.0.0.0',
+      node: '18.19.0',
+      platform: 'linux',
+      dataDir: '/tmp/data',
+    }),
+    onMenuCommand: vi.fn(),
     openExternal: vi.fn().mockResolvedValue(undefined),
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
     deleteBlobs: vi.fn().mockResolvedValue(undefined),
     downloadFile: vi.fn().mockResolvedValue({ savedPath: null }),
     exportWorkspace: vi.fn().mockResolvedValue({ savedPath: null }),
+    exportArchive: vi.fn().mockResolvedValue({ savedPath: null }),
+    importArchive: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Import cancelled', cancelled: true }),
     importFromFile: vi
       .fn()
       .mockResolvedValue({ ok: false, error: 'Import cancelled', cancelled: true }),
@@ -43,6 +56,7 @@ export function setupTestApp(
     revealLogFile: vi.fn().mockResolvedValue({ ok: true }),
     getLogInfo: vi.fn().mockResolvedValue({ defaultDir: '/tmp/userData/logs' }),
     fakeToday: TEST_TODAY,
+    insetTitlebar: false,
     ...overrides,
   };
   window.ariadne = api;

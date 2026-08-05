@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.16.0 — 2026-08-05
+
+- **A real application menu (D22).** Ariadne now installs a proper
+  Ariadne/File/Edit/View/Window/Help menu instead of Electron's default. On
+  macOS the app menu carries About, Settings (⌘,), Services, Hide, and Quit;
+  Window uses the native Minimize/Zoom/Bring All to Front roles; Help is
+  tagged with the help role so macOS adds its search field. On Windows and
+  Linux, Settings and Quit live in File instead. **View** leads with the
+  places the app can take you — Command Center ⌘1, Calendar ⌘2, Reports ⌘3,
+  Files ⌘4, Tags ⌘5, plus a Scope submenu — and the developer items (Reload,
+  DevTools) only appear in a dev run.
+- **macOS hidden-inset titlebar.** The traffic lights now float over the
+  sidebar rather than sitting in a separate grey title strip, and the top bar
+  is a window drag region.
+- **Export / Import Archive (D22).** File → Export Archive… (⇧⌘E) writes a
+  single `.zip` holding the workspace and every uploaded file as real files —
+  far smaller than the JSON export, which inlines file bytes as base64, and
+  openable with any zip tool. Import Archive… (⇧⌘I) restores one, after a
+  confirmation. The JSON export/import stays for compatibility with older
+  exports. Both are on the File menu and in Settings → Data.
+- **About box.** Version, platform, Electron/Chromium/Node versions, and your
+  data folder, with links to the GitHub repo, the issue tracker, and
+  timhowland.com, plus a "Copy version details" button for bug reports.
+- **Bundled help.** Help → Ariadne Help (⌘?) opens an in-app help window
+  covering getting started, projects & tasks, the reports, and data &
+  backups, with a keyboard-shortcuts table that shows the right modifier keys
+  for your platform. It ships with the app, so it works offline and always
+  matches the version you are running.
+- **Drag-and-drop uploads.** The project's Files & documents card now has a
+  drop zone: drag files from Finder or Explorer straight onto it, or click it
+  to browse. Same handling as the Upload button — bytes are copied into your
+  data folder.
+- **New report: Deferred (D23).** Ariadne now records every time an open
+  task's due date is pushed later, and the new report ranks the tasks you
+  keep rescheduling. Pick a threshold (2/3/5/8 reschedules, default 3) and it
+  lists the worst offenders with their history — first due date, current due
+  date, days added, when it last moved — above analytics for the whole
+  filter: total reschedules, days lost to churn, average days per push,
+  median pushes per task, how many are still open and overdue, how many got
+  done anyway, and breakdowns by project and by priority. Pulling a date in,
+  setting a due date for the first time, and rescheduling finished work are
+  not counted. Copy report works like every other report.
+
 ## 1.15.0 — 2026-08-03
 
 - **Reschedule every overdue task at once.** The Command Center's Overdue card

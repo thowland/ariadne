@@ -17,12 +17,20 @@ const api: AriadneApi = {
   saveCollections: (payload: WorkspaceSavePayload) =>
     ipcRenderer.invoke(IPC.workspaceSave, payload),
   getDataDir: () => ipcRenderer.invoke(IPC.dataDirGet),
+  getAppInfo: () => ipcRenderer.invoke(IPC.appInfo),
+  onMenuCommand: (cb: (command: import('@shared/ipc-contract').MenuCommand) => void) => {
+    ipcRenderer.on(IPC.menuCommand, (_event, command) => {
+      cb(command as import('@shared/ipc-contract').MenuCommand);
+    });
+  },
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url),
   saveBlob: (fileId: string, ext: string, bytes: ArrayBuffer) =>
     ipcRenderer.invoke(IPC.blobSave, { fileId, ext, bytes: new Uint8Array(bytes) }),
   deleteBlobs: (fileIds: string[]) => ipcRenderer.invoke(IPC.blobDelete, { fileIds }),
   downloadFile: (request: DownloadRequest) => ipcRenderer.invoke(IPC.fileDownload, request),
   exportWorkspace: () => ipcRenderer.invoke(IPC.exportRun),
+  exportArchive: () => ipcRenderer.invoke(IPC.archiveExport),
+  importArchive: () => ipcRenderer.invoke(IPC.archiveImport),
   importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
   importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
   chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
@@ -45,6 +53,7 @@ const api: AriadneApi = {
   revealLogFile: () => ipcRenderer.invoke(IPC.logReveal),
   getLogInfo: () => ipcRenderer.invoke(IPC.logInfo),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
+  insetTitlebar: process.platform === 'darwin',
 };
 
 contextBridge.exposeInMainWorld('ariadne', api);

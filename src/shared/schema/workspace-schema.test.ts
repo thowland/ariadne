@@ -153,3 +153,29 @@ describe('normalizeWorkspace', () => {
     expect(workspace.tasks.find((t) => t.id === open.id)?.completedAt).toBeNull();
   });
 });
+
+describe('task deferral history (D23)', () => {
+  const base = { id: 't1', projectId: 'p1', createdAt: TODAY };
+
+  it('round-trips a valid history and leaves pre-1.14 tasks untouched', () => {
+    const deferrals = [{ from: '2026-07-01', to: '2026-07-05', on: '2026-07-01' }];
+    expect(tasksFileSchema.parse([{ ...base, deferrals }])[0]?.deferrals).toEqual(deferrals);
+    // Absent stays absent, so older documents round-trip byte-identical.
+    expect(tasksFileSchema.parse([base])[0]).not.toHaveProperty('deferrals');
+  });
+
+  it('drops only the malformed entries, keeping the rest of the history', () => {
+    const good = { from: '2026-07-01', to: '2026-07-05', on: '2026-07-01' };
+    const parsed = tasksFileSchema.parse([
+      {
+        ...base,
+        deferrals: [good, { from: 'nope', to: '2026-07-05', on: '2026-07-01' }, { from: 1 }],
+      },
+    ]);
+    expect(parsed[0]?.deferrals).toEqual([good]);
+  });
+
+  it('discards a history that is not an array', () => {
+    expect(tasksFileSchema.parse([{ ...base, deferrals: 'lots' }])[0]?.deferrals).toBeUndefined();
+  });
+});

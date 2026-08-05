@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 
 import { getApi } from '../app/api';
 import { useStore } from '../app/store';
+import { finishJsonImport, runArchiveExport, runArchiveImport } from '../app/workspace-io';
 import { Card, Dot, Pill } from '../components/primitives';
 import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
@@ -19,7 +20,6 @@ export function Settings(): React.JSX.Element {
     apply,
     askConfirm,
     showToast,
-    go,
     openAiImport,
     runTodoistSync,
     todoistSyncing,
@@ -51,16 +51,7 @@ export function Settings(): React.JSX.Element {
   };
 
   const finishImport = (res: ImportResponse): void => {
-    if (!res.ok) {
-      if (res.cancelled !== true) showToast(res.error);
-      return;
-    }
-    apply(() => replaceWorkspace(res.workspace));
-    setImportText('');
-    go('home');
-    showToast(
-      `Imported ${res.workspace.projects.length} projects, ${res.workspace.tasks.length} tasks`,
-    );
+    if (finishJsonImport(res)) setImportText('');
   };
 
   const importFile = (): void => {
@@ -199,8 +190,11 @@ export function Settings(): React.JSX.Element {
         <Card title="Data">
           <div className="card-pad settings-section">
             <p className="settings-copy">
-              Everything lives on this computer as plain JSON plus your uploaded files. Export a
-              backup any time, or import to restore / move machines.
+              Everything lives on this computer as plain JSON plus your uploaded files. An{' '}
+              <strong>archive</strong> is a single .zip holding the workspace and every uploaded
+              file — that is the one to keep, and the one to carry to a new machine. The JSON export
+              inlines file bytes as base64 (much larger) and stays for compatibility with older
+              exports.
             </p>
             <div className="data-dir-row">
               <div>
@@ -214,6 +208,22 @@ export function Settings(): React.JSX.Element {
               </button>
             </div>
             <div className="settings-actions">
+              <button
+                className="btn primary"
+                onClick={() => {
+                  void runArchiveExport();
+                }}
+              >
+                Export archive…
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  void runArchiveImport();
+                }}
+              >
+                Import archive…
+              </button>
               <button className="btn ghost" onClick={runExport}>
                 Export JSON
               </button>

@@ -75,6 +75,20 @@ export interface Project {
 export const DEP_MAP_MIN_H = 160;
 export const DEP_MAP_MAX_H = 2000;
 
+/**
+ * One recorded due-date push-out (D23). Appended by `updateTask` whenever an
+ * open task's existing due date moves later; pulling a date in, or setting a
+ * due date for the first time, is not a deferral.
+ */
+export interface Deferral {
+  /** Due date before the change. */
+  from: IsoDate;
+  /** Due date after the change. */
+  to: IsoDate;
+  /** The day the push-out was recorded. */
+  on: IsoDate;
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -91,6 +105,11 @@ export interface Task {
   createdAt: IsoDate;
   /** Non-null iff status === 'Done' (enforced by the mutation layer). */
   completedAt: IsoDate | null;
+  /**
+   * Due-date push-outs, oldest first (D23). Optional so pre-1.16 workspaces
+   * and fixtures round-trip unchanged; absent means "never deferred".
+   */
+  deferrals?: Deferral[];
 }
 
 export interface FileEntry {
