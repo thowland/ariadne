@@ -4,6 +4,8 @@ import { isoAdd } from './dates';
 import {
   atRiskReport,
   atRiskText,
+  deferredReport,
+  deferredText,
   filterProjects,
   portfolioRollup,
   portfolioText,
@@ -262,5 +264,145 @@ describe('retroBuckets', () => {
     const result = retrospective(ws, 'all', '2026-07-01', TODAY);
     expect(retroBuckets(result, '', TODAY)).toEqual([]);
     expect(retroBuckets(result, TODAY, '2026-07-01')).toEqual([]);
+  });
+});
+
+describe('deferredReport (D23)', () => {
+  const base = seedWorkspace(TODAY);
+
+  /** Attach a deferral history to a seeded task, keeping everything else. */
+  function withDeferrals(
+    entries: { taskId: string; count: number; days: number; dueDate?: string | null }[],
+  ) {
+    return {
+      ...base,
+      tasks: base.tasks.map((t) => {
+        const entry = entries.find((e) => e.taskId === t.id);
+        if (entry === undefined) return t;
+        let from = '2026-06-01';
+        const deferrals = Array.from({ length: entry.count }, (_, i) => {
+          const to = isoAdd(from, entry.days);
+          const record = { from, to, on: isoAdd('2026-06-02', i) };
+          from = to;
+          return record;
+        });
+        return {
+          ...t,
+          deferrals,
+          dueDate: entry.dueDate === undefined ? from : entry.dueDate,
+        };
+      }),
+    };
+  }
+
+  it('reports nothing when no task has ever been deferred', () => {
+    const result = deferredReport(base, 'all', 2, TODAY);
+    expect(result.rows).toEqual([]);
+    expect(result.analytics.tasksEverDeferred).toBe(0);
+    expect(result.analytics.totalDeferrals).toBe(0);
+  });
+
+  it('lists only tasks at or over the threshold, worst first', () => {
+    const ws2 = withDeferrals([
+      { taskId: 't1', count: 5, days: 2 },
+      { taskId: 't2', count: 3, days: 1 },
+      { taskId: 't3', count: 1, days: 4 },
+    ]);
+    const result = deferredReport(ws2, 'all', 3, TODAY);
+    expect(result.rows.map((r) => r.task.id)).toEqual(['t1', 't2']);
+    expect(result.rows[0]?.count).toBe(5);
+    // Every deferred task still feeds the analytics, threshold or not.
+    expect(result.analytics.tasksEverDeferred).toBe(3);
+    expect(result.analytics.tasksOverThreshold).toBe(2);
+    expect(result.analytics.totalDeferrals).toBe(9);
+  });
+
+  it('changing the threshold moves rows but not the headline analytics', () => {
+    const ws2 = withDeferrals([
+      { taskId: 't1', count: 5, days: 2 },
+      { taskId: 't2', count: 2, days: 1 },
+    ]);
+    const low = deferredReport(ws2, 'all', 2, TODAY);
+    const high = deferredReport(ws2, 'all', 5, TODAY);
+    expect(low.rows).toHaveLength(2);
+    expect(high.rows).toHaveLength(1);
+    expect(low.analytics.totalDeferrals).toBe(high.analytics.totalDeferrals);
+    expect(low.analytics.totalDaysSlipped).toBe(high.analytics.totalDaysSlipped);
+  });
+
+  it('totals the days each push-out added, and averages them', () => {
+    const ws2 = withDeferrals([{ taskId: 't1', count: 3, days: 4 }]);
+    const result = deferredReport(ws2, 'all', 1, TODAY);
+    expect(result.rows[0]?.totalDays).toBe(12);
+    expect(result.rows[0]?.slipDays).toBe(12);
+    expect(result.analytics.totalDaysSlipped).toBe(12);
+    expect(result.analytics.avgDaysPerDeferral).toBe(4);
+    expect(result.analytics.medianDeferrals).toBe(3);
+  });
+
+  it('flags rows that are still open and already overdue', () => {
+    // t2 is open in the seed; t1 is already Done and so can never be overdue.
+    const overdue = withDeferrals([{ taskId: 't2', count: 2, days: 1, dueDate: '2026-07-01' }]);
+    expect(deferredReport(overdue, 'all', 1, TODAY).analytics.chronicOverdue).toBe(1);
+    const future = withDeferrals([{ taskId: 't2', count: 2, days: 1, dueDate: '2026-08-01' }]);
+    expect(deferredReport(future, 'all', 1, TODAY).analytics.chronicOverdue).toBe(0);
+  });
+
+  it('counts deferred tasks that eventually completed, and drops dropped ones', () => {
+    const ws2 = withDeferrals([{ taskId: 't1', count: 2, days: 1 }]);
+    const done = {
+      ...ws2,
+      tasks: ws2.tasks.map((t) =>
+        t.id === 't1' ? { ...t, status: 'Done' as const, completedAt: TODAY } : t,
+      ),
+    };
+    expect(deferredReport(done, 'all', 1, TODAY).analytics.completedAnyway).toBe(1);
+
+    const dropped = {
+      ...ws2,
+      tasks: ws2.tasks.map((t) =>
+        t.id === 't1' ? { ...t, status: 'Dropped' as const, completedAt: null } : t,
+      ),
+    };
+    expect(deferredReport(dropped, 'all', 1, TODAY).analytics.tasksEverDeferred).toBe(0);
+  });
+
+  it('never leaks out-of-scope or archived projects', () => {
+    const ws2 = withDeferrals([{ taskId: 't1', count: 3, days: 1 }]);
+    const t1 = ws2.tasks.find((t) => t.id === 't1');
+    const owner = ws2.projects.find((p) => p.id === t1?.projectId);
+    expect(owner?.category).toBe('work');
+    expect(deferredReport(ws2, 'home', 1, TODAY).rows).toEqual([]);
+    expect(deferredReport(ws2, 'work', 1, TODAY).rows).toHaveLength(1);
+
+    const archived = {
+      ...ws2,
+      projects: ws2.projects.map((p) => (p.id === owner?.id ? { ...p, archived: true } : p)),
+    };
+    expect(deferredReport(archived, 'all', 1, TODAY).rows).toEqual([]);
+  });
+
+  it('breaks the churn down by project and priority', () => {
+    const ws2 = withDeferrals([
+      { taskId: 't1', count: 3, days: 2 },
+      { taskId: 't2', count: 2, days: 2 },
+    ]);
+    const a = deferredReport(ws2, 'all', 1, TODAY).analytics;
+    expect(a.byProject[0]?.deferrals).toBeGreaterThanOrEqual(a.byProject[1]?.deferrals ?? 0);
+    expect(a.byProject.reduce((n, p) => n + p.deferrals, 0)).toBe(5);
+    expect(a.byPriority.reduce((n, p) => n + p.deferrals, 0)).toBe(5);
+    // Priorities with no deferrals are omitted rather than shown as zero rows.
+    expect(a.byPriority.every((p) => p.deferrals > 0)).toBe(true);
+  });
+
+  it('serializes to plain text with the threshold, totals, and rows', () => {
+    const ws2 = withDeferrals([{ taskId: 't1', count: 4, days: 3 }]);
+    const result = deferredReport(ws2, 'all', 2, TODAY);
+    const text = deferredText(result, TODAY);
+    expect(text).toContain('REPEATEDLY DEFERRED');
+    expect(text).toContain('Threshold: 2+ reschedules');
+    expect(text).toContain('4× deferred');
+    expect(text).toContain('+12d');
+    expect(text).toContain('By project:');
   });
 });

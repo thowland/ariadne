@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -187,6 +187,19 @@ describe('ProjectDetail', () => {
     const h = ws().projects.find((p) => p.id === 'p1')?.depMapHeight;
     expect(h).toBeGreaterThan(160);
     expect(screen.getByTestId('dependency-map')).toHaveStyle({ height: `${String(h)}px` });
+  });
+
+  it('offers a drop zone in the files card that files uploads under this project', async () => {
+    render(<ProjectDetail />);
+    const zone = screen.getByTestId('upload-dropzone');
+    expect(zone).toBeInTheDocument();
+
+    fireEvent.drop(zone, {
+      dataTransfer: { files: [new File(['x'], 'plan.pdf', { type: 'application/pdf' })] },
+    });
+    await waitFor(() => {
+      expect(ws().files.at(-1)).toMatchObject({ projectId: 'p3', name: 'plan.pdf' });
+    });
   });
 
   it('shows a not-found stub for a missing project', () => {

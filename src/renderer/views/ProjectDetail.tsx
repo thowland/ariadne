@@ -16,6 +16,7 @@ import { LinkListEditor } from '../components/LinkListEditor';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
+import { UploadDropZone } from '../components/UploadDropZone';
 
 /** The per-project workspace (prototype viewProject). */
 export function ProjectDetail(): React.JSX.Element {
@@ -265,6 +266,9 @@ export function ProjectDetail(): React.JSX.Element {
                   XLSX, PPTX, RTF).
                 </div>
               )}
+            </div>
+            <div className="card-pad upload-drop-pad">
+              <UploadDropZone projectId={project.id} />
             </div>
           </Card>
         </div>

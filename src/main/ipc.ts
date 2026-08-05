@@ -11,6 +11,7 @@ import { dialog, ipcMain, shell } from 'electron';
 import { app } from 'electron';
 
 import { AiExtractService } from './services/ai-extract-service';
+import { ArchiveService } from './services/archive-service';
 import type { BackupService } from './services/backup-service';
 import type { BlobService } from './services/blob-service';
 import type { ConfigService } from './services/config-service';
@@ -32,6 +33,7 @@ export function registerIpc(
   debugLog: DebugLogService,
 ): void {
   const importExport = new ImportExportService(storage, blobs);
+  const archives = new ArchiveService(storage, blobs, app.getVersion());
   const todoist = new TodoistService();
   const todoistPush = new TodoistPushService(todoist);
   const aiExtract = new AiExtractService();
@@ -97,6 +99,15 @@ export function registerIpc(
 
   ipcMain.handle(IPC.dataDirGet, () => ({ path: dataDir }));
 
+  ipcMain.handle(IPC.appInfo, () => ({
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+    platform: process.platform,
+    dataDir,
+  }));
+
   ipcMain.handle(IPC.openExternal, (_event, url: unknown) => {
     if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
       void shell.openExternal(url);
@@ -127,6 +138,44 @@ export function registerIpc(
     return result.ok
       ? { savedPath: picked.filePath }
       : { savedPath: null, error: result.error ?? 'Export failed' };
+  });
+
+  ipcMain.handle(IPC.archiveExport, async () => {
+    const today = todayIso(process.env.ARIADNE_FAKE_TODAY);
+    const picked = await dialog.showSaveDialog({
+      defaultPath: `ariadne-archive-${today}.zip`,
+      filters: [{ name: 'Ariadne archive', extensions: ['zip'] }],
+    });
+    if (picked.canceled || picked.filePath === '') return { savedPath: null };
+    const result = await archives.exportTo(picked.filePath);
+    debugLog.log(
+      'import',
+      result.ok
+        ? `archive export complete: ${picked.filePath} (${String(result.counts.blobs)} file(s), ${String(result.bytes)} bytes)`
+        : `archive export FAILED: ${result.error}`,
+    );
+    return result.ok
+      ? { savedPath: picked.filePath, counts: result.counts }
+      : { savedPath: null, error: result.error };
+  });
+
+  ipcMain.handle(IPC.archiveImport, async () => {
+    const picked = await dialog.showOpenDialog({
+      filters: [{ name: 'Ariadne archive', extensions: ['zip'] }],
+      properties: ['openFile'],
+    });
+    const path = picked.filePaths[0];
+    if (picked.canceled || path === undefined) {
+      return { ok: false, error: 'Import cancelled', cancelled: true };
+    }
+    const result = await archives.importFrom(path);
+    debugLog.log(
+      'import',
+      result.ok
+        ? `archive import from ${path}: ${result.workspace.projects.length} project(s), ${result.workspace.tasks.length} task(s), ${result.blobs} file(s)`
+        : `archive import from ${path} FAILED: ${result.error}`,
+    );
+    return result;
   });
 
   ipcMain.handle(IPC.importFromFile, async () => {

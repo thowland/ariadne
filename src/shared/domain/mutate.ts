@@ -168,6 +168,7 @@ export function createTask(
  * - status → Done stamps completedAt (once); leaving Done clears it.
  * - moving to another project scrubs dependency links in both directions
  *   (dependsOn must stay same-project) and re-homes attached files.
+ * - pushing an open task's due date later appends a Deferral (D23).
  */
 export function updateTask(
   ws: Workspace,
@@ -188,6 +189,22 @@ export function updateTask(
   let tasks = ws.tasks.map((t) => {
     if (t.id !== id) return t;
     const next: Task = { ...t, ...patch };
+    // D23: a later due date on a task that was open (and already had one) is
+    // a deferral. Pull-ins, first-time due dates, and edits to closed tasks
+    // are not — they say nothing about work being repeatedly put off.
+    if (
+      patch.dueDate !== undefined &&
+      patch.dueDate !== null &&
+      t.dueDate !== null &&
+      patch.dueDate > t.dueDate &&
+      t.status !== 'Done' &&
+      t.status !== 'Dropped'
+    ) {
+      next.deferrals = [
+        ...(t.deferrals ?? []),
+        { from: t.dueDate, to: patch.dueDate, on: ctx.today },
+      ];
+    }
     if (patch.status !== undefined) {
       if (patch.status === 'Done') {
         if (t.completedAt === null) next.completedAt = ctx.today;

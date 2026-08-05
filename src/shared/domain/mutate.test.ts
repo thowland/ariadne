@@ -206,6 +206,65 @@ describe('updateTask', () => {
     expect(r.workspace.tasks[0]?.completedAt).toBe('2026-07-01');
   });
 
+  it('records a deferral when an open task’s due date is pushed later (D23)', () => {
+    const w = ws({ tasks: [task({ dueDate: '2026-07-10' })] });
+    const first = updateTask(w, 't1', { dueDate: '2026-07-15' }, ctx());
+    expect(first.workspace.tasks[0]?.deferrals).toEqual([
+      { from: '2026-07-10', to: '2026-07-15', on: TODAY },
+    ]);
+
+    // Each further push-out appends, oldest first.
+    const second = updateTask(first.workspace, 't1', { dueDate: '2026-07-20' }, ctx());
+    expect(second.workspace.tasks[0]?.deferrals).toHaveLength(2);
+    expect(second.workspace.tasks[0]?.deferrals?.[1]).toEqual({
+      from: '2026-07-15',
+      to: '2026-07-20',
+      on: TODAY,
+    });
+  });
+
+  it('does not count pull-ins, first due dates, unchanged dates, or clearing', () => {
+    const dated = ws({ tasks: [task({ dueDate: '2026-07-10' })] });
+    expect(
+      updateTask(dated, 't1', { dueDate: '2026-07-05' }, ctx()).workspace.tasks[0]?.deferrals,
+    ).toBeUndefined();
+    expect(
+      updateTask(dated, 't1', { dueDate: '2026-07-10' }, ctx()).workspace.tasks[0]?.deferrals,
+    ).toBeUndefined();
+    expect(
+      updateTask(dated, 't1', { dueDate: null }, ctx()).workspace.tasks[0]?.deferrals,
+    ).toBeUndefined();
+
+    const undated = ws({ tasks: [task({ dueDate: null })] });
+    expect(
+      updateTask(undated, 't1', { dueDate: '2026-07-10' }, ctx()).workspace.tasks[0]?.deferrals,
+    ).toBeUndefined();
+  });
+
+  it('does not count rescheduling closed tasks', () => {
+    for (const status of ['Done', 'Dropped'] as const) {
+      const w = ws({
+        tasks: [
+          task({
+            status,
+            dueDate: '2026-07-10',
+            completedAt: status === 'Done' ? '2026-07-01' : null,
+          }),
+        ],
+      });
+      const r = updateTask(w, 't1', { dueDate: '2026-07-20' }, ctx());
+      expect(r.workspace.tasks[0]?.deferrals).toBeUndefined();
+    }
+  });
+
+  it('keeps existing deferrals when other fields change', () => {
+    const w = ws({
+      tasks: [task({ dueDate: '2026-07-10', deferrals: [{ from: 'x', to: 'y', on: 'z' }] })],
+    });
+    const r = updateTask(w, 't1', { title: 'Renamed' }, ctx());
+    expect(r.workspace.tasks[0]?.deferrals).toHaveLength(1);
+  });
+
   it('moving projects scrubs dependencies in both directions and re-homes files', () => {
     const w = ws({
       projects: [project(), project({ id: 'p2' })],

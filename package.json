@@ -1,6 +1,6 @@
 {
   "name": "ariadne",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Ariadne — a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
@@ -46,6 +46,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@fontsource/public-sans": "^5.2.7",
+    "adm-zip": "^0.5.18",
     "dompurify": "^3.4.11",
     "marked": "^18.0.5",
     "react": "^18.3.1",
@@ -59,6 +60,7 @@
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.0",
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^18.19.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

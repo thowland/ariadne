@@ -2519,3 +2519,336 @@ input.inp.full {
   margin: 0 14px;
   padding-top: 12px;
 }
+
+/* ============ macOS hidden-inset titlebar ============ */
+
+/* The traffic lights float over the sidebar's top-left; give them room and
+   make the empty band a window drag handle. Interactive chrome opts back out
+   so buttons and inputs still receive clicks. */
+.shell.inset-titlebar .sidebar {
+  padding-top: 38px;
+}
+.shell.inset-titlebar .sidebar-brand {
+  -webkit-app-region: drag;
+}
+.shell.inset-titlebar .topbar {
+  -webkit-app-region: drag;
+}
+.shell.inset-titlebar .topbar button,
+.shell.inset-titlebar .topbar input,
+.shell.inset-titlebar .sidebar-brand button {
+  -webkit-app-region: no-drag;
+}
+
+/* ============ Upload drop zone ============ */
+
+.upload-drop-pad {
+  padding-top: 4px;
+}
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 16px 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: 11px;
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    color 0.12s;
+}
+.upload-drop:hover,
+.upload-drop:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.upload-drop.over {
+  border-color: var(--accent);
+  border-style: solid;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.upload-drop.busy {
+  cursor: progress;
+  opacity: 0.75;
+}
+.upload-drop-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.upload-drop-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+.upload-drop-hint {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* ============ About box ============ */
+
+.about-modal {
+  width: min(460px, 92vw);
+  padding: 30px 26px 20px;
+  position: relative;
+  text-align: center;
+}
+.about-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+.about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.about-name {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-top: 6px;
+}
+.about-version {
+  font-size: 12px;
+  color: var(--faint);
+}
+.about-tagline {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+.about-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 18px 0 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+}
+.ext-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ext-link:hover {
+  text-decoration: underline;
+}
+.about-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.about-credit {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.about-datadir {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border2);
+}
+
+/* ============ Help window ============ */
+
+.help-modal {
+  width: min(780px, 95vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.help-layout {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+.help-nav {
+  width: 176px;
+  flex: none;
+  border-right: 1px solid var(--border2);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface2);
+}
+.help-nav-item {
+  text-align: left;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.help-nav-item:hover {
+  background: rgba(20, 20, 15, 0.045);
+  color: var(--text);
+}
+.help-nav-item.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.help-body {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 18px 22px 24px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.help-body h3 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin: 20px 0 6px;
+}
+.help-body h3:first-child {
+  margin-top: 0;
+}
+.help-body p {
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+.help-body ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  color: var(--muted);
+}
+.help-body li {
+  margin-bottom: 5px;
+}
+.help-body code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(20, 20, 15, 0.05);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.help-foot {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border2);
+  font-size: 12px;
+  color: var(--faint);
+}
+.help-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.help-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.help-shortcut-row kbd {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  min-width: 76px;
+  text-align: center;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* ============ Deferred report ============ */
+
+.defer-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 4px 10px;
+  padding: 16px 18px;
+}
+.defer-stat-value {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+.defer-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--faint);
+  text-transform: uppercase;
+}
+.defer-row {
+  align-items: center;
+  gap: 12px;
+}
+.defer-count {
+  width: 72px;
+  flex: none;
+}
+.defer-count-num {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.defer-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  overflow: hidden;
+  margin-top: 3px;
+}
+.defer-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  min-width: 3px;
+}
+.defer-trail {
+  font-size: 11px;
+  color: var(--faint);
+  margin-left: 8px;
+}
+.defer-breakdowns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.defer-breakdowns .report-block {
+  padding: 14px 16px;
+}
+@media (max-width: 700px) {
+  .defer-breakdowns {
+    grid-template-columns: 1fr;
+  }
+}

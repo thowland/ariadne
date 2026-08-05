@@ -10,11 +10,15 @@ export const IPC = {
   workspaceLoad: 'workspace:load',
   workspaceSave: 'workspace:save',
   dataDirGet: 'dataDir:get',
+  appInfo: 'app:info',
   openExternal: 'shell:openExternal',
   blobSave: 'blob:save',
   blobDelete: 'blob:delete',
   fileDownload: 'file:download',
   exportRun: 'export:run',
+  archiveExport: 'archive:export',
+  archiveImport: 'archive:import',
+  menuCommand: 'app:menuCommand',
   importFromFile: 'import:fromFile',
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
@@ -41,6 +45,45 @@ export const DEBUG_LOG_CATEGORIES = [
   'ai',
 ] as const;
 export type DebugLogCategory = (typeof DEBUG_LOG_CATEGORIES)[number];
+
+/**
+ * Menu items that act on workspace data are routed to the renderer, which
+ * already implements those flows; the main process only owns window roles
+ * and external links. Keep in sync with `main/menu.ts` and the renderer's
+ * menu-command handler.
+ */
+export const MENU_COMMANDS = [
+  'about',
+  'help',
+  'shortcuts',
+  'newProject',
+  'newTask',
+  'aiImport',
+  'exportArchive',
+  'importArchive',
+  'exportJson',
+  'importJson',
+  'backupNow',
+  'todoistSync',
+  'search',
+  'goHome',
+  'goCalendar',
+  'goReports',
+  'goFiles',
+  'goTags',
+  'goSettings',
+  'scopeAll',
+  'scopeWork',
+  'scopeHome',
+] as const;
+export type MenuCommand = (typeof MENU_COMMANDS)[number];
+
+/** Outbound links shown in the menu, About box, and Help window. */
+export const EXTERNAL_LINKS = {
+  github: 'https://github.com/thowland/ariadne',
+  issues: 'https://github.com/thowland/ariadne/issues',
+  author: 'https://timhowland.com',
+} as const;
 
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
 export const BLOB_PROTOCOL = 'ariadne-blob';
@@ -106,6 +149,27 @@ export interface ExportRunResponse {
   error?: string;
 }
 
+/** Zip archive export (D22): workspace JSON + every stored file. */
+export interface ArchiveExportResponse {
+  savedPath: string | null;
+  error?: string;
+  counts?: { projects: number; tasks: number; files: number; blobs: number };
+}
+
+export type ArchiveImportResponse =
+  | { ok: true; workspace: Workspace; warnings: string[]; blobs: number }
+  | { ok: false; error: string; cancelled?: boolean };
+
+/** App metadata for the About box; sourced from the main process. */
+export interface AppInfo {
+  version: string;
+  electron: string;
+  chrome: string;
+  node: string;
+  platform: string;
+  dataDir: string;
+}
+
 export type ImportResponse =
   | { ok: true; workspace: Workspace; warnings: string[] }
   | { ok: false; error: string; cancelled?: boolean };
@@ -142,11 +206,19 @@ export interface AriadneApi {
   /** Subscribe to disk-write health events (fires for the app's lifetime). */
   onSaveStatus(cb: (status: SaveStatusEvent) => void): void;
   getDataDir(): Promise<DataDirResponse>;
+  /** Version/runtime facts for the About box. */
+  getAppInfo(): Promise<AppInfo>;
+  /** Subscribe to application-menu commands (fires for the app's lifetime). */
+  onMenuCommand(cb: (command: MenuCommand) => void): void;
   openExternal(url: string): Promise<void>;
   saveBlob(fileId: string, ext: string, bytes: ArrayBuffer): Promise<{ size: number }>;
   deleteBlobs(fileIds: string[]): Promise<void>;
   downloadFile(request: DownloadRequest): Promise<DownloadResponse>;
   exportWorkspace(): Promise<ExportRunResponse>;
+  /** Save-dialog + zip archive of the workspace and every stored file (D22). */
+  exportArchive(): Promise<ArchiveExportResponse>;
+  /** Open-dialog + restore from a zip archive; replaces the workspace (D22). */
+  importArchive(): Promise<ArchiveImportResponse>;
   importFromFile(): Promise<ImportResponse>;
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
@@ -167,4 +239,9 @@ export interface AriadneApi {
   getLogInfo(): Promise<{ defaultDir: string }>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
+  /**
+   * True when the window uses the macOS hidden-inset titlebar, so the top bar
+   * leaves room for the traffic lights and offers a drag region.
+   */
+  insetTitlebar: boolean;
 }

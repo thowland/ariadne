@@ -2,6 +2,7 @@ import { isoAdd } from '@shared/domain/dates';
 import { fmtShort } from '@shared/domain/dates';
 import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
 import type {
+  DeferralResult,
   ReportFilter,
   RetroBucket,
   RetroPreset,
@@ -11,6 +12,10 @@ import type {
 import {
   atRiskReport,
   atRiskText,
+  DEFER_THRESHOLD_DEFAULT,
+  DEFER_THRESHOLDS,
+  deferredReport,
+  deferredText,
   portfolioRollup,
   portfolioText,
   RETRO_PRESETS,
@@ -21,20 +26,21 @@ import {
   weeklyStatus,
   weeklyStatusText,
 } from '@shared/domain/reports';
-import type { Task, Workspace } from '@shared/types';
+import type { IsoDate, Task, Workspace } from '@shared/types';
 import { useState } from 'react';
 
 import { useStore } from '../app/store';
 import { CategoryPill, Dot, SegmentedControl } from '../components/primitives';
-import { STATUS_COLORS } from '../styles/colors';
+import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
-type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk';
+type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk' | 'deferred';
 
 const TYPE_OPTIONS = [
   ['weekly', 'Weekly status'],
   ['portfolio', 'Portfolio roll-up'],
   ['retro', 'Retrospective'],
   ['risk', 'At-risk'],
+  ['deferred', 'Deferred'],
 ] as const;
 
 function ReportLine({ task }: { task: Task }): React.JSX.Element {
@@ -283,6 +289,169 @@ function RiskReport({ rows }: { rows: RiskRow[] }): React.JSX.Element {
   );
 }
 
+/** One headline number in the deferred report's analytics strip. */
+function Stat({
+  value,
+  label,
+  tone,
+}: {
+  value: string | number;
+  label: string;
+  tone?: string;
+}): React.JSX.Element {
+  return (
+    <div className="defer-stat">
+      <div className="defer-stat-value" style={tone === undefined ? undefined : { color: tone }}>
+        {value}
+      </div>
+      <div className="defer-stat-label">{label}</div>
+    </div>
+  );
+}
+
+/**
+ * Repeatedly-deferred report (D23): the ranked list of tasks whose due date
+ * keeps moving, plus the analytics that make the list actionable — what the
+ * churn costs in days, which projects generate it, and whether the deferred
+ * work is low-priority (fine) or Critical (not fine).
+ */
+function DeferredReport({
+  result,
+  today,
+}: {
+  result: DeferralResult;
+  today: IsoDate;
+}): React.JSX.Element {
+  const { openTask, openProject } = useStore();
+  const a = result.analytics;
+
+  if (a.tasksEverDeferred === 0) {
+    return (
+      <div className="report-block risk-clear" data-testid="defer-clear">
+        No task in this filter has ever had its due date pushed back. ✓
+      </div>
+    );
+  }
+
+  const worst = result.rows[0]?.count ?? 1;
+
+  return (
+    <div className="report-stack">
+      <div className="report-block defer-stats" data-testid="defer-stats">
+        <Stat value={a.tasksOverThreshold} label={`at ${result.threshold}+ reschedules`} />
+        <Stat value={a.tasksEverDeferred} label="ever deferred" />
+        <Stat value={a.totalDeferrals} label="reschedules total" />
+        <Stat value={`${String(a.totalDaysSlipped)}d`} label="days pushed out" />
+        <Stat value={a.avgDaysPerDeferral} label="avg days per push" />
+        <Stat value={a.medianDeferrals} label="median per task" />
+        <Stat
+          value={a.chronicOverdue}
+          label="still open & overdue"
+          tone={a.chronicOverdue > 0 ? '#c23b2b' : undefined}
+        />
+        <Stat value={a.completedAnyway} label="eventually done" tone="#2f8552" />
+      </div>
+
+      {result.rows.length === 0 ? (
+        <div className="report-block card-empty" data-testid="defer-empty">
+          Nothing has been rescheduled {result.threshold} or more times. Lower the threshold to see
+          the {a.tasksEverDeferred} task(s) that have slipped at least once.
+        </div>
+      ) : (
+        <div className="report-block" data-testid="defer-rows">
+          {result.rows.map((r) => (
+            <div
+              key={r.task.id}
+              className="trow defer-row"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                openTask(r.task.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') openTask(r.task.id);
+              }}
+            >
+              <div className="defer-count" title={`${String(r.count)} reschedules`}>
+                <span className="defer-count-num">{r.count}×</span>
+                <div className="defer-bar-track">
+                  <div
+                    className="defer-bar-fill"
+                    style={{
+                      width: `${String((r.count / worst) * 100)}%`,
+                      background: r.overdueNow ? '#c23b2b' : r.project.color,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="trow-body">
+                <div className={`risk-title ${r.task.status === 'Done' ? 'muted' : ''}`}>
+                  {r.task.title || 'Untitled task'}
+                </div>
+                <div className="trow-project">
+                  <Dot color={r.project.color} size={6} />
+                  {r.project.name}
+                  <span className="defer-trail">
+                    first due {fmtShort(r.first.from)} → now {fmtShort(r.task.dueDate ?? r.last.to)}{' '}
+                    · +{r.totalDays}d · last moved{' '}
+                    {r.daysSinceLast === 0 ? 'today' : `${String(r.daysSinceLast)}d ago`}
+                  </span>
+                </div>
+              </div>
+              <span
+                className="risk-reason"
+                style={{
+                  color: r.overdueNow ? '#c23b2b' : relativeDueLabel(r.task.dueDate, today).color,
+                }}
+              >
+                {r.task.status === 'Done'
+                  ? 'Completed'
+                  : relativeDueLabel(r.task.dueDate, today).text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="defer-breakdowns">
+        <div className="report-block" data-testid="defer-by-project">
+          <div className="weekly-col-label">WHERE THE CHURN IS</div>
+          {a.byProject.map((p) => (
+            <div
+              key={p.project.id}
+              className="report-line"
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                openProject(p.project.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') openProject(p.project.id);
+              }}
+            >
+              <Dot color={p.project.color} size={7} />
+              <span className="report-line-title">{p.project.name}</span>
+              <span className="report-line-due muted">
+                {p.deferrals}× · {p.tasks} task{p.tasks === 1 ? '' : 's'} · +{p.days}d
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="report-block" data-testid="defer-by-priority">
+          <div className="weekly-col-label">WHAT KEEPS SLIPPING</div>
+          {a.byPriority.map((p) => (
+            <div key={p.priority} className="report-line">
+              <Dot color={PRIORITY_COLORS[p.priority].dot} size={7} />
+              <span className="report-line-title">{p.priority}</span>
+              <span className="report-line-due muted">{p.deferrals}×</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The reports surface (prototype viewReports). */
 export function Reports(): React.JSX.Element {
   const { workspace, today, showToast } = useStore();
@@ -291,6 +460,7 @@ export function Reports(): React.JSX.Element {
   const [preset, setPreset] = useState<RetroPreset>('last-30');
   const [from, setFrom] = useState(isoAdd(today, -30));
   const [to, setTo] = useState(today);
+  const [deferMin, setDeferMin] = useState<number>(DEFER_THRESHOLD_DEFAULT);
 
   const pickPreset = (next: RetroPreset): void => {
     setPreset(next);
@@ -312,6 +482,8 @@ export function Reports(): React.JSX.Element {
       text = portfolioText(portfolioRollup(workspace, filter, today), today);
     else if (type === 'retro')
       text = retrospectiveText(retrospective(workspace, filter, from, to), from, to);
+    else if (type === 'deferred')
+      text = deferredText(deferredReport(workspace, filter, deferMin, today), today);
     else text = atRiskText(atRiskReport(workspace, filter, today), today);
 
     navigator.clipboard.writeText(text).then(
@@ -361,6 +533,10 @@ export function Reports(): React.JSX.Element {
         )}
       </div>
     );
+  } else if (type === 'deferred') {
+    body = (
+      <DeferredReport result={deferredReport(workspace, filter, deferMin, today)} today={today} />
+    );
   } else body = <RiskReport rows={atRiskReport(workspace, filter, today)} />;
 
   return (
@@ -406,6 +582,22 @@ export function Reports(): React.JSX.Element {
               }}
             />
           </div>
+        )}
+        {type === 'deferred' && (
+          <select
+            className="inp select"
+            value={deferMin}
+            aria-label="Minimum reschedules"
+            onChange={(e) => {
+              setDeferMin(Number(e.target.value));
+            }}
+          >
+            {DEFER_THRESHOLDS.map((n) => (
+              <option key={n} value={n}>
+                {n}+ reschedules
+              </option>
+            ))}
+          </select>
         )}
         <select
           className="inp select"

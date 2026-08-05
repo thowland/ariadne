@@ -2,6 +2,7 @@ import { todoistSyncDue } from '@shared/domain/todoist';
 import { useEffect, useState } from 'react';
 
 import { getApi } from './app/api';
+import { runMenuCommand } from './app/menu-commands';
 import { useStore } from './app/store';
 import { Sidebar } from './chrome/Sidebar';
 import { TopBar } from './chrome/TopBar';
@@ -53,6 +54,11 @@ export function App(): React.JSX.Element {
     getApi().onSaveStatus((status) => {
       useStore.getState().setSaveBroken(!status.ok);
     });
+  }, []);
+
+  // Application-menu commands arrive as pushes from the main process.
+  useEffect(() => {
+    getApi().onMenuCommand(runMenuCommand);
   }, []);
 
   // Escape unwinds one layer at a time: context menu, confirm, then modal.
@@ -113,7 +119,7 @@ export function App(): React.JSX.Element {
   }
 
   return (
-    <div className="shell">
+    <div className={`shell ${getApi().insetTitlebar ? 'inset-titlebar' : ''}`}>
       <Sidebar />
       <main className="main-col">
         <TopBar />

@@ -44,6 +44,12 @@ export const projectSchema = z.object({
   createdAt: isoDate,
 });
 
+const deferralSchema = z.object({
+  from: isoDate,
+  to: isoDate,
+  on: isoDate,
+});
+
 export const taskSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -58,6 +64,15 @@ export const taskSchema = z.object({
   links: z.array(linkRefSchema).catch([]),
   createdAt: isoDate,
   completedAt: isoDateOrNull.default(null),
+  // Optional so pre-1.14 documents round-trip byte-identical. A single
+  // malformed entry is dropped rather than costing the whole history.
+  deferrals: z
+    .preprocess(
+      (v) => (Array.isArray(v) ? v.filter((d) => deferralSchema.safeParse(d).success) : v),
+      z.array(deferralSchema),
+    )
+    .optional()
+    .catch(undefined),
 });
 
 export const fileEntrySchema = z.object({
