@@ -102,9 +102,12 @@ commits; features get a `[vX.Y.0]` commit + tag.
 - `mkdirSync` on `/proc/...` paths **hangs** on this VM's filesystem — never use
   /proc paths in tests; use a file-as-directory to provoke fs errors.
 - npm's optional-deps bug can drop native modules on any `npm install`; prefer
-  `npm ci`. **package-lock.json is untracked** (gitignored — it churned between
-  the Mac/Linux checkouts) but kept on disk in each checkout; don't delete it,
-  and don't expect it in fresh clones.
+  `npm ci`. **package-lock.json is tracked** as of 2026-08-06 — Dependabot can't
+  raise security-fix PRs without it. It still churns between the Mac/Linux
+  checkouts, so resolve conflicts with `npm install --package-lock-only` rather
+  than hand-editing, and commit the lockfile alongside every `package.json`
+  change. The user's global gitignore excludes it, so the repo `.gitignore`
+  carries an explicit `!package-lock.json` negation — don't remove it.
 - `npm overrides` pins `@noble/hashes@^1` (electron-builder 26 requires it via
   CJS); keep it when touching dependencies.
 

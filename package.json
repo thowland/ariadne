@@ -46,7 +46,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@fontsource/public-sans": "^5.2.7",
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "dompurify": "^3.4.11",
     "marked": "^18.0.5",
     "react": "^18.3.1",

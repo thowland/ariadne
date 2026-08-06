@@ -1,7 +1,10 @@
 # Dependencies
 node_modules/
-# Churns between the shared Mac/Linux checkouts; stays local-only
-package-lock.json
+# package-lock.json IS tracked: Dependabot cannot open security-fix PRs without it.
+# The negation overrides the user's global gitignore, which excludes it everywhere.
+# It churns between the shared Mac/Linux checkouts — resolve conflicts with
+# `npm install --package-lock-only` rather than hand-editing.
+!package-lock.json
 
 # Build output (electron-vite / Vite / TypeScript)
 dist/
