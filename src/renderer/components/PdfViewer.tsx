@@ -50,7 +50,9 @@ export function PdfViewer({
   useEffect(() => {
     // Doubles as the unmount signal and as a way to cancel an in-flight fetch.
     const ctrl = new AbortController();
-    let loaded: pdfjs.PDFDocumentProxy | null = null;
+    // The *loading task* owns teardown — it is what tears down the worker.
+    // (pdf.js 6 removed destroy() from PDFDocumentProxy.)
+    let task: pdfjs.PDFDocumentLoadingTask | null = null;
     setDoc(null);
     setFailed(false);
     setPage(1);
@@ -64,11 +66,9 @@ export function PdfViewer({
         if (bytes === null) throw new Error('no source');
         // getDocument detaches the buffer it is given, so hand over a copy and
         // keep the caller's array intact for a re-render.
-        loaded = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
-        if (ctrl.signal.aborted) {
-          void loaded.destroy();
-          return;
-        }
+        task = pdfjs.getDocument({ data: new Uint8Array(bytes) });
+        const loaded = await task.promise;
+        if (ctrl.signal.aborted) return;
         setDoc(loaded);
       } catch {
         // An abort is an unmount, not a failure worth showing.
@@ -78,7 +78,7 @@ export function PdfViewer({
 
     return () => {
       ctrl.abort();
-      void loaded?.destroy();
+      void task?.destroy();
     };
   }, [url, data]);
 
@@ -98,7 +98,8 @@ export function PdfViewer({
         if (ctx === null) return;
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
-        task = p.render({ canvasContext: ctx, viewport });
+        // pdf.js 6 wants the element as well as its context.
+        task = p.render({ canvas, canvasContext: ctx, viewport });
         await task.promise;
       } catch {
         // A cancelled render is the normal result of paging quickly; only a

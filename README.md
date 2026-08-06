@@ -113,10 +113,14 @@ and family that is a poor trade against a one-time click.
 
 ## Getting started as a developer
 
-Requires Node ≥ 18.18. The tool majors here are pinned to ranges that still
-support Node 18 (Vite 6, Vitest 3, ESLint 9, electron-vite 3, and Electron 39 —
-electron@40 requires Node ≥ 22.12), so check `engines` before bumping any of
-them.
+Requires Node ≥ 24 (`engines` in `package.json`; CI and the release builds use
+24.x). Node 18 and 20 both reached end-of-life — April 2025 and April 2026 —
+and much of the tool chain had already moved past them.
+
+Two consequences of Node 24 worth knowing before your first install: npm 11
+blocks dependency install scripts unless they are approved in `package.json`'s
+`allowScripts` block, and Electron 43 ships no install script at all, so the
+project's own `postinstall` fetches its binary explicitly.
 
 ```sh
 npm ci          # fresh install; read "Shared folders" below before reusing a checkout

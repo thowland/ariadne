@@ -14,8 +14,11 @@ const getPage = vi.fn((n: number) =>
   Promise.resolve({ pageNumber: n, getViewport, render: renderPage }),
 );
 const destroy = vi.fn();
+// pdf.js 6: teardown is on the loading task getDocument returns, not on the
+// resolved PDFDocumentProxy.
 const getDocument = vi.fn(() => ({
-  promise: Promise.resolve({ numPages: 3, getPage, destroy }),
+  promise: Promise.resolve({ numPages: 3, getPage }),
+  destroy,
 }));
 
 vi.mock('pdfjs-dist', () => ({
@@ -92,7 +95,10 @@ describe('PdfViewer', () => {
   });
 
   it('shows the caller’s fallback when the document cannot be parsed', async () => {
-    getDocument.mockReturnValueOnce({ promise: Promise.reject(new Error('bad pdf')) });
+    getDocument.mockReturnValueOnce({
+      promise: Promise.reject(new Error('bad pdf')),
+      destroy: vi.fn(),
+    });
     render(<PdfViewer source={{ url: 'x' }} label="a.pdf" fallback={FALLBACK} />);
     expect(await screen.findByTestId('fallback')).toBeInTheDocument();
     expect(screen.queryByTestId('pdf-viewer')).not.toBeInTheDocument();
@@ -104,7 +110,7 @@ describe('PdfViewer', () => {
     expect(await screen.findByTestId('fallback')).toBeInTheDocument();
   });
 
-  it('destroys the document when unmounted, so the worker is released', async () => {
+  it('destroys the loading task when unmounted, so the worker is released', async () => {
     const { unmount } = render(
       <PdfViewer source={{ url: 'x' }} label="a.pdf" fallback={FALLBACK} />,
     );

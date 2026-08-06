@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.18.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+the app is at **v1.19.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
 maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
 the **macOS build**; development happens on a Linux arm64 VM.
 
@@ -102,12 +102,29 @@ commits; features get a `[vX.Y.0]` commit + tag.
 
 ## Environment gotchas (this VM)
 
-- **Node 18.19 on linux-arm64** — tool majors are pinned to Node-18-compatible
-  ranges (Vite 6, Vitest 3, ESLint 9, electron-vite 3, @vitejs/plugin-react 4);
-  check `engines` before bumping any of them. **Electron is capped at 39.x**:
-  the electron@40+ npm package requires Node ≥ 22.12. When bumping Electron,
-  re-test blob previews — Chromium keeps tightening custom-scheme fetch (the
-  39 bump needed `corsEnabled` + ACAO headers on `ariadne-blob://`).
+- **Node 24 is the floor** (`engines: >=24.0.0`, CI and release both on 24.x)
+  as of 2026-08-06. Node 18 and 20 are both past end-of-life (2025-04-30 and
+  2026-04-30); Node 26 becomes LTS in Oct 2026 and should join the CI matrix
+  then. The old Node-18 pins are gone — Electron is no longer capped at 39.x.
+  When bumping Electron, still re-test blob previews: Chromium keeps
+  tightening custom-scheme fetch (the 39 bump needed `corsEnabled` + ACAO
+  headers on `ariadne-blob://`; verified again on 43/Chromium 150).
+- **npm 11 (bundled with Node 24) blocks dependency install scripts by
+  default.** Approvals live in `package.json` under `allowScripts`, pinned per
+  version (`esbuild@0.25.12: true`), so a dependency bump needs a fresh
+  `npm approve-scripts <pkg>` or its install step silently does not run.
+  `npm approve-scripts --allow-scripts-pending` lists what is waiting.
+- **Electron 43 no longer downloads its binary via a postinstall** — the
+  package ships no scripts at all and fetches lazily on first `require`. The
+  project's own `postinstall` runs `install-electron` explicitly so a fresh
+  `npm ci` fails loudly rather than downloading 100MB in the middle of an E2E
+  run. Don't remove it; `node_modules/electron/dist` missing is the symptom.
+- **pdf.js 6 evaluates `DOMMatrix`/`Path2D`/`ImageData` at import time**, which
+  jsdom does not implement, so every test file that transitively imports
+  `PdfViewer` dies on module load without the stubs in
+  `renderer/test-setup.ts`. Its API also moved between 4 and 6: teardown is
+  `loadingTask.destroy()` (not on `PDFDocumentProxy`), and `page.render()`
+  wants `canvas` alongside `canvasContext`.
 - Headless: every app/E2E/screenshot run needs `xvfb-run -a`.
 - The repo lives in a folder **shared with the user's Mac**; if they ran npm there,
   platform binaries get swapped. Repair: `node node_modules/electron/install.js`

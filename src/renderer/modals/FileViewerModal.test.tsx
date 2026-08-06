@@ -21,8 +21,8 @@ vi.mock('pdfjs-dist', () => ({
           getViewport: () => ({ width: 200, height: 300 }),
           render: () => ({ promise: Promise.resolve(), cancel: vi.fn() }),
         }),
-      destroy: vi.fn(),
     }),
+    destroy: vi.fn(),
   }),
 }));
 vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({ default: 'worker.js' }));

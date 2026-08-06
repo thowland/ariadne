@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.19.0 — 2026-08-06
+
+- **Now built on Node 24 and Electron 43.** Ariadne's toolchain had been held
+  on Node 18, which reached end-of-life in April 2025 — as had Node 20, in
+  April 2026. The floor is now Node 24 (supported until April 2028), which
+  also lifts the cap that kept Electron at 39. Electron 43 brings four majors
+  of Chromium security and rendering fixes. Nothing changes in the app's
+  behaviour; PDF previews, image previews, and report PDF export were all
+  re-verified against the new Chromium.
+- **PDF rendering moves to pdf.js 6**, which had been held back by the same
+  Node floor.
+
 ## 1.18.0 — 2026-08-06
 
 - **Every report exports to PDF (D26).** A **PDF** button on the Reports

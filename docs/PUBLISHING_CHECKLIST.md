@@ -232,6 +232,6 @@ purpose and can go: `git remote remove vmshare`.
 | Current version    | 1.13.0, tagged `v1.13.0`                                                          |
 | Commits / tags     | 41 / 15, all authored `Tim Howland <th@wdogsystems.com>`                          |
 | Pre-rewrite backup | `<scratchpad>/ariadne-pre-rewrite.bundle`                                         |
-| CI                 | `.github/workflows/ci.yml` — verify on Node 18 + 20, E2E under xvfb               |
+| CI                 | `.github/workflows/ci.yml` — verify on Node 24, E2E under xvfb                    |
 | Release            | `.github/workflows/release.yml` — 3 platforms on `v*.*.*` tag push, draft release |
 | Local gate         | `npm run format && npm run verify && npm run test:e2e`                            |
