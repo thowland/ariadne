@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.17.0 — 2026-08-06
+
+- **PDFs preview inline (D24).** Opening a PDF from the Files page or a
+  project's Files & documents list now renders the document in the file
+  viewer, with page-forward/back and zoom, instead of offering a download
+  button. Ariadne draws the pages itself: Electron only hands PDFs to
+  Chromium's built-in viewer for top-level navigations, so an embedded frame
+  renders nothing no matter how it is configured. The renderer is bundled, so
+  previews work with no network.
+- **The whole week column opens the day (D25).** In the calendar's week view,
+  clicking anywhere in a day — not just its date number — opens that day's
+  task dialog. The number was a small target, and a day with nothing due had
+  no clickable control at all. Task chips still open their own task.
+
 ## 1.16.0 — 2026-08-05
 
 - **A real application menu (D22).** Ariadne now installs a proper

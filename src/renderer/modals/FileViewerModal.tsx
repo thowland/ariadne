@@ -10,6 +10,7 @@ import { getApi } from '../app/api';
 import { downloadFile, removeFileWithConfirm } from '../app/files';
 import { useStore } from '../app/store';
 import { FileTypeBadge } from '../components/FileRow';
+import { PdfViewer } from '../components/PdfViewer';
 
 const marked = new Marked({ gfm: true, breaks: true });
 
@@ -137,9 +138,13 @@ export function FileViewerModal({ fileId }: { fileId: string }): React.JSX.Eleme
     );
   } else if (isPdf) {
     body = (
-      <object className="pdf-frame" data={blobUrl(file.id)} type="application/pdf">
-        <Placeholder file={file} message="Inline PDF preview is unavailable — download to view." />
-      </object>
+      <PdfViewer
+        source={{ url: blobUrl(file.id) }}
+        label={file.name}
+        fallback={
+          <Placeholder file={file} message="This PDF could not be read — download to view it." />
+        }
+      />
     );
   } else if (ext === 'csv') {
     body = <CsvTable fileId={file.id} />;

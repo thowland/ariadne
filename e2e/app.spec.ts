@@ -7,6 +7,12 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 const FAKE_TODAY = '2026-07-08';
 
+// Read rather than hard-coded: About shows app.getVersion(), so pinning a
+// literal here turns every release bump into a spurious E2E failure.
+const APP_VERSION = (
+  JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')) as { version: string }
+).version;
+
 function launch(userDataDir: string): Promise<ElectronApplication> {
   return electron.launch({
     // The project root, not out/main/index.js: Electron then reads the real
@@ -614,7 +620,7 @@ test('menu commands drive the app: help, about, and the deferred report', async 
 
   // About carries the version and the outbound links.
   await clickMenu('About Ariadne');
-  await expect(win.getByTestId('about-version')).toContainText('Version 1.16.0');
+  await expect(win.getByTestId('about-version')).toContainText(`Version ${APP_VERSION}`);
   await expect(win.getByText('Source on GitHub ↗')).toBeVisible();
   await expect(win.getByTestId('about-runtime')).toContainText('Electron');
   await win.getByRole('dialog', { name: 'About Ariadne' }).getByLabel('Close').click();

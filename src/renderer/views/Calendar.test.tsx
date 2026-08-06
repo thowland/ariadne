@@ -107,6 +107,38 @@ describe('Calendar — week view', () => {
     await userEvent.click(todayBtn!);
     expect(useStore.getState().modal).toEqual({ type: 'day', iso: TEST_TODAY });
   });
+
+  it('opens the day view from anywhere in the column, not just the number', async () => {
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    // The empty space below the chips is the part of the column that used to
+    // swallow clicks; the column element itself stands in for it here.
+    await userEvent.click(screen.getByTestId(`cal-week-col-${TEST_TODAY}`));
+    expect(useStore.getState().modal).toEqual({ type: 'day', iso: TEST_TODAY });
+  });
+
+  it('opens a day with no tasks, where there is no day-number button at all', async () => {
+    // Every day of the seeded week carries a task, so clear the due dates to
+    // get an empty column. A free day renders its number as plain text, not a
+    // button — before this change such a column had no way in at all.
+    const base = seedWorkspace(TEST_TODAY);
+    loadTestWorkspace({ ...base, tasks: base.tasks.map((t) => ({ ...t, dueDate: null })) });
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+
+    const col = screen.getByTestId(`cal-week-col-${TEST_TODAY}`);
+    expect(within(col).queryByRole('button')).toBeNull();
+    await userEvent.click(col);
+    expect(useStore.getState().modal).toEqual({ type: 'day', iso: TEST_TODAY });
+  });
+
+  it('still opens the task, not the day, when a chip inside the column is clicked', async () => {
+    render(<Calendar />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Week' }));
+    const grid = screen.getByTestId('calendar-week-grid');
+    await userEvent.click(within(grid).getByTitle('Write migration runbook'));
+    expect(useStore.getState().modal?.type).toBe('task');
+  });
 });
 
 describe('Calendar — fixed cells & day view', () => {

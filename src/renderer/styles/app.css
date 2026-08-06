@@ -1573,11 +1573,52 @@ input.inp.full {
   border: 1px solid var(--border);
 }
 
-.pdf-frame {
-  width: 100%;
+/* PDFs are rendered to canvas by PdfViewer — Electron will not display one in
+   an embedded frame, so there is no <object> to style here. */
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pdf-pageinfo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 108px;
+  text-align: center;
+}
+.pdf-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.pdf-zoomlevel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 40px;
+  text-align: center;
+}
+.pdf-canvas-wrap {
   height: 66vh;
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface2);
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+.pdf-canvas-wrap canvas {
+  align-self: flex-start;
+  box-shadow: 0 1px 6px rgba(20, 20, 15, 0.16);
+  background: #fff;
 }
 
 .csv-wrap {
@@ -2235,6 +2276,19 @@ input.inp.full {
 }
 .cal-week-col.today {
   background: #f5f6fe;
+}
+/* The whole column opens the day dialog, so it has to read as a target. The
+   tint is lighter than .cal-daynum.clickable:hover so the day number still
+   looks like the primary control when the pointer is over it. */
+.cal-week-col.clickable {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cal-week-col.clickable:hover {
+  background: rgba(20, 20, 15, 0.04);
+}
+.cal-week-col.clickable.today:hover {
+  background: #eceefc;
 }
 .cal-week-head {
   display: flex;

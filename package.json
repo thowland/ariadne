@@ -1,7 +1,7 @@
 {
   "name": "ariadne",
-  "version": "1.16.0",
-  "description": "Ariadne — a single-user, local-first personal project & task tracker",
+  "version": "1.17.0",
+  "description": "Ariadne \u2014 a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
   "author": "Tim Howland <th@wdogsystems.com>",
@@ -49,6 +49,7 @@
     "adm-zip": "^0.6.0",
     "dompurify": "^3.4.11",
     "marked": "^18.0.5",
+    "pdfjs-dist": "^4.4.168",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^3.25.76",
@@ -85,7 +86,7 @@
   "build": {
     "appId": "com.wdogsystems.ariadne",
     "productName": "Ariadne",
-    "copyright": "Copyright © 2026 Tim Howland — GPL-3.0-or-later",
+    "copyright": "Copyright \u00a9 2026 Tim Howland \u2014 GPL-3.0-or-later",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -144,7 +145,8 @@
     }
   },
   "overrides": {
-    "@noble/hashes": "^1.8.0"
+    "@noble/hashes": "^1.8.0",
+    "canvas": "^3.2.3"
   },
   "homepage": "https://github.com/thowland/ariadne#readme"
 }

@@ -8,6 +8,25 @@ import { loadTestWorkspace, setupTestApp } from '../test-utils';
 import { FileViewerModal, renderMarkdown } from './FileViewerModal';
 import { ModalHost } from './TaskModal';
 
+// pdf.js needs a worker and a real canvas, neither of which jsdom has. Stubbed
+// so this file can assert the PDF branch is wired to the viewer; the viewer's
+// own behaviour is covered in PdfViewer.test.tsx.
+vi.mock('pdfjs-dist', () => ({
+  GlobalWorkerOptions: { workerSrc: '' },
+  getDocument: () => ({
+    promise: Promise.resolve({
+      numPages: 1,
+      getPage: () =>
+        Promise.resolve({
+          getViewport: () => ({ width: 200, height: 300 }),
+          render: () => ({ promise: Promise.resolve(), cancel: vi.fn() }),
+        }),
+      destroy: vi.fn(),
+    }),
+  }),
+}));
+vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({ default: 'worker.js' }));
+
 beforeEach(() => {
   setupTestApp();
   loadTestWorkspace();
@@ -107,6 +126,36 @@ describe('FileViewerModal', () => {
       expect(vi.mocked(fetch)).toHaveBeenCalledWith('ariadne-blob://csv1');
       expect(within(table).getByRole('columnheader', { name: 'name' })).toBeInTheDocument();
       expect(within(table).getByText('tar, pitch')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('renders an uploaded PDF in the inline viewer', async () => {
+    const ws0 = ws();
+    const pdf = {
+      ...ws0.files[0]!,
+      id: 'pdf1',
+      name: 'report.pdf',
+      ext: 'pdf',
+      kind: 'file' as const,
+      content: '',
+      mime: 'application/pdf',
+      size: 4096,
+    };
+    loadTestWorkspace({ ...ws0, files: [...ws0.files, pdf] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
+    );
+    try {
+      useStore.getState().openFile('pdf1');
+      render(<FileViewerModal fileId="pdf1" />);
+      // The viewer mounts and owns the body; the old download-only placeholder
+      // must not be what a PDF falls back to any more.
+      expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument();
+      expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe('ariadne-blob://pdf1');
+      expect(screen.queryByText(/could not be read/)).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }

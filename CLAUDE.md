@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.15.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+the app is at **v1.17.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
 maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
 the **macOS build**; development happens on a Linux arm64 VM.
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (D1–D21); record any
+source of truth for domain semantics and the decision table (D1–D25); record any
 deliberate behavior change as a new decision row there. `CHANGELOG.md` tracks
 releases.
 
@@ -71,6 +71,13 @@ commits; features get a `[vX.Y.0]` commit + tag.
 - **Destructive UI** always goes through `askConfirm` (never `window.confirm`),
   and the confirm dialog must never autofocus its destructive button. Bulk
   edits that aren't deletions pass `{ confirmLabel, danger: false }` (D21).
+- **PDFs** render via `renderer/components/PdfViewer.tsx` (pdf.js → canvas), never
+  an `<object>`/`<iframe>`: Electron only gives PDFs to Chromium's viewer on a
+  top-level navigation, so an embedded frame silently shows its fallback (D24).
+  The component takes `{ url }` or `{ data }`, so report PDFs from
+  `webContents.printToPDF` can preview without touching disk. Keep the
+  `canvas` entry in `npm overrides` — pdfjs-dist lists it as an optional dep the
+  renderer never uses, and without the pin it raises a false Dependabot alert.
 - **Context menus** (D21) are accelerators only: every item must also be
   reachable through ordinary UI. They render from one `contextMenu` store
   slot via `App`, so only one is ever open; the first non-destructive row

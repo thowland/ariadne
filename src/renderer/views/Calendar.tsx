@@ -107,7 +107,20 @@ export function Calendar(): React.JSX.Element {
                 const isToday = iso === today;
                 const list = byDate.get(iso) ?? [];
                 return (
-                  <div key={iso} className={`cal-week-col ${isToday ? 'today' : ''}`}>
+                  // Clicking anywhere in the column opens the day — the day
+                  // number alone is a small target. This is a mouse
+                  // accelerator layered over the real controls below (chips
+                  // stop propagation, the day number stays focusable), so
+                  // keyboard and screen-reader paths are unchanged.
+                  <div
+                    key={iso}
+                    className={`cal-week-col clickable ${isToday ? 'today' : ''}`}
+                    data-testid={`cal-week-col-${iso}`}
+                    title={`View all tasks due ${iso}`}
+                    onClick={() => {
+                      openDay(iso);
+                    }}
+                  >
                     <div className="cal-week-head">
                       <span className="cal-dow">{DOW[dayOfWeek(iso)]}</span>
                       {list.length > 0 ? (
@@ -136,7 +149,10 @@ export function Calendar(): React.JSX.Element {
                             className={`cal-chip ${done ? 'done' : ''}`}
                             title={t.title}
                             style={done ? undefined : { background: pr.bg }}
-                            onClick={() => {
+                            onClick={(e) => {
+                              // Without this the column's day handler also
+                              // fires and the day dialog buries the task.
+                              e.stopPropagation();
                               openTask(t.id);
                             }}
                           >
