@@ -10,6 +10,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# CI only ever reads the repo: it checks out, installs, and runs the suites.
+# Declared at the workflow level so every job inherits the floor and a new job
+# can't silently pick up the default write-scoped token.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: verify (node ${{ matrix.node }})
@@ -27,8 +33,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      # package-lock.json is not tracked (it churns between the Mac and Linux
-      # checkouts), so this is `npm install` rather than `npm ci`.
+      # Still `npm install`, not `npm ci`, even though package-lock.json is now
+      # tracked: the lockfile is generated on the maintainer's darwin-arm64 Mac
+      # and carries only the darwin-arm64 optional binaries for rollup/esbuild.
+      # `npm ci` installs strictly from the lockfile and would leave these Linux
+      # runners without @rollup/rollup-linux-x64-gnu. Switching over means
+      # regenerating the lockfile for every target platform first.
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
