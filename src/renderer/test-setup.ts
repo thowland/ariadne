@@ -56,19 +56,6 @@ if (typeof g.ImageData === 'undefined') {
   };
 }
 
-// jsdom (as of v25) lacks Blob.prototype.arrayBuffer, which the upload flow
-// uses; production Chromium always has it.
-if (typeof Blob.prototype.arrayBuffer !== 'function') {
-  Blob.prototype.arrayBuffer = function arrayBuffer(this: Blob): Promise<ArrayBuffer> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve(reader.result as ArrayBuffer);
-      };
-      reader.onerror = () => {
-        reject(new Error('read failed'));
-      };
-      reader.readAsArrayBuffer(this);
-    });
-  };
-}
+// The Blob.prototype.arrayBuffer shim that used to live here is gone: jsdom
+// implements it natively as of v30 (it did not in v25), so the polyfill was
+// dead code the moment jsdom was bumped.

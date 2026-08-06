@@ -295,3 +295,29 @@ typography block; dot sizes (6/7/8px) passed inline to `Dot` in several places.
 Items 1–4 are the "robust, reliable" payload; each should land with the usual gate
 (failing test first where possible — 1.1 and 1.2 are very testable). Items 5–7 are
 maintainability and can be batched opportunistically.
+
+---
+
+## P5 — React Compiler rules (added 2026-08-06)
+
+`eslint-plugin-react-hooks` 7 expanded its `recommended` preset from 2 rules to
+16; the 14 new ones are the React Compiler rules. `eslint.config.mjs`
+deliberately enables only the two classic rules, keeping the lint gate exactly
+as strict as it was under v5, because the new set flags **9 pre-existing
+patterns in shipped code**. None is a known bug — the app works — but each is a
+pattern React Compiler cannot reason about, so clearing them is a prerequisite
+if the compiler is ever adopted.
+
+| Rule                              | Site                                  | Shape                                                                                                  |
+| --------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `react-hooks/refs`                | `views/ProjectDetail.tsx:37,38,43,44` | Reads and writes `pinnedRef.current.ids` during render to hold pinned task order stable across renders |
+| `react-hooks/refs`                | `components/DependencyMap.tsx:66,67`  | Reads ref state during render                                                                          |
+| `react-hooks/set-state-in-effect` | `components/ContextMenu.tsx:27`       | Synchronous `setState` inside an effect                                                                |
+| `react-hooks/set-state-in-effect` | `components/PdfViewer.tsx:56`         | Resets `doc`/`failed`/`page` synchronously when the source changes                                     |
+
+Each wants a different fix — derived state or a `key` for the PdfViewer reset,
+a layout effect or a reducer for ContextMenu, and moving the pinned-order
+bookkeeping out of render for ProjectDetail — so this is a per-component pass,
+not a batch edit. Do it behind the usual gate, then swap
+`eslint.config.mjs` back to `reactHooks.configs.recommended.rules` and delete
+this section.

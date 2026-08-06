@@ -109,6 +109,18 @@ commits; features get a `[vX.Y.0]` commit + tag.
   When bumping Electron, still re-test blob previews: Chromium keeps
   tightening custom-scheme fetch (the 39 bump needed `corsEnabled` + ACAO
   headers on `ariadne-blob://`; verified again on 43/Chromium 150).
+- **Toolchain ceilings** (checked 2026-08-06) — these are peer-dependency
+  limits, not Node limits, so don't retry them on the next Node bump:
+  - **Vite is capped at 7**: `electron-vite@5` peers `vite ^5||^6||^7`. Vite 8
+    needs electron-vite to move first, and `@vitejs/plugin-react` must stay on
+    5.x in the meantime (6.x requires Vite 8).
+  - **ESLint is capped at 9**: `eslint-plugin-react` peers up to `^9.7` and
+    `eslint-plugin-import` up to `^9`. `typescript-eslint` and
+    `eslint-plugin-react-hooks` already accept `^10`, so react/import are the
+    blockers; swapping in `eslint-plugin-import-x` alone would not clear it.
+  - `eslint-plugin-react-hooks@7` expanded `recommended` from 2 rules to 16.
+    `eslint.config.mjs` enables only the two classic rules on purpose — see
+    P5 in `docs/CODE_REVIEW_2026-07-18.md` for the 9 findings the rest raise.
 - **npm 11 (bundled with Node 24) blocks dependency install scripts by
   default.** Approvals live in `package.json` under `allowScripts`, pinned per
   version (`esbuild@0.25.12: true`), so a dependency bump needs a fresh

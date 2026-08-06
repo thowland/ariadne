@@ -204,7 +204,10 @@ describe('TodoistPushService', () => {
     labels: ['Q3-Platform-Migration', 'ariadne'],
   };
 
-  function pushService(fetchImpl: ReturnType<typeof vi.fn>): TodoistPushService {
+  // vitest 4 infers vi.fn() as Mock<Procedure | Constructable>, which no
+  // longer satisfies the service's FetchLike. Take the parameter the service
+  // actually wants and let the mock widen into it at the call site.
+  function pushService(fetchImpl: ConstructorParameters<typeof TodoistService>[0]) {
     let n = 0;
     return new TodoistPushService(
       new TodoistService(fetchImpl, instantSleep),

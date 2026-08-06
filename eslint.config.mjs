@@ -56,7 +56,19 @@ export default tseslint.config(
   {
     files: ['src/renderer/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
-    rules: reactHooks.configs.recommended.rules,
+    // The two classic rules, listed explicitly rather than spread from
+    // `recommended`. In eslint-plugin-react-hooks 7 that preset grew from 2
+    // rules to 16: the other 14 are React Compiler rules, and they flag 9
+    // pre-existing patterns in shipped code (ref access during render in
+    // DependencyMap and ProjectDetail, setState-in-effect in ContextMenu and
+    // PdfViewer). Clearing those is a component refactor, not a dependency
+    // bump — tracked in docs/CODE_REVIEW_2026-07-18.md. Enabling the full
+    // preset is the follow-up; this keeps the gate exactly as strict as it
+    // was rather than widening or silently suppressing it.
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
   },
   {
     // Tests assert against known fixtures; `!` on a looked-up fixture is

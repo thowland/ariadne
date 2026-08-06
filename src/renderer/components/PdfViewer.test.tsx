@@ -36,7 +36,7 @@ beforeEach(() => {
   // jsdom's canvas has no 2D context; the component bails out of drawing
   // gracefully, which is fine — we assert on the controls, not the pixels.
   HTMLCanvasElement.prototype.getContext = vi.fn(() => null) as never;
-  global.fetch = vi.fn(() =>
+  globalThis.fetch = vi.fn(() =>
     Promise.resolve({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }),
   ) as never;
 });
@@ -46,14 +46,14 @@ describe('PdfViewer', () => {
     render(<PdfViewer source={{ url: 'ariadne-blob://abc' }} label="a.pdf" fallback={FALLBACK} />);
     expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();
     // Only the URL matters here; the second arg is the abort signal.
-    expect(vi.mocked(global.fetch).mock.calls[0]?.[0]).toBe('ariadne-blob://abc');
+    expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[0]).toBe('ariadne-blob://abc');
   });
 
   it('loads from raw bytes without fetching — the path a generated report uses', async () => {
     const data = new Uint8Array([1, 2, 3, 4]);
     render(<PdfViewer source={{ data }} label="report.pdf" fallback={FALLBACK} />);
     expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument();
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
     // The caller's array must survive: getDocument detaches what it is given.
     expect(data).toEqual(new Uint8Array([1, 2, 3, 4]));
   });
@@ -105,7 +105,7 @@ describe('PdfViewer', () => {
   });
 
   it('shows the fallback when the bytes cannot be fetched', async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error('offline')));
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error('offline')));
     render(<PdfViewer source={{ url: 'x' }} label="a.pdf" fallback={FALLBACK} />);
     expect(await screen.findByTestId('fallback')).toBeInTheDocument();
   });
