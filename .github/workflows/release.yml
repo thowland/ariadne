@@ -52,11 +52,10 @@ jobs:
         with:
           node-version: '20.x'
 
-      # `npm install`, not `npm ci` — see the note in ci.yml: the tracked
-      # lockfile only carries darwin-arm64 optional binaries, so a strict
-      # install would break the Linux and Windows legs of this matrix.
+      # `npm ci` — the lockfile carries every platform's optional binaries, so
+      # all three legs of this matrix install strictly from it.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build installers
         run: npm run ${{ matrix.script }}

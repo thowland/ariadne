@@ -116,12 +116,22 @@ commits; features get a `[vX.Y.0]` commit + tag.
 - `mkdirSync` on `/proc/...` paths **hangs** on this VM's filesystem — never use
   /proc paths in tests; use a file-as-directory to provoke fs errors.
 - npm's optional-deps bug can drop native modules on any `npm install`; prefer
-  `npm ci`. **package-lock.json is tracked** as of 2026-08-06 — Dependabot can't
-  raise security-fix PRs without it. It still churns between the Mac/Linux
-  checkouts, so resolve conflicts with `npm install --package-lock-only` rather
-  than hand-editing, and commit the lockfile alongside every `package.json`
-  change. The user's global gitignore excludes it, so the repo `.gitignore`
-  carries an explicit `!package-lock.json` negation — don't remove it.
+  `npm ci`, which CI and the release matrix both use.
+- **package-lock.json is tracked** as of 2026-08-06 — Dependabot can't raise
+  security-fix PRs without it, and `npm ci` needs it. The user's global
+  gitignore excludes it, so the repo `.gitignore` carries an explicit
+  `!package-lock.json` negation — don't remove it.
+  - It must stay **multi-platform**: it carries the optional rollup/esbuild
+    binaries for linux, darwin and win32 so `npm ci` works on every runner.
+    Regenerating it with `node_modules` present **prunes it to the current
+    platform** and silently breaks CI. The recipe that works:
+    `mv node_modules /tmp/x && rm package-lock.json && npm install
+--package-lock-only && mv /tmp/x node_modules` (the postinstall
+    `patch-package` step errors while node_modules is away — harmless, the
+    lockfile is still written). Afterwards check
+    `grep -c '@rollup/rollup-linux-x64-gnu' package-lock.json` is 1.
+  - Resolve merge conflicts in it with a regeneration, never by hand, and
+    commit it alongside every `package.json` change.
 - `npm overrides` pins `@noble/hashes@^1` (electron-builder 26 requires it via
   CJS); keep it when touching dependencies.
 

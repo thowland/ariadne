@@ -33,14 +33,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      # Still `npm install`, not `npm ci`, even though package-lock.json is now
-      # tracked: the lockfile is generated on the maintainer's darwin-arm64 Mac
-      # and carries only the darwin-arm64 optional binaries for rollup/esbuild.
-      # `npm ci` installs strictly from the lockfile and would leave these Linux
-      # runners without @rollup/rollup-linux-x64-gnu. Switching over means
-      # regenerating the lockfile for every target platform first.
+      # `npm ci`: strict, lockfile-exact installs. The lockfile is generated
+      # with node_modules moved aside (see CLAUDE.md) so it carries every
+      # platform's optional binaries, not just the maintainer's darwin-arm64.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck, lint, format, coverage
         run: npm run verify
@@ -56,7 +53,7 @@ jobs:
           node-version: '20.x'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Install Electron's runtime libraries
         run: |
