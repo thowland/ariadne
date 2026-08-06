@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.18.0 — 2026-08-06
+
+- **Every report exports to PDF (D26).** A **PDF** button on the Reports
+  screen prints whatever is on display — weekly status, portfolio roll-up,
+  retrospective, at-risk or deferred — through Chromium's own print engine.
+  The text stays real text, so the result is selectable and searchable, and
+  the page is laid out for paper: white background, repeated table headers
+  across pages, and rows that don't split down the middle. The export always
+  matches the screen, current sort order included.
+- **The portfolio roll-up exports to CSV (D27).** A **CSV** button next to it
+  writes the table for a spreadsheet, with the next-due column as a real
+  `YYYY-MM-DD` date rather than "in 3d" so it can be sorted and filtered.
+- **Sortable portfolio columns (D27).** Every heading in the portfolio table
+  is now clickable: the first click sorts by that column, a second reverses
+  it. Counts start with the largest, names start at A. Projects with nothing
+  scheduled stay at the bottom either way.
+- Cleared the remaining npm advisories (`brace-expansion`, `fast-uri`,
+  `postcss`, `tar`, `undici`, `dompurify`) — all build-time dependencies;
+  `npm audit` reports zero.
+
 ## 1.17.0 — 2026-08-06
 
 - **PDFs preview inline (D24).** Opening a PDF from the Files page or a

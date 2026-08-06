@@ -1,8 +1,9 @@
 import { isoAdd } from '@shared/domain/dates';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 import { loadTestWorkspace, setupTestApp } from '../test-utils';
 
@@ -280,5 +281,144 @@ describe('Reports — deferred (D23)', () => {
     await openDeferred();
     await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'home');
     expect(screen.getByTestId('defer-clear')).toBeInTheDocument();
+  });
+});
+
+describe('Reports — portfolio sorting', () => {
+  async function openPortfolio() {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
+    return screen.getByTestId('portfolio-table');
+  }
+
+  const names = (table: HTMLElement): string[] =>
+    within(table)
+      .getAllByRole('row')
+      .slice(1) // drop the header row
+      .map((r) => within(r).getAllByRole('cell')[0]?.textContent.trim() ?? '');
+
+  it('defaults to project name ascending', async () => {
+    const table = await openPortfolio();
+    const shown = names(table);
+    expect(shown).toEqual([...shown].sort((a, b) => a.localeCompare(b)));
+    expect(within(table).getByRole('columnheader', { name: /PROJECT/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+  });
+
+  it('sorts by a clicked column and reverses on a second click', async () => {
+    const table = await openPortfolio();
+    const openHeader = within(table).getByRole('button', { name: /OPEN/ });
+
+    const openCounts = (): number[] =>
+      within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => Number(within(r).getAllByRole('cell')[3]?.textContent));
+
+    // Numeric columns lead with the largest — that is the question a count asks.
+    await userEvent.click(openHeader);
+    const desc = openCounts();
+    expect(desc).toEqual([...desc].sort((a, b) => b - a));
+    expect(within(table).getByRole('columnheader', { name: /OPEN/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+
+    // Reversing flips the values. Rows that tie stay in name order rather
+    // than mirroring, so this compares the column, not the whole row list.
+    await userEvent.click(openHeader);
+    const asc = openCounts();
+    expect(asc).toEqual([...desc].sort((a, b) => a - b));
+    expect(within(table).getByRole('columnheader', { name: /OPEN/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+  });
+
+  it('moves the sort to a new column rather than compounding', async () => {
+    const table = await openPortfolio();
+    await userEvent.click(within(table).getByRole('button', { name: /OVERDUE/ }));
+    expect(within(table).getByRole('columnheader', { name: /OVERDUE/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+
+    await userEvent.click(within(table).getByRole('button', { name: /PROJECT/ }));
+    expect(within(table).getByRole('columnheader', { name: /PROJECT/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+    expect(within(table).getByRole('columnheader', { name: /OVERDUE/ })).toHaveAttribute(
+      'aria-sort',
+      'none',
+    );
+  });
+
+  it('does not open a project when a header is clicked', async () => {
+    const table = await openPortfolio();
+    await userEvent.click(within(table).getByRole('button', { name: /PROJECT/ }));
+    expect(useStore.getState().view).toBe('reports');
+    expect(useStore.getState().activeProjectId).toBeNull();
+  });
+});
+
+describe('Reports — exports', () => {
+  it('offers a PDF export on every report, and CSV only on the portfolio', async () => {
+    render(<Reports />);
+    for (const tab of ['Weekly status', 'Retrospective', 'At-risk', 'Deferred']) {
+      await userEvent.click(screen.getByRole('tab', { name: tab }));
+      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
+    }
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+  });
+
+  it('sends a complete document and a dated filename to the PDF exporter', async () => {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    const call = vi.mocked(getApi().exportReportPdf).mock.calls[0]?.[0];
+    expect(call?.suggestedName).toBe('ariadne-portfolio-roll-up-2026-07-08.pdf');
+    expect(call?.html).toContain('<!doctype html>');
+    expect(call?.html).toContain('Ariadne — Portfolio roll-up');
+    // The captured body is the live table, so the PDF matches the screen.
+    expect(call?.html).toContain('Q3 Platform Migration');
+  });
+
+  it('exports the CSV through the download channel with a header row', async () => {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio roll-up' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const call = vi.mocked(getApi().downloadFile).mock.calls[0]?.[0];
+    expect(call?.suggestedName).toBe('ariadne-portfolio-roll-up-2026-07-08.csv');
+    expect(call?.content?.startsWith('Project,Type,Progress %,Open,Done,Overdue,Next due')).toBe(
+      true,
+    );
+    expect(call?.content).toContain('Q3 Platform Migration');
+  });
+
+  it('carries the report scope into the printed subtitle', async () => {
+    render(<Reports />);
+    await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'work');
+    await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+    const call = vi.mocked(getApi().exportReportPdf).mock.calls[0]?.[0];
+    expect(call?.html).toContain('Work only');
+  });
+
+  it('surfaces an export failure as a toast', async () => {
+    vi.mocked(getApi().exportReportPdf).mockResolvedValueOnce({
+      savedPath: null,
+      error: 'disk full',
+    });
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe('PDF export failed — disk full');
+    });
   });
 });

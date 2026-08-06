@@ -3,6 +3,7 @@ import type {
   AriadneApi,
   DebugLogCategory,
   DownloadRequest,
+  ReportPdfRequest,
   WorkspaceSavePayload,
 } from '@shared/ipc-contract';
 import { IPC } from '@shared/ipc-contract';
@@ -28,6 +29,7 @@ const api: AriadneApi = {
     ipcRenderer.invoke(IPC.blobSave, { fileId, ext, bytes: new Uint8Array(bytes) }),
   deleteBlobs: (fileIds: string[]) => ipcRenderer.invoke(IPC.blobDelete, { fileIds }),
   downloadFile: (request: DownloadRequest) => ipcRenderer.invoke(IPC.fileDownload, request),
+  exportReportPdf: (request: ReportPdfRequest) => ipcRenderer.invoke(IPC.reportExportPdf, request),
   exportWorkspace: () => ipcRenderer.invoke(IPC.exportRun),
   exportArchive: () => ipcRenderer.invoke(IPC.archiveExport),
   importArchive: () => ipcRenderer.invoke(IPC.archiveImport),

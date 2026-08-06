@@ -682,3 +682,67 @@ test('the file library accepts a drag-and-drop upload', async () => {
 
   await app.close();
 });
+
+test('report exports: PDF from every tab, CSV and column sorting on the portfolio', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const out = mkdtempSync(join(tmpdir(), 'ariadne-out-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Reports' }).click();
+
+  const stubSave = async (filePath: string): Promise<void> => {
+    await app.evaluate(({ dialog }, target) => {
+      dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath: target });
+    }, filePath);
+  };
+
+  // Every report exports a real PDF, not just the one that happens to be open.
+  for (const tab of [
+    'Weekly status',
+    'Portfolio roll-up',
+    'Retrospective',
+    'At-risk',
+    'Deferred',
+  ]) {
+    const target = join(out, `${tab.replace(/\W+/g, '-')}.pdf`);
+    await stubSave(target);
+    await win.getByRole('tab', { name: tab }).click();
+    await win.getByRole('button', { name: 'Export PDF' }).click();
+    await expect(win.getByText(/Saved .* PDF/)).toBeVisible();
+    await expect.poll(() => existsSync(target)).toBe(true);
+    // %PDF- header: proof Chromium actually printed, not that a file appeared.
+    expect(readFileSync(target).subarray(0, 5).toString()).toBe('%PDF-');
+  }
+
+  // CSV is portfolio-only and carries raw ISO dates for a spreadsheet.
+  await win.getByRole('tab', { name: 'Portfolio roll-up' }).click();
+  const csv = join(out, 'portfolio.csv');
+  await stubSave(csv);
+  await win.getByRole('button', { name: 'Export CSV' }).click();
+  await expect.poll(() => existsSync(csv)).toBe(true);
+  const text = readFileSync(csv, 'utf8');
+  expect(text.split('\r\n')[0]).toBe('Project,Type,Progress %,Open,Done,Overdue,Next due');
+  expect(text).toContain('Q3 Platform Migration,work,17,5,1,1,2026-07-07');
+
+  // Sorting: click a column, then click it again to reverse.
+  const table = win.getByTestId('portfolio-table');
+  const firstProject = async (): Promise<string | null> =>
+    table.locator('tbody tr').first().locator('td').first().textContent();
+
+  await table.getByRole('button', { name: /OVERDUE/ }).click();
+  await expect(table.getByRole('columnheader', { name: /OVERDUE/ })).toHaveAttribute(
+    'aria-sort',
+    'descending',
+  );
+  expect(await firstProject()).toContain('2025 Taxes');
+
+  await table.getByRole('button', { name: /OVERDUE/ }).click();
+  await expect(table.getByRole('columnheader', { name: /OVERDUE/ })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  );
+  expect(await firstProject()).toContain('Customer Onboarding Revamp');
+
+  await app.close();
+});

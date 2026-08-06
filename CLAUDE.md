@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
 (Electron + React 18 + TypeScript, electron-vite). All nine delivery sprints are done;
-the app is at **v1.17.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
+the app is at **v1.18.0** (`package.json`/`CHANGELOG.md` are authoritative) and in
 maintenance: bug fixes, small features, and dependency upkeep. The user daily-drives
 the **macOS build**; development happens on a Linux arm64 VM.
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (D1–D25); record any
+source of truth for domain semantics and the decision table (D1–D27); record any
 deliberate behavior change as a new decision row there. `CHANGELOG.md` tracks
 releases.
 
@@ -78,6 +78,13 @@ commits; features get a `[vX.Y.0]` commit + tag.
   `webContents.printToPDF` can preview without touching disk. Keep the
   `canvas` entry in `npm overrides` — pdfjs-dist lists it as an optional dep the
   renderer never uses, and without the pin it raises a false Dependabot alert.
+- **Report PDFs** go through `webContents.printToPDF` in an offscreen window
+  (`main/services/report-pdf-service.ts`), never pdf.js — that library reads
+  PDFs, it cannot write them (D26). The renderer captures the live report
+  markup and wraps it with `shared/domain/report-print.ts`, so one path serves
+  all five reports. New report markup that must print needs a rule in
+  `REPORT_PRINT_CSS`; `<span>`s sized by inline style (dots, pills) are
+  invisible there until given an explicit `display`.
 - **Context menus** (D21) are accelerators only: every item must also be
   reachable through ordinary UI. They render from one `contextMenu` store
   slot via `App`, so only one is ever open; the first non-destructive row

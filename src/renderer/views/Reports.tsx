@@ -1,12 +1,16 @@
+import { toCsv } from '@shared/domain/csv';
 import { isoAdd } from '@shared/domain/dates';
-import { fmtShort } from '@shared/domain/dates';
+import { fmtLong, fmtShort } from '@shared/domain/dates';
 import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
+import { buildReportDocument, reportFileName } from '@shared/domain/report-print';
 import type {
   DeferralResult,
+  PortfolioSortKey,
   ReportFilter,
   RetroBucket,
   RetroPreset,
   RiskRow,
+  SortDirection,
   WeeklyBlock,
 } from '@shared/domain/reports';
 import {
@@ -16,8 +20,11 @@ import {
   DEFER_THRESHOLDS,
   deferredReport,
   deferredText,
+  PORTFOLIO_COLUMNS,
+  portfolioCsvRows,
   portfolioRollup,
   portfolioText,
+  sortPortfolio,
   RETRO_PRESETS,
   retroBuckets,
   retroPresetRange,
@@ -27,13 +34,17 @@ import {
   weeklyStatusText,
 } from '@shared/domain/reports';
 import type { IsoDate, Task, Workspace } from '@shared/types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 import { CategoryPill, Dot, SegmentedControl } from '../components/primitives';
 import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
 type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk' | 'deferred';
+
+/** Columns whose first click should sort high-to-low. */
+const NUMERIC_COLUMNS = new Set<PortfolioSortKey>(['progress', 'open', 'done', 'overdue']);
 
 const TYPE_OPTIONS = [
   ['weekly', 'Weekly status'],
@@ -130,19 +141,53 @@ function PortfolioReport({
   filter: ReportFilter;
 }): React.JSX.Element {
   const { today, openProject } = useStore();
-  const rows = portfolioRollup(workspace, filter, today);
+  const [sort, setSort] = useState<{ key: PortfolioSortKey; dir: SortDirection }>({
+    key: 'project',
+    dir: 'asc',
+  });
+  const rows = sortPortfolio(portfolioRollup(workspace, filter, today), sort.key, sort.dir);
+
+  // First click on a column sorts it; clicking the active column flips it.
+  // Counts start descending — "who has the most overdue" is the question a
+  // reader has about a number column, where a name reads best A–Z.
+  const toggle = (key: PortfolioSortKey): void => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: NUMERIC_COLUMNS.has(key) ? 'desc' : 'asc' },
+    );
+  };
+
   return (
     <div className="report-block">
       <table className="portfolio-table" data-testid="portfolio-table">
         <thead>
           <tr>
-            <th>PROJECT</th>
-            <th>TYPE</th>
-            <th>PROGRESS</th>
-            <th className="num">OPEN</th>
-            <th className="num">DONE</th>
-            <th className="num">OVERDUE</th>
-            <th>NEXT DUE</th>
+            {PORTFOLIO_COLUMNS.map(([key, label]) => {
+              const active = sort.key === key;
+              return (
+                <th
+                  key={key}
+                  className={NUMERIC_COLUMNS.has(key) ? 'num' : undefined}
+                  // Screen readers announce the sort state from the header
+                  // itself; the caret is decorative.
+                  aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
+                  <button
+                    className={`sort-header ${active ? 'active' : ''}`}
+                    title={`Sort by ${label.toLowerCase()}`}
+                    onClick={() => {
+                      toggle(key);
+                    }}
+                  >
+                    {label.toUpperCase()}
+                    <span className="sort-caret" aria-hidden="true">
+                      {active ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </button>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -461,6 +506,8 @@ export function Reports(): React.JSX.Element {
   const [from, setFrom] = useState(isoAdd(today, -30));
   const [to, setTo] = useState(today);
   const [deferMin, setDeferMin] = useState<number>(DEFER_THRESHOLD_DEFAULT);
+  // The printed source of truth: whatever the report body is currently showing.
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const pickPreset = (next: RetroPreset): void => {
     setPreset(next);
@@ -494,6 +541,53 @@ export function Reports(): React.JSX.Element {
         showToast('Copy failed — check permissions');
       },
     );
+  };
+
+  const typeLabel = TYPE_OPTIONS.find(([key]) => key === type)?.[1] ?? 'Report';
+  const scopeLabel =
+    filter === 'all'
+      ? 'All projects'
+      : filter.startsWith('tag:')
+        ? `#${filter.slice(4)}`
+        : `${filter[0]?.toUpperCase() ?? ''}${filter.slice(1)} only`;
+  // The retrospective is the one report over a range rather than a moment.
+  const periodLabel = type === 'retro' ? `${fmtShort(from)} – ${fmtShort(to)}` : fmtLong(today);
+
+  /**
+   * Exports whatever is on screen. The report's own markup is captured and
+   * handed to Chromium's print pipeline in the main process, so the PDF always
+   * matches what is displayed — including the current sort — without a second
+   * renderer per report that could drift from the first.
+   */
+  const exportPdf = (): void => {
+    const node = bodyRef.current;
+    if (node === null) return;
+    const html = buildReportDocument({
+      title: `Ariadne — ${typeLabel}`,
+      subtitle: `${scopeLabel} · ${periodLabel}`,
+      bodyHtml: node.innerHTML,
+    });
+    void getApi()
+      .exportReportPdf({ html, suggestedName: reportFileName(typeLabel, today, 'pdf') })
+      .then((res) => {
+        if (res.error !== undefined) showToast(`PDF export failed — ${res.error}`);
+        else if (res.savedPath !== null) showToast(`Saved ${typeLabel} PDF`);
+      });
+  };
+
+  const exportCsv = (): void => {
+    const rows = portfolioCsvRows(
+      sortPortfolio(portfolioRollup(workspace, filter, today), 'project', 'asc'),
+    );
+    void getApi()
+      .downloadFile({
+        content: toCsv(rows),
+        suggestedName: reportFileName(typeLabel, today, 'csv'),
+      })
+      .then((res) => {
+        if (res.error !== undefined) showToast(`CSV export failed — ${res.error}`);
+        else if (res.savedPath !== null) showToast('Saved portfolio CSV');
+      });
   };
 
   let body: React.JSX.Element;
@@ -616,11 +710,25 @@ export function Reports(): React.JSX.Element {
             </option>
           ))}
         </select>
-        <button className="btn ghost" onClick={copy}>
-          Copy report
-        </button>
+        {/* Grouped so the three actions wrap together rather than one of
+            them dropping to a line of its own. */}
+        <div className="report-actions">
+          <button className="btn ghost" onClick={copy}>
+            Copy report
+          </button>
+          {type === 'portfolio' && (
+            <button className="btn ghost" aria-label="Export CSV" onClick={exportCsv}>
+              CSV
+            </button>
+          )}
+          <button className="btn ghost" aria-label="Export PDF" onClick={exportPdf}>
+            PDF
+          </button>
+        </div>
       </div>
-      {body}
+      <div ref={bodyRef} data-testid="report-body">
+        {body}
+      </div>
     </div>
   );
 }

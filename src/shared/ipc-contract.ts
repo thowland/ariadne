@@ -15,6 +15,7 @@ export const IPC = {
   blobSave: 'blob:save',
   blobDelete: 'blob:delete',
   fileDownload: 'file:download',
+  reportExportPdf: 'report:exportPdf',
   exportRun: 'export:run',
   archiveExport: 'archive:export',
   archiveImport: 'archive:import',
@@ -144,6 +145,18 @@ export interface DownloadResponse {
   error?: string;
 }
 
+/** Print-to-PDF of a rendered report (D26). */
+export interface ReportPdfRequest {
+  /** A complete standalone HTML document — see shared/domain/report-print.ts. */
+  html: string;
+  suggestedName: string;
+}
+
+export interface ReportPdfResponse {
+  savedPath: string | null;
+  error?: string;
+}
+
 export interface ExportRunResponse {
   savedPath: string | null;
   error?: string;
@@ -214,6 +227,8 @@ export interface AriadneApi {
   saveBlob(fileId: string, ext: string, bytes: ArrayBuffer): Promise<{ size: number }>;
   deleteBlobs(fileIds: string[]): Promise<void>;
   downloadFile(request: DownloadRequest): Promise<DownloadResponse>;
+  /** Save-dialog + Chromium print-to-PDF of a rendered report (D26). */
+  exportReportPdf(request: ReportPdfRequest): Promise<ReportPdfResponse>;
   exportWorkspace(): Promise<ExportRunResponse>;
   /** Save-dialog + zip archive of the workspace and every stored file (D22). */
   exportArchive(): Promise<ArchiveExportResponse>;

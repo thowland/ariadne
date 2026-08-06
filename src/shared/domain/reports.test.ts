@@ -7,8 +7,11 @@ import {
   deferredReport,
   deferredText,
   filterProjects,
+  portfolioCsvRows,
+  portfolioProgress,
   portfolioRollup,
   portfolioText,
+  sortPortfolio,
   retroBuckets,
   retroPresetRange,
   retrospective,
@@ -111,6 +114,92 @@ describe('portfolioRollup', () => {
     const text = portfolioText(portfolioRollup(ws, 'all', TODAY), TODAY);
     expect(text).toContain('- Q3 Platform Migration [work]: 5 open, 1 done, 1 overdue');
     expect(text).toContain('- Home network upgrade [home]: 2 open, 1 done\n');
+  });
+});
+
+describe('sortPortfolio', () => {
+  const rows = portfolioRollup(ws, 'all', TODAY);
+  const names = (list: ReturnType<typeof portfolioRollup>): string[] =>
+    list.map((r) => r.project.name);
+
+  it('sorts by name in both directions without mutating the input', () => {
+    const before = names(rows);
+    const asc = names(sortPortfolio(rows, 'project', 'asc'));
+    const desc = names(sortPortfolio(rows, 'project', 'desc'));
+    expect(asc).toEqual([...asc].sort((a, b) => a.localeCompare(b)));
+    expect(desc).toEqual([...asc].reverse());
+    expect(names(rows)).toEqual(before);
+  });
+
+  it('orders numeric columns by value', () => {
+    const byOverdue = sortPortfolio(rows, 'overdue', 'desc').map((r) => r.overdue);
+    expect(byOverdue).toEqual([...byOverdue].sort((a, b) => b - a));
+    const byOpen = sortPortfolio(rows, 'open', 'asc').map((r) => r.open);
+    expect(byOpen).toEqual([...byOpen].sort((a, b) => a - b));
+  });
+
+  it('sorts progress by ratio, not by raw done count', () => {
+    const pct = sortPortfolio(rows, 'progress', 'desc').map(portfolioProgress);
+    expect(pct).toEqual([...pct].sort((a, b) => b - a));
+  });
+
+  it('sinks projects with no next due date in both directions', () => {
+    // Every seeded project has something scheduled, so clear one project's
+    // dates to produce the "nothing due" case this rule is about.
+    const stripped = {
+      ...ws,
+      tasks: ws.tasks.map((t) => (t.projectId === 'p6' ? { ...t, dueDate: null } : t)),
+    };
+    const mixed = portfolioRollup(stripped, 'all', TODAY);
+    const noNext = mixed.filter((r) => r.next === null).map((r) => r.project.name);
+    expect(noNext).toEqual(['Home network upgrade']);
+
+    for (const dir of ['asc', 'desc'] as const) {
+      const sorted = names(sortPortfolio(mixed, 'next', dir));
+      expect(sorted[sorted.length - 1]).toBe('Home network upgrade');
+    }
+  });
+
+  it('breaks ties on project name so a coarse column gives a stable order', () => {
+    // Category has only two values across the seed, so most rows tie.
+    const first = names(sortPortfolio(rows, 'category', 'asc'));
+    const second = names(sortPortfolio([...rows].reverse(), 'category', 'asc'));
+    expect(first).toEqual(second);
+  });
+});
+
+describe('portfolioCsvRows', () => {
+  it('leads with a header and one row per project', () => {
+    const rows = portfolioCsvRows(portfolioRollup(ws, 'all', TODAY));
+    expect(rows[0]).toEqual([
+      'Project',
+      'Type',
+      'Progress %',
+      'Open',
+      'Done',
+      'Overdue',
+      'Next due',
+    ]);
+    expect(rows).toHaveLength(portfolioRollup(ws, 'all', TODAY).length + 1);
+  });
+
+  it('writes the raw ISO next-due date, not a relative label', () => {
+    const rows = portfolioCsvRows(portfolioRollup(ws, 'all', TODAY));
+    const p1 = rows.find((r) => r[0] === 'Q3 Platform Migration');
+    expect(p1?.[6]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(p1?.[2]).toBe('17'); // 1 done of 6
+  });
+
+  it('leaves the next-due cell empty when nothing is scheduled', () => {
+    const stripped = {
+      ...ws,
+      tasks: ws.tasks.map((t) => (t.projectId === 'p6' ? { ...t, dueDate: null } : t)),
+    };
+    const rows = portfolioCsvRows(portfolioRollup(stripped, 'all', TODAY));
+    const p6 = rows.find((r) => r[0] === 'Home network upgrade');
+    expect(p6?.[6]).toBe('');
+    // Other projects still carry theirs — the blank is specific, not global.
+    expect(rows.find((r) => r[0] === 'Q3 Platform Migration')?.[6]).not.toBe('');
   });
 });
 

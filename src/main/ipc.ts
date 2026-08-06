@@ -7,6 +7,7 @@ import { seedWorkspace } from '@shared/domain/seed';
 import { DEBUG_LOG_CATEGORIES, IPC } from '@shared/ipc-contract';
 import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
+import type { ReportPdfRequest, ReportPdfResponse } from '@shared/ipc-contract';
 import { dialog, ipcMain, shell } from 'electron';
 import { app } from 'electron';
 
@@ -17,6 +18,7 @@ import type { BlobService } from './services/blob-service';
 import type { ConfigService } from './services/config-service';
 import type { DebugLogService } from './services/debug-log-service';
 import { ImportExportService } from './services/import-export-service';
+import { ReportPdfService } from './services/report-pdf-service';
 import type { StorageService } from './services/storage-service';
 import { TodoistPushService, TodoistService } from './services/todoist-service';
 
@@ -324,6 +326,28 @@ export function registerIpc(
         return { savedPath: picked.filePath };
       } catch (err) {
         return { savedPath: null, error: err instanceof Error ? err.message : 'Download failed' };
+      }
+    },
+  );
+
+  const reportPdf = new ReportPdfService();
+  ipcMain.handle(
+    IPC.reportExportPdf,
+    async (_event, request: ReportPdfRequest): Promise<ReportPdfResponse> => {
+      const picked = await dialog.showSaveDialog({
+        defaultPath: request.suggestedName,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+      if (picked.canceled || picked.filePath === '') return { savedPath: null };
+      try {
+        const bytes = await reportPdf.render(request.html);
+        await writeFile(picked.filePath, bytes);
+        debugLog.log('import', `report PDF written: ${picked.filePath}`);
+        return { savedPath: picked.filePath };
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'PDF export failed';
+        debugLog.log('import', `report PDF FAILED: ${error}`);
+        return { savedPath: null, error };
       }
     },
   );

@@ -30,6 +30,7 @@ export function setupTestApp(
     saveBlob: vi.fn().mockResolvedValue({ size: 0 }),
     deleteBlobs: vi.fn().mockResolvedValue(undefined),
     downloadFile: vi.fn().mockResolvedValue({ savedPath: null }),
+    exportReportPdf: vi.fn().mockResolvedValue({ savedPath: null }),
     exportWorkspace: vi.fn().mockResolvedValue({ savedPath: null }),
     exportArchive: vi.fn().mockResolvedValue({ savedPath: null }),
     importArchive: vi

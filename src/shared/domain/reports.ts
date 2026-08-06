@@ -120,6 +120,90 @@ export function portfolioRollup(
   });
 }
 
+/** Sortable columns of the portfolio table, in display order. */
+export const PORTFOLIO_COLUMNS = [
+  ['project', 'Project'],
+  ['category', 'Type'],
+  ['progress', 'Progress'],
+  ['open', 'Open'],
+  ['done', 'Done'],
+  ['overdue', 'Overdue'],
+  ['next', 'Next due'],
+] as const;
+
+export type PortfolioSortKey = (typeof PORTFOLIO_COLUMNS)[number][0];
+export type SortDirection = 'asc' | 'desc';
+
+/** Share of a project's tasks that are Done, 0–1; 0 when it has no tasks. */
+export function portfolioProgress(row: PortfolioRow): number {
+  const total = row.open + row.done;
+  return total > 0 ? row.done / total : 0;
+}
+
+/**
+ * Sorts a copy of the rollup. Ties always fall back to project name so the
+ * order is total — re-sorting by a coarse column (category, a count shared by
+ * several projects) must not shuffle rows that compare equal.
+ *
+ * Projects with no next due date sort last in both directions: "nothing
+ * scheduled" is the absence of a date, not a date before or after every other.
+ */
+export function sortPortfolio(
+  rows: readonly PortfolioRow[],
+  key: PortfolioSortKey,
+  direction: SortDirection,
+): PortfolioRow[] {
+  const sign = direction === 'asc' ? 1 : -1;
+  const name = (r: PortfolioRow): string => r.project.name.toLowerCase();
+  const compare = (a: PortfolioRow, b: PortfolioRow): number => {
+    switch (key) {
+      case 'project':
+        return name(a).localeCompare(name(b));
+      case 'category':
+        return a.project.category.localeCompare(b.project.category);
+      case 'progress':
+        return portfolioProgress(a) - portfolioProgress(b);
+      case 'open':
+        return a.open - b.open;
+      case 'done':
+        return a.done - b.done;
+      case 'overdue':
+        return a.overdue - b.overdue;
+      case 'next': {
+        if (a.next === null || b.next === null) {
+          if (a.next === null && b.next === null) return 0;
+          // Unscheduled sinks regardless of direction, so undo the caller's sign.
+          return (a.next === null ? 1 : -1) * sign;
+        }
+        return (a.next.dueDate ?? '').localeCompare(b.next.dueDate ?? '');
+      }
+    }
+  };
+  return [...rows].sort((a, b) => {
+    const primary = compare(a, b) * sign;
+    return primary !== 0 ? primary : name(a).localeCompare(name(b));
+  });
+}
+
+/** The portfolio roll-up as CSV rows — header first, one row per project. */
+export function portfolioCsvRows(rows: readonly PortfolioRow[]): string[][] {
+  const header = ['Project', 'Type', 'Progress %', 'Open', 'Done', 'Overdue', 'Next due'];
+  return [
+    header,
+    ...rows.map((r) => [
+      r.project.name,
+      r.project.category,
+      String(Math.round(portfolioProgress(r) * 100)),
+      String(r.open),
+      String(r.done),
+      String(r.overdue),
+      // The raw ISO date, not the "in 3d" label: a spreadsheet can sort and
+      // filter a date, and cannot do anything useful with a relative phrase.
+      r.next?.dueDate ?? '',
+    ]),
+  ];
+}
+
 export function portfolioText(rows: readonly PortfolioRow[], today: IsoDate): string {
   let out = `PORTFOLIO ROLL-UP — ${fmtLong(today)}\n\n`;
   for (const r of rows) {

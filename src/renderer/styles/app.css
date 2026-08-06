@@ -1674,6 +1674,11 @@ input.inp.full {
   margin-bottom: 18px;
   flex-wrap: wrap;
 }
+.report-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .retro-range-inputs {
   display: flex;
   align-items: center;
@@ -1766,6 +1771,39 @@ input.inp.full {
 }
 .portfolio-table th.num {
   text-align: center;
+}
+/* Headers are sort buttons: they inherit the header's own type so the table
+   still reads as a table, and only the hover/active tint marks them as live. */
+.sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.sort-header:hover {
+  background: rgba(20, 20, 15, 0.06);
+  color: var(--muted);
+}
+.sort-header.active {
+  color: var(--text);
+}
+.sort-caret {
+  font-size: 8px;
+  line-height: 1;
+}
+.portfolio-table th.num .sort-header {
+  justify-content: center;
 }
 .portfolio-table td {
   padding: 10px 12px;
