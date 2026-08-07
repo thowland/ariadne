@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.19.1 — 2026-08-07
+
+- **Fixed the macOS release build.** The pdf.js 6 upgrade in 1.19.0 brought in
+  `@napi-rs/canvas`, a Node-side drawing library with prebuilt binaries that
+  Ariadne never loads — the PDF viewer draws on the browser's own canvas. Its
+  Apple-silicon binary was being copied into both halves of the universal Mac
+  app, which the universal packager rejects, so the 1.19.0 Mac installers were
+  never produced. The library is now excluded from the package. Linux and
+  Windows builds were unaffected, and the app itself is unchanged.
+
 ## 1.19.0 — 2026-08-06
 
 - **Now built on Node 24 and Electron 43.** Ariadne's toolchain had been held

@@ -75,9 +75,15 @@ commits; features get a `[vX.Y.0]` commit + tag.
   an `<object>`/`<iframe>`: Electron only gives PDFs to Chromium's viewer on a
   top-level navigation, so an embedded frame silently shows its fallback (D24).
   The component takes `{ url }` or `{ data }`, so report PDFs from
-  `webContents.printToPDF` can preview without touching disk. Keep the
-  `canvas` entry in `npm overrides` — pdfjs-dist lists it as an optional dep the
-  renderer never uses, and without the pin it raises a false Dependabot alert.
+  `webContents.printToPDF` can preview without touching disk. pdfjs-dist 6
+  swapped its optional `canvas` dep for `@napi-rs/canvas`, which ships prebuilt
+  per-platform skia binaries the renderer never loads. `build.files` excludes
+  it (`!node_modules/@napi-rs/canvas*/**`) — without that, the **universal mac
+  build fails**: npm installs only the runner's own arch, so the same
+  `skia.darwin-arm64.node` lands in both halves and `@electron/universal`
+  refuses to merge an identical `.node` not listed in `x64ArchFiles`. Linux and
+  Windows never merge arches, so they build fine and hide the problem. The
+  `canvas` entry left in `npm overrides` now only serves jsdom's optional peer.
 - **Report PDFs** go through `webContents.printToPDF` in an offscreen window
   (`main/services/report-pdf-service.ts`), never pdf.js — that library reads
   PDFs, it cannot write them (D26). The renderer captures the live report

@@ -1,6 +1,6 @@
 {
   "name": "ariadne",
-  "version": "1.19.0",
+  "version": "1.19.1",
   "description": "Ariadne — a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
@@ -93,7 +93,8 @@
     },
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/@napi-rs/canvas*/**"
     ],
     "linux": {
       "target": [
