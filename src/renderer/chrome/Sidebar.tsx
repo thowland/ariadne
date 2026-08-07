@@ -3,6 +3,7 @@ import {
   createTask,
   deleteProject,
   moveProject,
+  moveTasksToProject,
   rescheduleTasks,
   updateProject,
 } from '@shared/domain/mutate';
@@ -10,6 +11,7 @@ import type { Project } from '@shared/types';
 import { useState } from 'react';
 
 import { getApi } from '../app/api';
+import { isTaskDrag, TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import type { ContextMenuItem, ViewName } from '../app/store';
 import { menuHandler } from '../components/ContextMenu';
@@ -191,14 +193,16 @@ export function Sidebar(): React.JSX.Element {
               key={p.id}
               className={`navitem ${active ? 'active' : ''} ${dragOverId === p.id && dragId !== p.id ? 'drag-over' : ''}`}
               draggable
-              aria-label={`${p.name} (drag to reorder)`}
+              aria-label={`${p.name} (drag to reorder, or drop a task here to move it)`}
               onDragStart={(e) => {
                 setDragId(p.id);
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('text/plain', p.id);
               }}
               onDragOver={(e) => {
-                if (dragId !== null) {
+                // Two kinds of payload land here: a project being reordered,
+                // and a task being reassigned to this project.
+                if (dragId !== null || isTaskDrag(e.dataTransfer)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
                   setDragOverId(p.id);
@@ -209,7 +213,19 @@ export function Sidebar(): React.JSX.Element {
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                if (dragId !== null && dragId !== p.id) {
+                // Gate on the payload type, the same signal dragover used —
+                // not on getData returning something, which cannot tell a
+                // missing key from a real value.
+                if (isTaskDrag(e.dataTransfer)) {
+                  const taskId = e.dataTransfer.getData(TASK_DND_TYPE);
+                  const moved = tasks.find((t) => t.id === taskId);
+                  if (moved !== undefined && moved.projectId !== p.id) {
+                    // moveTasksToProject scrubs the dependency links that
+                    // cannot survive the move and drags attached files along.
+                    apply((ws) => moveTasksToProject(ws, [taskId], p.id));
+                    showToast(`“${moved.title || 'Untitled task'}” moved to ${p.name}`);
+                  }
+                } else if (dragId !== null && dragId !== p.id) {
                   // The visible list is filtered, so resolve the target's
                   // index in the full projects array inside the mutation.
                   apply((ws) =>

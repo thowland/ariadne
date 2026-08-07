@@ -3,6 +3,7 @@ import { isBlocked, taskDueLabel } from '@shared/domain/derive';
 import { cycleTaskStatus, deleteTask, rescheduleTasks, updateTask } from '@shared/domain/mutate';
 import type { Task } from '@shared/types';
 
+import { TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import type { ContextMenuItem } from '../app/store';
 import { BLOCKED_PILL, PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
@@ -138,6 +139,13 @@ export function TaskRow({
   return (
     <div
       className="trow"
+      // Drag onto a sidebar project to reassign (D21-style accelerator: the
+      // task editor's project picker and the context menu both still do it).
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData(TASK_DND_TYPE, task.id);
+      }}
       onClick={() => {
         openTask(task.id);
       }}

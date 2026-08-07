@@ -2,9 +2,11 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ContextMenu } from '../components/ContextMenu';
+import { TaskRow } from '../components/TaskRow';
 import { loadTestWorkspace, setupTestApp, TEST_TODAY } from '../test-utils';
 
 import { Sidebar } from './Sidebar';
@@ -123,6 +125,89 @@ describe('Sidebar PROJECTS heading', () => {
   });
 });
 
+describe('Sidebar — drop a task onto a project', () => {
+  /** A dataTransfer that behaves like the real one for our two payload types. */
+  function taskTransfer(taskId: string) {
+    const store = new Map<string, string>([[TASK_DND_TYPE, taskId]]);
+    return {
+      effectAllowed: '',
+      dropEffect: '',
+      types: [...store.keys()],
+      setData: (k: string, v: string) => store.set(k, v),
+      getData: (k: string) => store.get(k) ?? '',
+    };
+  }
+
+  it('moves the task to the project it is dropped on', () => {
+    render(
+      <>
+        <TaskRow task={useStore.getState().workspace!.tasks.find((t) => t.id === 't1')!} />
+        <Sidebar />
+      </>,
+    );
+    const target = screen.getByRole('button', { name: /2025 Taxes/ });
+    const dataTransfer = taskTransfer('t1');
+
+    fireEvent.dragStart(screen.getByText('Audit legacy service dependencies'), { dataTransfer });
+    fireEvent.dragOver(target, { dataTransfer });
+    expect(target).toHaveClass('drag-over');
+    fireEvent.drop(target, { dataTransfer });
+
+    // t1 started in p1.
+    expect(useStore.getState().workspace!.tasks.find((t) => t.id === 't1')?.projectId).toBe('p4');
+    expect(useStore.getState().toast).toContain('moved to 2025 Taxes');
+  });
+
+  it('scrubs dependency links the move cannot keep', () => {
+    // t2 depends on t1; moving t1 alone must break that link in both places.
+    render(
+      <>
+        <TaskRow task={useStore.getState().workspace!.tasks.find((t) => t.id === 't1')!} />
+        <Sidebar />
+      </>,
+    );
+    const dataTransfer = taskTransfer('t1');
+    fireEvent.dragStart(screen.getByText('Audit legacy service dependencies'), { dataTransfer });
+    fireEvent.drop(screen.getByRole('button', { name: /2025 Taxes/ }), { dataTransfer });
+
+    const t2 = useStore.getState().workspace!.tasks.find((t) => t.id === 't2');
+    expect(t2?.dependsOn).not.toContain('t1');
+  });
+
+  it('does nothing when a task is dropped on the project it already belongs to', () => {
+    const before = useStore.getState().workspace!.tasks;
+    render(
+      <>
+        <TaskRow task={useStore.getState().workspace!.tasks.find((t) => t.id === 't1')!} />
+        <Sidebar />
+      </>,
+    );
+    const dataTransfer = taskTransfer('t1');
+    fireEvent.dragStart(screen.getByText('Audit legacy service dependencies'), { dataTransfer });
+    fireEvent.drop(screen.getByRole('button', { name: /Q3 Platform Migration/ }), { dataTransfer });
+    expect(useStore.getState().workspace!.tasks).toEqual(before);
+  });
+
+  it('leaves project reordering alone', () => {
+    // The two payload types share the drop target, so the project drag must
+    // still work exactly as before.
+    render(<Sidebar />);
+    const source = screen.getByRole('button', { name: /Home network upgrade/ });
+    const target = screen.getByRole('button', { name: /Q3 Platform Migration/ });
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['text/plain'],
+      setData: () => undefined,
+      getData: (k: string) => (k === 'text/plain' ? 'p6' : ''),
+    };
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+    expect((useStore.getState().workspace?.projects ?? []).map((p) => p.id)[0]).toBe('p6');
+  });
+});
+
 describe('Sidebar — drag to reorder projects', () => {
   function projectOrder() {
     return (useStore.getState().workspace?.projects ?? []).map((p) => p.id);
@@ -136,8 +221,10 @@ describe('Sidebar — drag to reorder projects', () => {
     const dataTransfer = {
       effectAllowed: '',
       dropEffect: '',
+      // A real dataTransfer only carries the types that were set on it.
+      types: ['text/plain'],
       setData: () => undefined,
-      getData: () => 'p6',
+      getData: (k: string) => (k === 'text/plain' ? 'p6' : ''),
     };
     fireEvent.dragStart(source, { dataTransfer });
     fireEvent.dragOver(target, { dataTransfer });
@@ -153,7 +240,13 @@ describe('Sidebar — drag to reorder projects', () => {
   it('dropping on itself and dragend clean up without changes', () => {
     render(<Sidebar />);
     const source = screen.getByRole('button', { name: /2025 Taxes/ });
-    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: () => undefined };
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['text/plain'],
+      setData: () => undefined,
+      getData: () => '',
+    };
     fireEvent.dragStart(source, { dataTransfer });
     fireEvent.dragOver(source, { dataTransfer });
     expect(source).not.toHaveClass('drag-over');
@@ -170,7 +263,13 @@ describe('Sidebar — drag to reorder projects', () => {
   it('dropping a project on the archive zone archives it', () => {
     render(<Sidebar />);
     const source = screen.getByRole('button', { name: /Home network upgrade/ });
-    const dataTransfer = { effectAllowed: '', dropEffect: '', setData: () => undefined };
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      types: ['text/plain'],
+      setData: () => undefined,
+      getData: () => '',
+    };
 
     fireEvent.dragStart(source, { dataTransfer });
     const zone = screen.getByTestId('archive-drop');

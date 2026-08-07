@@ -471,6 +471,37 @@ test('archive lifecycle, files library, and tags view', async () => {
   await second.close();
 });
 
+test('dragging a task onto a sidebar project reassigns it', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Open the project the task lives in.
+  const projectNav = win.getByRole('navigation', { name: 'Projects' });
+  await projectNav.getByRole('button', { name: /Q3 Platform Migration/ }).click();
+  const task = win.getByText('Write migration runbook').first();
+  await expect(task).toBeVisible();
+
+  // Drag it onto a different project in the sidebar.
+  await task.dragTo(projectNav.getByRole('button', { name: /2025 Taxes/ }));
+  await expect(win.locator('.toast')).toContainText('moved to 2025 Taxes');
+  // Gone from the project it left…
+  await expect(win.getByText('Write migration runbook')).toHaveCount(0);
+
+  // …and present in the one it joined, across a restart.
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await win2
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /2025 Taxes/ })
+    .click();
+  await expect(win2.getByText('Write migration runbook')).toBeVisible();
+  await second.close();
+});
+
 test('projects inventory: sidebar heading opens it, rows open projects, archived gated', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);
