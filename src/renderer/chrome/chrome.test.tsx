@@ -95,6 +95,17 @@ describe('TopBar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'AI import…' }));
     expect(useStore.getState().modal).toEqual({ type: 'aiImport' });
   });
+
+  it('New project creates a project and opens it', async () => {
+    const before = useStore.getState().workspace!.projects.length;
+    render(<TopBar />);
+    await userEvent.click(screen.getByRole('button', { name: '+ New project' }));
+    const state = useStore.getState();
+    expect(state.workspace!.projects).toHaveLength(before + 1);
+    // Same destination as the sidebar's + button: the new project's screen.
+    expect(state.view).toBe('project');
+    expect(state.activeProjectId).not.toBeNull();
+  });
 });
 
 describe('Sidebar — drag to reorder projects', () => {

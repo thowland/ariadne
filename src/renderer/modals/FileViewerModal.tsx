@@ -63,6 +63,54 @@ function CsvTable({ fileId }: { fileId: string }): React.JSX.Element {
   );
 }
 
+/** Extensions previewed as plain text — read as-is, never interpreted. */
+const TEXT_EXTS = new Set(['txt', 'log', 'text']);
+
+/** Cap so a stray multi-megabyte log cannot lock the renderer up. */
+const TEXT_PREVIEW_LIMIT = 512_000;
+
+function TextPreview({ fileId }: { fileId: string }): React.JSX.Element {
+  const [text, setText] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(blobUrl(fileId))
+      .then(async (r) => {
+        if (!r.ok) throw new Error('not found');
+        return r.text();
+      })
+      .then((body) => {
+        if (!alive) return;
+        setTruncated(body.length > TEXT_PREVIEW_LIMIT);
+        setText(body.slice(0, TEXT_PREVIEW_LIMIT));
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [fileId]);
+
+  if (failed) return <div className="card-empty">Could not read this file.</div>;
+  if (text === null) return <div className="card-empty">Loading…</div>;
+  if (text === '') return <div className="card-empty">This file is empty.</div>;
+  return (
+    <div className="scr txt-wrap" data-testid="txt-preview">
+      {/* Rendered as text, not markup: a .txt file is never interpreted. */}
+      <pre className="txt-body">{text}</pre>
+      {truncated && (
+        <div className="card-hint txt-truncated">
+          Preview truncated at {(TEXT_PREVIEW_LIMIT / 1000).toFixed(0)}KB — download for the whole
+          file.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Placeholder({ file, message }: { file: FileEntry; message: string }): React.JSX.Element {
   return (
     <div className="file-placeholder">
@@ -148,6 +196,8 @@ export function FileViewerModal({ fileId }: { fileId: string }): React.JSX.Eleme
     );
   } else if (ext === 'csv') {
     body = <CsvTable fileId={file.id} />;
+  } else if (TEXT_EXTS.has(ext) || file.mime === 'text/plain') {
+    body = <TextPreview fileId={file.id} />;
   } else {
     body = (
       <Placeholder

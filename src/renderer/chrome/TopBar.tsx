@@ -25,6 +25,7 @@ export function TopBar(): React.JSX.Element {
     setScope,
     go,
     newTaskGlobal,
+    newProject,
     openAiImport,
   } = useStore();
   const searching = q.trim() !== '';
@@ -68,6 +69,9 @@ export function TopBar(): React.JSX.Element {
       />
       <button className="btn ghost" title="Extract tasks from pasted text" onClick={openAiImport}>
         AI import…
+      </button>
+      <button className="btn ghost" onClick={newProject}>
+        + New project
       </button>
       <button className="btn primary" onClick={newTaskGlobal}>
         + New task

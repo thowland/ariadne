@@ -241,6 +241,9 @@ p {
 
 .topbar-title {
   min-width: 0;
+  /* Both lines are nowrap, so without this they overflow the box and run
+     under the overdue pill instead of ellipsing. */
+  overflow: hidden;
 }
 .topbar-title .view-name {
   font-size: 15px;
@@ -254,6 +257,11 @@ p {
   color: var(--faint);
   font-family: var(--font-mono);
   margin-top: 1px;
+  /* The date is one unit; wrapping it mid-phrase pushed the top bar to three
+     lines on a narrow window. The search field absorbs the shrink instead. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .overdue-pill {
@@ -266,6 +274,8 @@ p {
   padding: 5px 11px;
   font-size: 12.5px;
   font-weight: 700;
+  flex: none;
+  white-space: nowrap;
 }
 
 .spacer {
@@ -274,6 +284,10 @@ p {
 
 .search-input {
   width: 230px;
+  /* Shrinks before anything else in the top bar, so a narrow window loses
+     search width rather than wrapping the title or the action buttons. */
+  min-width: 96px;
+  flex: 0 1 230px;
   padding: 8px 12px;
   border: 1px solid rgba(20, 20, 15, 0.12);
   border-radius: 9px;
@@ -1644,6 +1658,29 @@ input.inp.full {
 }
 .csv-table th {
   font-weight: 700;
+}
+
+.txt-wrap {
+  overflow: auto;
+  max-height: 64vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.txt-body {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  /* Wrap rather than scroll sideways: log lines are long and reading them
+     should not mean dragging a horizontal scrollbar. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.txt-truncated {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border2);
 }
 
 .file-placeholder {

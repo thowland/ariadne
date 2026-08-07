@@ -131,6 +131,96 @@ describe('FileViewerModal', () => {
     }
   });
 
+  /** A stored (non-markdown) file of the given name/ext/mime, for previewing. */
+  function storedFile(over: { id: string; name: string; ext: string; mime: string }) {
+    return {
+      ...ws().files[0]!,
+      kind: 'file' as const,
+      content: '',
+      size: 40,
+      ...over,
+    };
+  }
+
+  it('renders a .txt file as plain text via the blob protocol', async () => {
+    const ws0 = ws();
+    const txt = storedFile({ id: 'txt1', name: 'notes.txt', ext: 'txt', mime: 'text/plain' });
+    loadTestWorkspace({ ...ws0, files: [...ws0.files, txt] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('line one\n  indented two\n\nline four'),
+      }),
+    );
+    try {
+      useStore.getState().openFile('txt1');
+      render(<FileViewerModal fileId="txt1" />);
+      const pre = await screen.findByTestId('txt-preview');
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith('ariadne-blob://txt1');
+      // Whitespace is preserved verbatim — that is the point of a text preview.
+      expect(pre.querySelector('.txt-body')?.textContent).toBe(
+        'line one\n  indented two\n\nline four',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('never interprets markup in a .txt file', async () => {
+    const ws0 = ws();
+    const txt = storedFile({ id: 'txt2', name: 'evil.txt', ext: 'txt', mime: 'text/plain' });
+    loadTestWorkspace({ ...ws0, files: [...ws0.files, txt] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('<script>alert(1)</script><b>bold</b>'),
+      }),
+    );
+    try {
+      useStore.getState().openFile('txt2');
+      render(<FileViewerModal fileId="txt2" />);
+      const pre = await screen.findByTestId('txt-preview');
+      expect(pre.querySelector('script')).toBeNull();
+      expect(pre.querySelector('b')).toBeNull();
+      expect(pre.textContent).toContain('<script>alert(1)</script>');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('previews .log files too, and says so when one is empty', async () => {
+    const ws0 = ws();
+    const log = storedFile({ id: 'log1', name: 'run.log', ext: 'log', mime: 'application/octet' });
+    loadTestWorkspace({ ...ws0, files: [...ws0.files, log] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('') }),
+    );
+    try {
+      useStore.getState().openFile('log1');
+      render(<FileViewerModal fileId="log1" />);
+      expect(await screen.findByText('This file is empty.')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('falls back to a readable message when the text blob is missing', async () => {
+    const ws0 = ws();
+    const txt = storedFile({ id: 'txt3', name: 'gone.txt', ext: 'txt', mime: 'text/plain' });
+    loadTestWorkspace({ ...ws0, files: [...ws0.files, txt] });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    try {
+      useStore.getState().openFile('txt3');
+      render(<FileViewerModal fileId="txt3" />);
+      expect(await screen.findByText('Could not read this file.')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('renders an uploaded PDF in the inline viewer', async () => {
     const ws0 = ws();
     const pdf = {
