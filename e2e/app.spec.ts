@@ -471,6 +471,38 @@ test('archive lifecycle, files library, and tags view', async () => {
   await second.close();
 });
 
+test('projects inventory: sidebar heading opens it, rows open projects, archived gated', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // The PROJECTS heading is a destination, not decoration.
+  await win.getByRole('button', { name: 'PROJECTS' }).click();
+  const table = win.getByTestId('projects-table');
+  await expect(table).toBeVisible();
+  await expect(win.getByTestId('projects-headline')).toContainText('6 projects');
+  // Metadata the sidebar has no room for.
+  await expect(win.getByTestId('projects-row-p1')).toContainText('#infra');
+  await expect(win.getByTestId('projects-row-p1')).toContainText('5');
+
+  // A row is a link to the project.
+  await win.getByTestId('projects-row-p3').click();
+  await expect(win.getByTestId('dependency-map')).toBeVisible();
+
+  // Archive it, then confirm the inventory hides it until asked (D13).
+  await win.getByLabel('Archive this project').check();
+  await win.getByRole('button', { name: 'PROJECTS' }).click();
+  await expect(win.getByTestId('projects-row-p3')).toHaveCount(0);
+  await win.getByLabel(/Show archived/).check();
+  await expect(win.getByTestId('projects-row-p3')).toBeVisible();
+
+  // New project from the top bar lands on the new project's screen.
+  await win.getByRole('button', { name: '+ New project' }).click();
+  await expect(win.getByLabel('Project name')).toBeVisible();
+  await app.close();
+});
+
 test('calendar week view, retro presets, and report visuals', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);

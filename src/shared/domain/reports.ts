@@ -101,12 +101,20 @@ export interface PortfolioRow {
   next: Task | null;
 }
 
+/**
+ * Per-project open/done/overdue counts and the next thing due.
+ *
+ * `opts.includeArchived` exists for the Projects inventory screen, which is a
+ * deliberate exception to D13 the user opts into — every report leaves it
+ * unset and so never sees an archived project.
+ */
 export function portfolioRollup(
   ws: Workspace,
   filter: ReportFilter,
   today: IsoDate,
+  opts: { includeArchived?: boolean } = {},
 ): PortfolioRow[] {
-  return filterProjects(ws.projects, filter).map((project) => {
+  return filterProjects(ws.projects, filter, opts).map((project) => {
     const tasks = tasksFor(ws, project.id);
     const open = tasks.filter(isOpen);
     const next = open.filter((t) => t.dueDate !== null).sort(byDue)[0] ?? null;

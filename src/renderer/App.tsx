@@ -14,6 +14,7 @@ import { Calendar } from './views/Calendar';
 import { CommandCenter } from './views/CommandCenter';
 import { FilesLibrary } from './views/FilesLibrary';
 import { ProjectDetail } from './views/ProjectDetail';
+import { Projects } from './views/Projects';
 import { Reports } from './views/Reports';
 import { SearchResults } from './views/SearchResults';
 import { Settings } from './views/Settings';
@@ -27,6 +28,8 @@ function ViewBody(): React.JSX.Element {
       return <CommandCenter />;
     case 'project':
       return <ProjectDetail />;
+    case 'projects':
+      return <Projects />;
     case 'calendar':
       return <Calendar />;
     case 'reports':

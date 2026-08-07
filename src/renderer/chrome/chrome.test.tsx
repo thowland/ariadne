@@ -108,6 +108,21 @@ describe('TopBar', () => {
   });
 });
 
+describe('Sidebar PROJECTS heading', () => {
+  it('opens the projects inventory (it was the one inert label)', async () => {
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole('button', { name: 'PROJECTS' }));
+    expect(useStore.getState().view).toBe('projects');
+  });
+
+  it('still creates a project from the + next to it', async () => {
+    const before = useStore.getState().workspace!.projects.length;
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole('button', { name: '+' }));
+    expect(useStore.getState().workspace!.projects).toHaveLength(before + 1);
+  });
+});
+
 describe('Sidebar — drag to reorder projects', () => {
   function projectOrder() {
     return (useStore.getState().workspace?.projects ?? []).map((p) => p.id);

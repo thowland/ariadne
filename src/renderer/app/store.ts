@@ -21,7 +21,8 @@ function logDebug(ws: Workspace | null, category: DebugLogCategory, message: str
 
 export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCtx) => R;
 
-export type ViewName = 'home' | 'calendar' | 'project' | 'reports' | 'files' | 'tags' | 'settings';
+export type ViewName =
+  'home' | 'calendar' | 'project' | 'projects' | 'reports' | 'files' | 'tags' | 'settings';
 
 export interface DayModalState {
   type: 'day';

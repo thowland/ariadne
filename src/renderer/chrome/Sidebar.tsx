@@ -167,7 +167,15 @@ export function Sidebar(): React.JSX.Element {
         ))}
       </nav>
       <div className="sidebar-section">
-        <span className="label">PROJECTS</span>
+        <button
+          className={`label label-btn ${view === 'projects' && !searching ? 'active' : ''}`}
+          title="See every project with its counts and tags"
+          onClick={() => {
+            go('projects');
+          }}
+        >
+          PROJECTS
+        </button>
         <button className="add-btn" title="New project" onClick={newProject}>
           +
         </button>

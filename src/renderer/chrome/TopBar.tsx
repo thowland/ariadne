@@ -12,6 +12,7 @@ const VIEW_TITLES: Record<ViewName, string> = {
   tags: 'Tags',
   settings: 'Settings',
   project: 'Project',
+  projects: 'All projects',
 };
 
 export function TopBar(): React.JSX.Element {
