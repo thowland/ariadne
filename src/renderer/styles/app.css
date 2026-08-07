@@ -2747,6 +2747,89 @@ input.inp.full {
   -webkit-app-region: no-drag;
 }
 
+/* ============ Natural-language date field (D29) ============ */
+
+/*
+ * The highlight is painted by a mirror element behind a transparent-text
+ * field. Every property that affects where a character lands must be
+ * identical on .nl-mirror and .nl-input, or the mark drifts off the word:
+ * font, padding, border width, letter-spacing, line-height, and wrapping.
+ * They are declared together here for exactly that reason — do not style one
+ * without the other.
+ */
+.nl-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.nl-mirror,
+.nl-input {
+  font: inherit;
+  font-family: inherit;
+  letter-spacing: inherit;
+  line-height: 1.25;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  tab-size: 4;
+}
+.nl-mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Invisible except for the mark, which is the only thing it exists to
+     draw; the real text is painted by the field on top. */
+  color: transparent;
+}
+.nl-input {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+}
+.nl-hit {
+  background: var(--accent-soft);
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 3px;
+  color: transparent;
+  /* A mark's own padding would shift every character after it. */
+  padding: 0;
+}
+.nl-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.nl-chip:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.nl-chip-x {
+  font-size: 13px;
+  line-height: 1;
+}
+
 /* ============ Upload drop zone ============ */
 
 .upload-drop-pad {

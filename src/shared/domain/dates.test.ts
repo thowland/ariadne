@@ -23,6 +23,16 @@ describe('isValidIsoDate', () => {
     expect(isValidIsoDate('1999-12-31')).toBe(true);
   });
 
+  it('rejects days that do not exist in their month', () => {
+    // V8 rolls these forward rather than reporting NaN, so a plain
+    // Number.isNaN check on the parsed Date accepted them until 1.20.
+    expect(isValidIsoDate('2026-02-30')).toBe(false);
+    expect(isValidIsoDate('2026-04-31')).toBe(false);
+    expect(isValidIsoDate('2027-02-29')).toBe(false); // not a leap year
+    expect(isValidIsoDate('2028-02-29')).toBe(true); // leap year
+    expect(isValidIsoDate('2026-06-31')).toBe(false);
+  });
+
   it('rejects malformed strings', () => {
     expect(isValidIsoDate('')).toBe(false);
     expect(isValidIsoDate('2026-7-8')).toBe(false);

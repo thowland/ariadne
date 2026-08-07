@@ -5,6 +5,7 @@ import {
   updateProject,
 } from '@shared/domain/mutate';
 import { byProjectListOrder, inPinnedOrder } from '@shared/domain/sort';
+import type { IsoDate } from '@shared/types';
 import { useRef, useState } from 'react';
 
 import { getApi } from '../app/api';
@@ -13,6 +14,7 @@ import { useStore } from '../app/store';
 import { DependencyMap } from '../components/DependencyMap';
 import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
+import { NlDateField } from '../components/NlDateField';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
@@ -20,9 +22,22 @@ import { UploadDropZone } from '../components/UploadDropZone';
 
 /** The per-project workspace (prototype viewProject). */
 export function ProjectDetail(): React.JSX.Element {
-  const { workspace, activeProjectId, apply, openTask, openFile, go, askConfirm, showToast } =
-    useStore();
+  const {
+    workspace,
+    today,
+    activeProjectId,
+    apply,
+    openTask,
+    openFile,
+    go,
+    askConfirm,
+    showToast,
+  } = useStore();
   const [quickTitle, setQuickTitle] = useState('');
+  // Natural-language due date detected in the quick-add text (D29), and
+  // whether the user has waved it off for what they are currently typing.
+  const [quickDue, setQuickDue] = useState<IsoDate | null>(null);
+  const [quickDismissed, setQuickDismissed] = useState(false);
   // The visual task order is pinned per visit so clicking the status circle
   // never reshuffles the list; it re-sorts on the next visit to the project.
   const pinnedRef = useRef<{ projectId: string; ids: string[] } | null>(null);
@@ -60,8 +75,12 @@ export function ProjectDetail(): React.JSX.Element {
   const quickAdd = (): void => {
     const title = quickTitle.trim();
     if (title === '') return;
-    apply((ws, ctx) => createTask(ws, ctx, project.id, { title }));
+    // The date phrase stays in the title, as typed — it reads naturally there
+    // and the due date is visible on the row anyway.
+    apply((ws, ctx) => createTask(ws, ctx, project.id, { title, dueDate: quickDue }));
     setQuickTitle('');
+    setQuickDue(null);
+    setQuickDismissed(false);
   };
 
   const addAndEdit = (): void => {
@@ -158,17 +177,27 @@ export function ProjectDetail(): React.JSX.Element {
               )}
             </div>
             <div className="quick-add-row">
-              <input
-                className="inp"
-                value={quickTitle}
-                placeholder="Add a task and press Enter…"
-                onChange={(e) => {
-                  setQuickTitle(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') quickAdd();
-                }}
-              />
+              <div className="inp quick-add-input">
+                <NlDateField
+                  value={quickTitle}
+                  onChange={(next) => {
+                    setQuickTitle(next);
+                    // A cleared field starts a fresh task: re-arm detection.
+                    if (next === '') setQuickDismissed(false);
+                  }}
+                  today={today}
+                  onDateChange={setQuickDue}
+                  dismissed={quickDismissed}
+                  onDismiss={() => {
+                    setQuickDismissed(true);
+                  }}
+                  placeholder="Add a task and press Enter…"
+                  ariaLabel="Add a task"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') quickAdd();
+                  }}
+                />
+              </div>
               <button className="btn ghost" onClick={quickAdd}>
                 Add
               </button>

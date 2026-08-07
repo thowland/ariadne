@@ -471,6 +471,56 @@ test('archive lifecycle, files library, and tags view', async () => {
   await second.close();
 });
 
+test('natural-language dates highlight in the title and set the due date (D29)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Q3 Platform Migration/ })
+    .click();
+
+  // Quick add: the phrase is highlighted and the date rides along.
+  const quick = win.getByLabel('Add a task');
+  await quick.fill('call the vendor tomorrow');
+  await expect(win.getByTestId('nl-date-chip')).toHaveText(/Tomorrow/);
+
+  // The mark must actually sit over the word, not merely exist — that is the
+  // whole risk of the mirror technique, and jsdom (no layout) cannot check it.
+  const mark = await win.locator('.nl-hit').boundingBox();
+  const input = await win.locator('.nl-input').boundingBox();
+  expect(mark).not.toBeNull();
+  expect(input).not.toBeNull();
+  expect(mark!.x).toBeGreaterThanOrEqual(input!.x - 1);
+  expect(mark!.x + mark!.width).toBeLessThanOrEqual(input!.x + input!.width + 1);
+  // A real word's worth of width: a collapsed or zero-width mark is a failure.
+  expect(mark!.width).toBeGreaterThan(10);
+
+  await quick.press('Enter');
+  await win.getByText('call the vendor tomorrow').first().click();
+  const editor = win.getByRole('dialog', { name: 'Edit task' });
+  // ARIADNE_FAKE_TODAY is 2026-07-08, so "tomorrow" is the 9th.
+  await expect(editor.getByLabel('Due date')).toHaveValue('2026-07-09');
+  // The phrase stays in the title exactly as typed.
+  await expect(editor.getByLabel('Task title')).toHaveValue('call the vendor tomorrow');
+  await editor.getByLabel('Close').click();
+
+  // Dismissing the highlight drops the date but keeps the words.
+  await quick.fill('review the deck friday');
+  await expect(win.getByTestId('nl-date-chip')).toBeVisible();
+  await win.getByTestId('nl-date-chip').click();
+  await expect(win.getByTestId('nl-date-chip')).toHaveCount(0);
+  await quick.click();
+  await quick.press('Enter');
+  await win.getByText('review the deck friday').first().click();
+  const editor2 = win.getByRole('dialog', { name: 'Edit task' });
+  await expect(editor2.getByLabel('Due date')).toHaveValue('');
+  await expect(editor2.getByLabel('Task title')).toHaveValue('review the deck friday');
+  await app.close();
+});
+
 test('the dock badge follows the setting and the workspace (D28)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);

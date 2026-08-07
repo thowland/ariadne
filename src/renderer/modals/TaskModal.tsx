@@ -14,6 +14,7 @@ import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
 import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
+import { NlDateField } from '../components/NlDateField';
 import { Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { STATUS_COLORS } from '../styles/colors';
@@ -43,9 +44,14 @@ const PUSH_BLOCK_MESSAGES: Record<SingleTaskPushBlock, string> = {
  * globally in App).
  */
 export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | null {
-  const { workspace, apply, closeModal, openFile, askConfirm, showToast } = useStore();
+  const { workspace, today, apply, closeModal, openFile, askConfirm, showToast } = useStore();
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [sendingToTodoist, setSendingToTodoist] = useState(false);
+  // A detected date is only applied once the user actually edits the title.
+  // Without this, opening a saved task called "Ship friday demo" would
+  // silently overwrite its due date just by rendering.
+  const titleEdited = useRef(false);
+  const [dateDismissed, setDateDismissed] = useState(false);
 
   const task = workspace?.tasks.find((t) => t.id === taskId);
 
@@ -133,14 +139,25 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               apply((ws, ctx) => cycleTaskStatus(ws, task.id, ctx));
             }}
           />
-          <textarea
-            ref={titleRef}
+          <NlDateField
+            inputRef={titleRef}
             className="task-title-input"
+            multiline
             value={task.title}
             placeholder="Task title"
-            rows={1}
-            onChange={(e) => {
-              patch({ title: e.target.value });
+            ariaLabel="Task title"
+            today={today}
+            dismissed={dateDismissed}
+            onChange={(next) => {
+              titleEdited.current = true;
+              patch({ title: next });
+            }}
+            onDateChange={(date) => {
+              if (titleEdited.current && date !== null) patch({ dueDate: date });
+            }}
+            onDismiss={() => {
+              setDateDismissed(true);
+              patch({ dueDate: null });
             }}
           />
           <button className="modal-close" aria-label="Close" onClick={closeModal}>

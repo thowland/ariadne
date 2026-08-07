@@ -16,7 +16,12 @@ function atLocalMidnight(iso: IsoDate): Date {
 
 export function isValidIsoDate(value: string): value is IsoDate {
   if (!ISO_DATE_RE.test(value)) return false;
-  return !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return false;
+  // A NaN check alone is not enough: V8 rolls an out-of-range day forward
+  // rather than rejecting it, so "2026-02-30" parses as March 2. Round-trip
+  // the components to catch a day that does not exist in its month.
+  return toIsoDate(d) === value;
 }
 
 /** Format a Date as a local-timezone IsoDate. */

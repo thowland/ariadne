@@ -208,3 +208,48 @@ describe('ProjectDetail', () => {
     expect(screen.getByText('Project not found.')).toBeInTheDocument();
   });
 });
+
+describe('ProjectDetail — natural-language dates in quick add (D29)', () => {
+  it('sets the due date from a phrase in the title, keeping the text', async () => {
+    render(<ProjectDetail />);
+    const field = screen.getByLabelText('Add a task');
+    await userEvent.type(field, 'call the accountant tomorrow');
+    expect(screen.getByTestId('nl-date-chip')).toHaveTextContent('Tomorrow');
+
+    await userEvent.keyboard('{Enter}');
+    const created = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'call the accountant tomorrow');
+    expect(created).toBeDefined();
+    // Title keeps the phrase as typed; the due date comes along with it.
+    expect(created?.dueDate).toBe('2026-07-09');
+  });
+
+  it('creates with no due date once the highlight is dismissed', async () => {
+    render(<ProjectDetail />);
+    const field = screen.getByLabelText('Add a task');
+    await userEvent.type(field, 'call the accountant tomorrow');
+    await userEvent.click(screen.getByTestId('nl-date-chip'));
+    // Clicking the chip moved focus to it; go back to the field to submit.
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+
+    const created = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'call the accountant tomorrow');
+    expect(created?.dueDate).toBeNull();
+  });
+
+  it('re-arms detection for the next task after one is added', async () => {
+    render(<ProjectDetail />);
+    const field = screen.getByLabelText('Add a task');
+    await userEvent.type(field, 'first tomorrow');
+    await userEvent.click(screen.getByTestId('nl-date-chip'));
+    await userEvent.click(field);
+    await userEvent.keyboard('{Enter}');
+
+    // A dismissal applies to the task being typed, not to the field forever.
+    await userEvent.type(field, 'second tomorrow');
+    expect(screen.getByTestId('nl-date-chip')).toBeInTheDocument();
+  });
+});

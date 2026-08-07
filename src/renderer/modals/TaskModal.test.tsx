@@ -247,3 +247,51 @@ describe('TaskModal · send to Todoist', () => {
     expect(screen.queryByRole('button', { name: 'Send to Todoist' })).not.toBeInTheDocument();
   });
 });
+
+describe('TaskModal — natural-language dates in the title (D29)', () => {
+  it('sets the due date from a phrase typed into the title', async () => {
+    useStore.getState().openTask('t6');
+    render(<ModalHost />);
+    const title = screen.getByLabelText('Task title');
+    await userEvent.clear(title);
+    await userEvent.type(title, 'Write runbook tomorrow');
+
+    expect(screen.getByTestId('nl-date-chip')).toHaveTextContent('Tomorrow');
+    expect(task('t6').dueDate).toBe('2026-07-09');
+    expect(task('t6').title).toBe('Write runbook tomorrow');
+  });
+
+  it('does NOT touch the due date merely because the title contains a weekday', () => {
+    // The dangerous case: a saved task whose title happens to read like a
+    // date must not have its due date rewritten just by being opened.
+    const w = ws();
+    useStore.setState({
+      workspace: {
+        ...w,
+        tasks: w.tasks.map((t) =>
+          t.id === 't6' ? { ...t, title: 'Ship the friday demo', dueDate: '2026-12-25' } : t,
+        ),
+      },
+    });
+    useStore.getState().openTask('t6');
+    render(<ModalHost />);
+
+    expect(screen.getByTestId('nl-date-chip')).toBeInTheDocument(); // offered…
+    expect(task('t6').dueDate).toBe('2026-12-25'); // …but not applied
+  });
+
+  it('clicking the highlight clears the date it proposed', async () => {
+    useStore.getState().openTask('t6');
+    render(<ModalHost />);
+    const title = screen.getByLabelText('Task title');
+    await userEvent.clear(title);
+    await userEvent.type(title, 'Write runbook tomorrow');
+    expect(task('t6').dueDate).toBe('2026-07-09');
+
+    await userEvent.click(screen.getByTestId('nl-date-chip'));
+    expect(task('t6').dueDate).toBeNull();
+    expect(screen.queryByTestId('nl-date-chip')).not.toBeInTheDocument();
+    // The text itself is untouched.
+    expect(task('t6').title).toBe('Write runbook tomorrow');
+  });
+});

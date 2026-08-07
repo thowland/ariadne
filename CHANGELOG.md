@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.20.0 — 2026-08-07
+
+- **Type a date into a task title and Ariadne picks it up (D29).** "Call the
+  vendor tomorrow", "review the deck friday", "invoice aug 5" — the phrase is
+  underlined as you type and a chip beside the field shows the date it would
+  set. The words stay in the title, where they read naturally. If the guess is
+  wrong, click the chip and the date goes away. It understands today and
+  tomorrow, weekday names and their usual abbreviations, "in 3 days", "next
+  week", a month and day in either order, and a plain ISO date. It is
+  deliberately cautious about what counts as a date, so "satisfy the auditor"
+  and "marching orders" are left alone.
+- **A project list that shows the numbers.** The PROJECTS heading in
+  the sidebar was the one label in the app that did nothing; it now opens a
+  sortable table of every project — type, progress, open, done, overdue, next
+  due and tags. Click any heading to sort, click a row to open the project.
+  Archived projects stay out of it unless you ask for them.
+- **Drag a task onto a project to move it.** Pick a task up from any list and
+  drop it on a project in the sidebar. Dependencies that cannot survive the
+  move are unlinked, and files attached to the task go with it — the same
+  rules as the existing "move tasks to project" command.
+- **An optional dock badge (D28).** Ariadne can show a count on its dock icon:
+  nothing (the default), tasks due today, or tasks already overdue. It counts
+  your whole workspace rather than whichever Work/Home tab you last had open,
+  and updates the moment the number changes. Set it in Settings → Dock badge.
+  macOS and Unity-style Linux launchers show it; Windows has no equivalent.
+- **A New project button** next to New task, so starting a project no longer
+  means hunting for the sidebar's "+".
+- **.txt and .log files preview in the app** instead of offering only a
+  download, with their spacing intact.
+- **Fixed: dates that do not exist were accepted.** "2026-02-30" was quietly
+  treated as valid and became March 2. Impossible dates are now rejected
+  wherever Ariadne validates one, including imports and stored workspaces.
+
 ## 1.19.2 — 2026-08-07
 
 - **The deferred report's PDF export is laid out properly.** The printed page
