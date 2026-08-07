@@ -140,6 +140,13 @@ export interface FileEntry {
 export const BACKUP_KEEP_DEFAULT = 10;
 export const BACKUP_KEEP_MAX = 100;
 
+/**
+ * Dock/taskbar badge (D28): off, tasks due today, or tasks already overdue.
+ * Defaults to 'none' so upgrading an existing workspace changes nothing.
+ */
+export const BADGE_CHOICES = ['none', 'due', 'overdue'] as const;
+export type BadgeMode = (typeof BADGE_CHOICES)[number];
+
 export const TODOIST_SYNC_CHOICES = ['manual', 'hourly', 'daily'] as const;
 export type TodoistSyncEvery = (typeof TODOIST_SYNC_CHOICES)[number];
 
@@ -161,6 +168,8 @@ export interface Settings {
   debugLogging: boolean;
   /** Debug log folder; null = <userData>/logs (next to main.log). */
   debugLogDir: string | null;
+  /** What the dock/taskbar badge counts, if anything (D28). */
+  badgeMode: BadgeMode;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -173,6 +182,7 @@ export const DEFAULT_SETTINGS: Settings = {
   anthropicApiKey: '',
   debugLogging: false,
   debugLogDir: null,
+  badgeMode: 'none',
 };
 
 /** The full in-memory domain state. */

@@ -179,3 +179,18 @@ describe('task deferral history (D23)', () => {
     expect(tasksFileSchema.parse([{ ...base, deferrals: 'lots' }])[0]?.deferrals).toBeUndefined();
   });
 });
+
+describe('badgeMode (D28)', () => {
+  it('defaults to none for a workspace saved before the setting existed', () => {
+    expect(settingsSchema.parse({}).badgeMode).toBe('none');
+  });
+
+  it('falls back to none rather than rejecting an unknown value', () => {
+    expect(settingsSchema.parse({ badgeMode: 'flashing' }).badgeMode).toBe('none');
+  });
+
+  it('keeps a valid value', () => {
+    expect(settingsSchema.parse({ badgeMode: 'overdue' }).badgeMode).toBe('overdue');
+    expect(settingsSchema.parse({ badgeMode: 'due' }).badgeMode).toBe('due');
+  });
+});

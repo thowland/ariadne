@@ -81,6 +81,17 @@ export function registerIpc(
 
   ipcMain.handle(IPC.logInfo, () => ({ defaultDir: debugLog.defaultLogDir() }));
 
+  /**
+   * Dock/taskbar badge (D28). setBadgeCount is supported on macOS and on Linux
+   * desktops with a Unity launcher, and returns false elsewhere — Windows
+   * needs a taskbar overlay icon instead. The renderer neither knows nor cares
+   * which platform it is on, so an unsupported platform is a silent no-op
+   * rather than an error the UI would have to handle.
+   */
+  ipcMain.handle(IPC.badgeSet, (_event, count: number) => {
+    app.setBadgeCount(Math.max(0, Math.trunc(count)));
+  });
+
   ipcMain.handle(IPC.logDirChoose, async () => {
     const picked = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],

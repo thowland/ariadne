@@ -1,6 +1,7 @@
+import { updateSettings, updateTask } from '@shared/domain/mutate';
 import { seedWorkspace } from '@shared/domain/seed';
 import { markTasksPushed } from '@shared/domain/todoist';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +11,46 @@ import { setupTestApp, TEST_TODAY } from './test-utils';
 
 beforeEach(() => {
   setupTestApp();
+});
+
+describe('App shell — dock badge (D28)', () => {
+  it('pushes 0 while the badge is off, so an upgrade changes nothing', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    expect(window.ariadne.setBadge).toHaveBeenCalledWith(0);
+  });
+
+  it('pushes the overdue count when asked for one', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    act(() => {
+      useStore.getState().apply((ws) => updateSettings(ws, { badgeMode: 'overdue' }));
+    });
+    // The seeded workspace has 3 overdue tasks.
+    await waitFor(() => {
+      expect(window.ariadne.setBadge).toHaveBeenCalledWith(3);
+    });
+  });
+
+  it('re-pushes when the count changes, not only at startup', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    act(() => {
+      useStore.getState().apply((ws) => updateSettings(ws, { badgeMode: 'overdue' }));
+    });
+    await waitFor(() => {
+      expect(window.ariadne.setBadge).toHaveBeenCalledWith(3);
+    });
+    vi.mocked(window.ariadne.setBadge).mockClear();
+
+    // Complete one overdue task; the badge follows without a restart.
+    act(() => {
+      useStore.getState().apply((ws, ctx) => updateTask(ws, 't3', { status: 'Done' }, ctx));
+    });
+    await waitFor(() => {
+      expect(window.ariadne.setBadge).toHaveBeenCalledWith(2);
+    });
+  });
 });
 
 describe('App shell', () => {

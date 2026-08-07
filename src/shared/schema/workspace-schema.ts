@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { isValidIsoDate } from '../domain/dates';
 import type { FileEntry, Project, Settings, Task, Workspace } from '../types';
-import { TASK_PRIORITIES, TASK_STATUSES } from '../types';
+import { BADGE_CHOICES, TASK_PRIORITIES, TASK_STATUSES } from '../types';
 
 /**
  * Validation for everything read from disk or imported. Lenient where safe
@@ -109,6 +109,7 @@ export const settingsSchema = z.object({
   anthropicApiKey: z.string().catch(''),
   debugLogging: z.boolean().catch(false),
   debugLogDir: z.string().min(1).nullable().catch(null),
+  badgeMode: z.enum(BADGE_CHOICES).catch('none'),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

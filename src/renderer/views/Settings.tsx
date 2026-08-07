@@ -2,7 +2,7 @@ import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutat
 import { seedWorkspace } from '@shared/domain/seed';
 import { collectTodoistPushCandidates, markTasksPushed } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
-import type { TodoistSyncEvery } from '@shared/types';
+import type { BadgeMode, TodoistSyncEvery } from '@shared/types';
 import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
 
@@ -429,6 +429,36 @@ export function Settings(): React.JSX.Element {
               Create a key at console.anthropic.com → API keys. Extraction uses Claude Sonnet; the
               pasted text is sent to Anthropic for that one request and nothing else leaves your
               machine.
+            </p>
+          </div>
+        </Card>
+
+        <Card title="Dock badge">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Show a count on Ariadne&rsquo;s dock icon so you can see what is waiting without
+              switching to the app. Counts across every active project, whichever Work/Home filter
+              the window happens to be showing.
+            </p>
+            <label className="field-label" htmlFor="badge-mode">
+              BADGE
+            </label>
+            <select
+              id="badge-mode"
+              className="select"
+              value={workspace?.settings.badgeMode ?? 'none'}
+              aria-label="Dock badge"
+              onChange={(e) => {
+                apply((ws2) => updateSettings(ws2, { badgeMode: e.target.value as BadgeMode }));
+              }}
+            >
+              <option value="none">No badge</option>
+              <option value="due">Tasks due today</option>
+              <option value="overdue">Overdue tasks</option>
+            </select>
+            <p className="settings-copy muted">
+              macOS shows this on the dock icon; Linux needs a Unity-style launcher. Windows has no
+              equivalent badge, so the setting has no effect there.
             </p>
           </div>
         </Card>

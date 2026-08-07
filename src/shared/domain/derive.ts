@@ -1,4 +1,4 @@
-import type { IsoDate, Project, Task } from '../types';
+import type { IsoDate, Project, Task, Workspace } from '../types';
 
 import { dayDiff, fmtShort, isoAdd, weekEnd, weekStart } from './dates';
 
@@ -225,6 +225,22 @@ export function duePressure(tasks: readonly Task[], today: IsoDate): DuePressure
  * out of scope everywhere: they (and their tasks) never appear in the
  * Command Center, calendar, or day views.
  */
+/**
+ * What the dock badge should show (D28), or 0 for "no badge".
+ *
+ * Always counts across every active project regardless of the current
+ * Work/Home filter: the badge is visible when the app is not, so it has to
+ * describe the whole workspace rather than whichever tab was last open.
+ * Archived projects are excluded like everywhere else (D13).
+ */
+export function badgeCount(ws: Workspace, today: IsoDate): number {
+  const mode = ws.settings.badgeMode;
+  if (mode === 'none') return 0;
+  const scoped = tasksInScope(ws.tasks, ws.projects, 'all');
+  return scoped.filter((t) => (mode === 'overdue' ? isOverdue(t, today) : isDueToday(t, today)))
+    .length;
+}
+
 export type Scope = 'all' | 'work' | 'home';
 
 export function projectsInScope(projects: readonly Project[], scope: Scope): Project[] {

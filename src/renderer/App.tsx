@@ -1,3 +1,4 @@
+import { badgeCount } from '@shared/domain/derive';
 import { todoistSyncDue } from '@shared/domain/todoist';
 import { useEffect, useState } from 'react';
 
@@ -44,7 +45,7 @@ function ViewBody(): React.JSX.Element {
 }
 
 export function App(): React.JSX.Element {
-  const { loaded, workspace, toast, warnings, saveBroken, load, refreshToday } = useStore();
+  const { loaded, workspace, today, toast, warnings, saveBroken, load, refreshToday } = useStore();
   const [warningsDismissed, setWarningsDismissed] = useState(false);
 
   useEffect(() => {
@@ -63,6 +64,14 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     getApi().onMenuCommand(runMenuCommand);
   }, []);
+
+  // Dock badge (D28). Recomputed from the whole workspace whenever it or the
+  // date changes, so completing the last overdue task clears the badge without
+  // waiting for a restart. Cheap: a count over tasks already in memory.
+  const badge = workspace === null ? 0 : badgeCount(workspace, today);
+  useEffect(() => {
+    void getApi().setBadge(badge);
+  }, [badge]);
 
   // Escape unwinds one layer at a time: context menu, confirm, then modal.
   useEffect(() => {

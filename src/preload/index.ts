@@ -54,6 +54,7 @@ const api: AriadneApi = {
   chooseLogDir: () => ipcRenderer.invoke(IPC.logDirChoose),
   revealLogFile: () => ipcRenderer.invoke(IPC.logReveal),
   getLogInfo: () => ipcRenderer.invoke(IPC.logInfo),
+  setBadge: (count: number) => ipcRenderer.invoke(IPC.badgeSet, count),
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
   insetTitlebar: process.platform === 'darwin',
 };

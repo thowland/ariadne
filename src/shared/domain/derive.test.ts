@@ -4,6 +4,7 @@ import type { Project, Task } from '../types';
 
 import {
   allProjectTags,
+  badgeCount,
   duePressure,
   indexTasks,
   isArchived,
@@ -24,6 +25,7 @@ import {
   tasksInScope,
   weeklyCompletionCounts,
 } from './derive';
+import { seedWorkspace } from './seed';
 
 const TODAY = '2026-07-08';
 
@@ -355,5 +357,52 @@ describe('project-card visualizations', () => {
     ]);
     // The open Monday task counts on its cell AND in the overdue pool.
     expect(p.days.map((d) => d.count)).toEqual([0, 1, 0, 1, 1, 0, 0]);
+  });
+});
+
+describe('badgeCount (D28)', () => {
+  const ws = seedWorkspace(TODAY);
+  const withMode = (badgeMode: 'none' | 'due' | 'overdue') => ({
+    ...ws,
+    settings: { ...ws.settings, badgeMode },
+  });
+
+  it('is 0 when the badge is off, whatever is due', () => {
+    expect(badgeCount(withMode('none'), TODAY)).toBe(0);
+  });
+
+  it('counts overdue tasks', () => {
+    expect(badgeCount(withMode('overdue'), TODAY)).toBe(
+      ws.tasks.filter((t) => isOverdue(t, TODAY)).length,
+    );
+    expect(badgeCount(withMode('overdue'), TODAY)).toBeGreaterThan(0);
+  });
+
+  it('counts tasks due today', () => {
+    expect(badgeCount(withMode('due'), TODAY)).toBe(
+      ws.tasks.filter((t) => isDueToday(t, TODAY)).length,
+    );
+  });
+
+  it('never counts archived projects (D13)', () => {
+    const base = withMode('overdue');
+    const before = badgeCount(base, TODAY);
+    // p1 owns one of the overdue tasks.
+    const archived = {
+      ...base,
+      projects: base.projects.map((p) => (p.id === 'p1' ? { ...p, archived: true } : p)),
+    };
+    expect(badgeCount(archived, TODAY)).toBe(before - 1);
+  });
+
+  it('ignores the Work/Home filter — the badge describes the whole workspace', () => {
+    // No scope argument exists to pass; this pins the intent so a future
+    // refactor cannot quietly make the badge follow the visible tab.
+    const base = withMode('overdue');
+    const homeOnly = base.tasks.filter((t) => {
+      const proj = base.projects.find((p) => p.id === t.projectId);
+      return proj?.category === 'home' && isOverdue(t, TODAY);
+    });
+    expect(badgeCount(base, TODAY)).toBeGreaterThan(homeOnly.length);
   });
 });

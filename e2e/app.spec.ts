@@ -471,6 +471,39 @@ test('archive lifecycle, files library, and tags view', async () => {
   await second.close();
 });
 
+test('the dock badge follows the setting and the workspace (D28)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Reads the value Electron actually handed the OS, not our own state.
+  const badge = async (): Promise<number> => app.evaluate(({ app: a }) => a.getBadgeCount());
+
+  // Off by default: an existing workspace gains no badge on upgrade.
+  expect(await badge()).toBe(0);
+
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByLabel('Dock badge').selectOption('overdue');
+  await expect.poll(badge).toBe(3); // seeded overdue tasks
+
+  await win.getByLabel('Dock badge').selectOption('due');
+  await expect.poll(badge).toBe(2); // seeded tasks due today
+
+  await win.getByLabel('Dock badge').selectOption('none');
+  await expect.poll(badge).toBe(0);
+
+  // The choice survives a restart.
+  await win.getByLabel('Dock badge').selectOption('overdue');
+  await expect.poll(badge).toBe(3);
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await expect.poll(async () => second.evaluate(({ app: a }) => a.getBadgeCount())).toBe(3);
+  await second.close();
+});
+
 test('dragging a task onto a sidebar project reassigns it', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);

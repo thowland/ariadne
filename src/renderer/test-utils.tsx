@@ -56,6 +56,7 @@ export function setupTestApp(
     chooseLogDir: vi.fn().mockResolvedValue({ path: null }),
     revealLogFile: vi.fn().mockResolvedValue({ ok: true }),
     getLogInfo: vi.fn().mockResolvedValue({ defaultDir: '/tmp/userData/logs' }),
+    setBadge: vi.fn().mockResolvedValue(undefined),
     fakeToday: TEST_TODAY,
     insetTitlebar: false,
     ...overrides,

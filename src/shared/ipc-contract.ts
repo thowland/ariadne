@@ -33,6 +33,7 @@ export const IPC = {
   logDirChoose: 'logDir:choose',
   logReveal: 'log:reveal',
   logInfo: 'log:info',
+  badgeSet: 'badge:set',
 } as const;
 
 /** Debug-log entry categories (D18); the main process drops anything else. */
@@ -252,6 +253,11 @@ export interface AriadneApi {
   revealLogFile(): Promise<{ ok: boolean; error?: string }>;
   /** Where the debug log goes when no custom folder is set. */
   getLogInfo(): Promise<{ defaultDir: string }>;
+  /**
+   * Sets the dock/taskbar badge to `count` (0 clears it). A no-op on
+   * platforms without one — Windows needs an overlay icon instead.
+   */
+  setBadge(count: number): Promise<void>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
   /**
