@@ -81,6 +81,61 @@ export const REPORT_PRINT_CSS = `
   th button, th .sort-caret { all: unset; font: inherit; color: inherit; }
   th .sort-caret { display: none; }
 
+  /* Task rows (at-risk and deferred). On screen these are flex; without an
+     explicit rule the count, title and due label stack into three lines each
+     and the list stops scanning as a list. */
+  .report-stack { display: block; }
+  .trow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid #ecece4;
+    break-inside: avoid;
+  }
+  .trow-body { flex: 1; min-width: 0; }
+  .trow-project { color: #55554d; font-size: 10px; }
+  .risk-title { font-weight: 600; }
+  .risk-reason { white-space: nowrap; font-weight: 600; }
+  .risk-clear { font-weight: 600; }
+
+  /* Deferred report (D23). The analytics strip is an 8-cell auto-fit grid on
+     screen; as a plain block it becomes 16 stacked lines across the top of
+     page 1, which is the whole reason this section exists. Four fixed columns
+     print predictably at Letter width where auto-fit does not. */
+  .defer-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 12px;
+    padding: 0 0 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #dcdcd4;
+    break-inside: avoid;
+  }
+  .defer-stat-value { font-size: 16px; font-weight: 700; line-height: 1.1; }
+  .defer-stat-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #55554d;
+  }
+  .defer-row { align-items: center; gap: 10px; }
+  .defer-count { width: 62px; flex: none; }
+  .defer-count-num { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .defer-bar-track {
+    height: 3px;
+    border-radius: 2px;
+    background: #e6e6de;
+    margin-top: 2px;
+    overflow: hidden;
+  }
+  .defer-bar-fill { height: 3px; border-radius: 2px; min-width: 2px; }
+  .defer-trail { color: #55554d; margin-left: 6px; }
+  /* Two columns on paper, matching the screen, so the breakdowns stay
+     comparable side by side rather than reading as two unrelated lists. */
+  .defer-breakdowns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
   /* Progress bars carry real information, so they print. */
   .portfolio-progress { display: flex; align-items: center; gap: 6px; }
   .progress-track { width: 54px; height: 5px; background: #e6e6de; border-radius: 3px; }

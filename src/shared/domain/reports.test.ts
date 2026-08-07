@@ -357,7 +357,15 @@ describe('retroBuckets', () => {
 });
 
 describe('deferredReport (D23)', () => {
-  const base = seedWorkspace(TODAY);
+  // The demo seed carries its own deferral history so the report is never
+  // empty in the app (asserted in seed.test.ts). These tests exercise the
+  // function against histories they construct themselves, so they start from
+  // a workspace with none.
+  const seeded = seedWorkspace(TODAY);
+  const base = {
+    ...seeded,
+    tasks: seeded.tasks.map((t) => ({ ...t, deferrals: [] })),
+  };
 
   /** Attach a deferral history to a seeded task, keeping everything else. */
   function withDeferrals(

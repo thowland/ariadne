@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.19.2 — 2026-08-07
+
+- **The deferred report's PDF export is laid out properly.** The printed page
+  is built from its own stylesheet rather than the app's, and that stylesheet
+  had no rules for anything the deferred report draws. The eight headline
+  numbers across the top — which sit in a grid on screen — unpacked into
+  sixteen stacked lines at body size, and each task's reschedule count, title
+  and due label ran together. All of it now prints in the shape it has on
+  screen: four columns of statistics, one line per task, and the two
+  breakdowns side by side. The at-risk report shared the same missing rules
+  and is fixed with it.
+- **A completed task no longer looks overdue in the deferred report.** A task
+  that finally shipped after several reschedules showed "Completed" in the
+  same red as genuinely late work, on screen and on paper. It's now neutral.
+- **The sample workspace has a reschedule history.** The deferred report was
+  the one report the demo data never exercised, so a new install showed only
+  its empty state — and its print bug went unnoticed. The sample data now
+  covers the cases the report is built to surface, including work that slipped
+  repeatedly and stayed late, and work that slipped but still got done.
+
 ## 1.19.1 — 2026-08-07
 
 - **Fixed the macOS release build.** The pdf.js 6 upgrade in 1.19.0 brought in

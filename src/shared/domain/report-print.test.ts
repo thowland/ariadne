@@ -43,6 +43,43 @@ describe('buildReportDocument', () => {
     expect(REPORT_PRINT_CSS).toContain('display: table-header-group');
     expect(REPORT_PRINT_CSS).toContain('break-inside: avoid');
   });
+
+  /**
+   * Every layout class the reports render needs a rule here, because the print
+   * document deliberately does not load app.css. A class with no rule silently
+   * degrades to a block: that is how the deferred report's 8-cell analytics
+   * grid shipped as 16 stacked lines across the top of page 1.
+   */
+  it('lays out every flex/grid class the reports depend on', () => {
+    for (const cls of [
+      'defer-stats',
+      'defer-stat-value',
+      'defer-stat-label',
+      'defer-row',
+      'defer-count',
+      'defer-bar-track',
+      'defer-bar-fill',
+      'defer-trail',
+      'defer-breakdowns',
+      'trow',
+      'trow-body',
+      'risk-title',
+      'risk-reason',
+    ]) {
+      expect(REPORT_PRINT_CSS, `.${cls} has no print rule`).toContain(`.${cls} `);
+    }
+  });
+
+  it('gives the analytics strip and breakdowns explicit column counts', () => {
+    // app.css sizes .defer-stats with auto-fit, which resolves against the
+    // print viewport rather than the paper. The column count has to be stated
+    // outright here for a predictable Letter layout.
+    expect(REPORT_PRINT_CSS).toMatch(
+      /\.defer-stats \{[^}]*grid-template-columns: repeat\(4, 1fr\)/,
+    );
+    expect(REPORT_PRINT_CSS).not.toMatch(/\.defer-stats \{[^}]*auto-fit/);
+    expect(REPORT_PRINT_CSS).toMatch(/\.defer-breakdowns \{[^}]*grid-template-columns: 1fr 1fr/);
+  });
 });
 
 describe('reportFileName', () => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizeWorkspace } from '../schema/workspace-schema';
 
 import { isBlocked, indexTasks, isOverdue } from './derive';
+import { DEFER_THRESHOLD_DEFAULT, deferredReport } from './reports';
 import { seedWorkspace } from './seed';
 
 const TODAY = '2026-07-08';
@@ -54,5 +55,53 @@ describe('seedWorkspace', () => {
     for (const t of ws.tasks) {
       expect(t.completedAt !== null).toBe(t.status === 'Done');
     }
+  });
+
+  /**
+   * The deferred report (D23) rendered its empty state for every seeded
+   * workspace until 1.19.2, so nothing — screenshots, E2E, or a human looking
+   * at the demo — ever exercised it. These assertions keep the demo state
+   * covering the branches the report actually has.
+   */
+  describe('deferral history (D23)', () => {
+    const deferred = ws.tasks.filter((t) => (t.deferrals?.length ?? 0) > 0);
+    const result = deferredReport(ws, 'all', DEFER_THRESHOLD_DEFAULT, TODAY);
+
+    it('seeds tasks on both sides of the default threshold', () => {
+      expect(deferred.length).toBeGreaterThan(0);
+      expect(result.analytics.tasksEverDeferred).toBe(deferred.length);
+      // Rows above the threshold, plus at least one below it so the report's
+      // "lower the threshold" hint describes something real.
+      expect(result.rows.length).toBeGreaterThan(0);
+      expect(result.analytics.tasksEverDeferred).toBeGreaterThan(result.rows.length);
+    });
+
+    it('covers the chronic-overdue and completed-anyway outcomes', () => {
+      expect(result.analytics.chronicOverdue).toBeGreaterThan(0);
+      expect(result.analytics.completedAnyway).toBeGreaterThan(0);
+    });
+
+    it('spreads churn across several projects and priorities', () => {
+      expect(result.analytics.byProject.length).toBeGreaterThanOrEqual(3);
+      expect(result.analytics.byPriority.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('records only genuine push-outs, in chronological order', () => {
+      for (const task of deferred) {
+        const list = task.deferrals ?? [];
+        for (const [i, dfr] of list.entries()) {
+          // A deferral moves a due date later; the record is stamped no later
+          // than the date it moved off.
+          expect(dfr.to > dfr.from, `${task.title}: ${dfr.from} → ${dfr.to}`).toBe(true);
+          expect(dfr.on <= dfr.from).toBe(true);
+          // Each push-out starts where the previous one landed.
+          const prev = list[i - 1];
+          if (prev !== undefined) expect(dfr.from).toBe(prev.to);
+        }
+        // The chain ends at the task's current due date.
+        const last = list[list.length - 1];
+        if (last !== undefined && task.dueDate !== null) expect(task.dueDate).toBe(last.to);
+      }
+    });
   });
 });

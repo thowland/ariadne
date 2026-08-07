@@ -445,8 +445,11 @@ function DeferredReport({
               </div>
               <span
                 className="risk-reason"
+                // taskDueLabel, not relativeDueLabel: a task that shipped after
+                // three reschedules is the good outcome this report celebrates,
+                // and colouring its "Completed" in overdue red read as an alarm.
                 style={{
-                  color: r.overdueNow ? '#c23b2b' : relativeDueLabel(r.task.dueDate, today).color,
+                  color: r.overdueNow ? '#c23b2b' : taskDueLabel(r.task, today).color,
                 }}
               >
                 {r.task.status === 'Done'

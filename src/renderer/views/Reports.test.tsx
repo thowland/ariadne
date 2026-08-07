@@ -184,6 +184,16 @@ describe('Reports', () => {
 });
 
 describe('Reports — deferred (D23)', () => {
+  // The demo seed ships a deferral history of its own so the report is never
+  // empty in the app. These tests assert on histories they set up below, so
+  // they clear the seeded one first.
+  beforeEach(() => {
+    const w = useStore.getState().workspace!;
+    useStore.setState({
+      workspace: { ...w, tasks: w.tasks.map((t) => ({ ...t, deferrals: [] })) },
+    });
+  });
+
   /** Give a seeded task a due-date history of `count` push-outs. */
   function seedDeferrals(taskId: string, count: number, dueDate: string): void {
     const w = useStore.getState().workspace!;
@@ -236,6 +246,18 @@ describe('Reports — deferred (D23)', () => {
       .map((r) => r.querySelector('.risk-title')?.textContent);
     expect(titles[0]).toBe('Provision new k8s cluster'); // t2, 5 pushes
     expect(within(rows).getByText('5×')).toBeInTheDocument();
+  });
+
+  it('does not colour a completed task as overdue', async () => {
+    // t7 is Done with a due date in the past. Before 1.19.2 the row reused
+    // relativeDueLabel, which colours by date alone, so "Completed" printed in
+    // the same red as a genuinely overdue row.
+    seedDeferrals('t7', 3, '2026-06-20');
+    await openDeferred();
+    const done = within(screen.getByTestId('defer-rows')).getByText('Completed');
+    expect(done).toBeInTheDocument();
+    expect(done).not.toHaveStyle({ color: '#d94c3a' });
+    expect(done).not.toHaveStyle({ color: '#c23b2b' });
   });
 
   it('respects the threshold picker', async () => {

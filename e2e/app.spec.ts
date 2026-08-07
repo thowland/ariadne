@@ -625,13 +625,15 @@ test('menu commands drive the app: help, about, and the deferred report', async 
   await expect(win.getByTestId('about-runtime')).toContainText('Electron');
   await win.getByRole('dialog', { name: 'About Ariadne' }).getByLabel('Close').click();
 
-  // View → Reports navigates, then the Deferred report renders its empty state
-  // (the seeded workspace has no recorded push-outs yet).
+  // View → Reports navigates, then the Deferred report renders the push-out
+  // history the seeded workspace ships with (D23).
   await clickMenu('Reports');
   await win.getByRole('tab', { name: 'Deferred' }).click();
-  await expect(win.getByTestId('defer-clear')).toBeVisible();
+  await expect(win.getByTestId('defer-stats')).toBeVisible();
+  await expect(win.getByTestId('defer-rows')).toContainText('Migrate auth service');
 
-  // Push a due date out twice from the task editor; the report picks it up.
+  // Push a due date out twice from the task editor; the report adds the new
+  // pushes to the two the seed already recorded for this task.
   await clickMenu('Command Center');
   await win.getByText('Sand to 220 grit').first().click();
   const editor = win.getByRole('dialog', { name: 'Edit task' });
@@ -643,7 +645,7 @@ test('menu commands drive the app: help, about, and the deferred report', async 
   await win.getByRole('tab', { name: 'Deferred' }).click();
   await win.getByLabel('Minimum reschedules').selectOption('2');
   await expect(win.getByTestId('defer-rows')).toContainText('Sand to 220 grit');
-  await expect(win.getByTestId('defer-rows')).toContainText('2×');
+  await expect(win.getByTestId('defer-rows')).toContainText('4×');
 
   await app.close();
 });

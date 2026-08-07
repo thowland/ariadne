@@ -137,6 +137,14 @@ export function seedWorkspace(today: IsoDate): Workspace {
     priority: 'Critical',
     dueDate: d(-1),
     dependsOn: [b],
+    // The headline case for the deferred report (D23): Critical work that has
+    // slipped four times and is overdue anyway. Drives `chronicOverdue`.
+    deferrals: [
+      { from: d(-25), to: d(-18), on: d(-26) },
+      { from: d(-18), to: d(-12), on: d(-19) },
+      { from: d(-12), to: d(-6), on: d(-13) },
+      { from: d(-6), to: d(-1), on: d(-7) },
+    ],
   });
   const e = mk('p1', {
     title: 'Migrate billing service',
@@ -158,6 +166,9 @@ export function seedWorkspace(today: IsoDate): Workspace {
     priority: 'Medium',
     dueDate: d(0),
     links: [{ title: 'Runbook doc', url: 'https://example.com/runbook' }],
+    // Below the default 3× threshold: present in the analytics totals but not
+    // in the listed rows, so the report's "lower the threshold" hint is live.
+    deferrals: [{ from: d(-4), to: d(0), on: d(-5) }],
   });
 
   const f = mk('p2', {
@@ -174,6 +185,13 @@ export function seedWorkspace(today: IsoDate): Workspace {
     dueDate: d(-11),
     completedAt: d(-9),
     dependsOn: [f],
+    // Deferred three times and still shipped — drives `completedAnyway`, the
+    // counterweight to chronicOverdue.
+    deferrals: [
+      { from: d(-20), to: d(-17), on: d(-21) },
+      { from: d(-17), to: d(-14), on: d(-18) },
+      { from: d(-14), to: d(-11), on: d(-15) },
+    ],
   });
   const w = mk('p2', {
     title: 'New onboarding wireframes',
@@ -210,6 +228,10 @@ export function seedWorkspace(today: IsoDate): Workspace {
     priority: 'Medium',
     dueDate: d(-2),
     dependsOn: [s1],
+    deferrals: [
+      { from: d(-9), to: d(-5), on: d(-10) },
+      { from: d(-5), to: d(-2), on: d(-6) },
+    ],
   });
   const s3 = mk('p3', {
     title: 'Apply first coat of spar varnish',
@@ -238,6 +260,11 @@ export function seedWorkspace(today: IsoDate): Workspace {
     status: 'Doing',
     priority: 'High',
     dueDate: d(-3),
+    deferrals: [
+      { from: d(-21), to: d(-14), on: d(-22) },
+      { from: d(-14), to: d(-9), on: d(-15) },
+      { from: d(-9), to: d(-3), on: d(-10) },
+    ],
   });
   const x2 = mk('p4', {
     title: 'Categorize expenses',
@@ -288,7 +315,17 @@ export function seedWorkspace(today: IsoDate): Workspace {
     dueDate: d(18),
     dependsOn: [j3],
   });
-  mk('p5', { title: 'Refine leveling rubric', status: 'Todo', priority: 'Low', dueDate: d(14) });
+  mk('p5', {
+    title: 'Refine leveling rubric',
+    status: 'Todo',
+    priority: 'Low',
+    dueDate: d(14),
+    // Low-priority churn: the "this is fine" half of the by-priority breakdown.
+    deferrals: [
+      { from: d(-2), to: d(6), on: d(-3) },
+      { from: d(6), to: d(14), on: d(5) },
+    ],
+  });
   mk('p5', { title: 'Post to niche job boards', status: 'Dropped', priority: 'Low' });
 
   const r1 = mk('p6', {
