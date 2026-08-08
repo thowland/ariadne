@@ -60,6 +60,12 @@ export function ProjectDetail(): React.JSX.Element {
   const done = tasks.filter((t) => t.status === 'Done').length;
   const total = tasks.filter((t) => t.status !== 'Dropped').length;
 
+  // Hiding completed work (D30) affects this list only. The dependency map
+  // still gets every task: a graph with its finished nodes removed would show
+  // arrows pointing at nothing.
+  const hideCompleted = project.hideCompleted === true;
+  const visible = hideCompleted ? sorted.filter((t) => t.status !== 'Done') : sorted;
+
   const depLayout = project.depLayout ?? {};
   const moveDepNode = (taskId: string, x: number, y: number): void => {
     apply((ws) =>
@@ -168,10 +174,34 @@ export function ProjectDetail(): React.JSX.Element {
 
       <div className="project-grid">
         <div className="project-main">
-          <Card title="Tasks" count={sorted.filter((t) => t.status !== 'Dropped').length}>
+          <Card
+            title="Tasks"
+            count={visible.filter((t) => t.status !== 'Dropped').length}
+            headRight={
+              done > 0 ? (
+                <label className="card-toggle" title="Remembered for this project">
+                  <input
+                    type="checkbox"
+                    checked={hideCompleted}
+                    aria-label="Hide completed tasks"
+                    onChange={(e) => {
+                      apply((ws) =>
+                        updateProject(ws, project.id, { hideCompleted: e.target.checked }),
+                      );
+                    }}
+                  />
+                  Hide {done} completed
+                </label>
+              ) : undefined
+            }
+          >
             <div className="focus-section-body">
-              {sorted.length > 0 ? (
-                sorted.map((t) => <TaskRow key={t.id} task={t} />)
+              {visible.length > 0 ? (
+                visible.map((t) => <TaskRow key={t.id} task={t} />)
+              ) : hideCompleted && sorted.length > 0 ? (
+                <div className="card-empty">
+                  Everything here is done. Untick “Hide {done} completed” to see it.
+                </div>
               ) : (
                 <div className="card-empty">No tasks yet.</div>
               )}

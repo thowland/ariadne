@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.21.0 — 2026-08-08
+
+- **Hide completed tasks on a project, and have it stay hidden (D30).** A
+  long-running backlog fills up with finished work that crowds out what is
+  actually left. The Tasks card now offers a **Hide N completed** switch, and
+  the choice sticks to that project — it survives a restart and does not follow
+  you to your other projects, which may well want their history in view. The
+  dependency map still shows everything, so nothing points at a task that
+  vanished.
+- **The projects list has room to breathe.** The table sat flush against its
+  card, with the column headings pressed into the top edge. It now has proper
+  padding and taller rows.
+
 ## 1.20.0 — 2026-08-07
 
 - **Type a date into a task title and Ariadne picks it up (D29).** "Call the

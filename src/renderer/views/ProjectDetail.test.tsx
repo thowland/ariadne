@@ -253,3 +253,82 @@ describe('ProjectDetail — natural-language dates in quick add (D29)', () => {
     expect(screen.getByTestId('nl-date-chip')).toBeInTheDocument();
   });
 });
+
+describe('ProjectDetail — hide completed tasks (D30)', () => {
+  // The fixture opens p3 (Refinish boat table): 5 tasks, one of them Done
+  // ("Strip old varnish", t13, a dependency of "Sand to 220 grit").
+  const DONE_TASK = 'Strip old varnish';
+
+  /** Task titles currently rendered in the Tasks card. */
+  function listed(): (string | null)[] {
+    return Array.from(document.querySelectorAll('.focus-section-body .trow-title')).map(
+      (el) => el.textContent,
+    );
+  }
+
+  it('offers the toggle only when there is something completed to hide', () => {
+    const { rerender } = render(<ProjectDetail />);
+    expect(screen.getByLabelText('Hide completed tasks')).toBeInTheDocument();
+
+    const w = ws();
+    useStore.setState({
+      workspace: {
+        ...w,
+        tasks: w.tasks.map((t) =>
+          t.projectId === 'p3' && t.status === 'Done'
+            ? { ...t, status: 'Todo' as const, completedAt: null }
+            : t,
+        ),
+      },
+    });
+    rerender(<ProjectDetail />);
+    expect(screen.queryByLabelText('Hide completed tasks')).not.toBeInTheDocument();
+  });
+
+  it('hides Done tasks from the list when ticked', async () => {
+    render(<ProjectDetail />);
+    expect(listed()).toContain(DONE_TASK);
+
+    await userEvent.click(screen.getByLabelText('Hide completed tasks'));
+    expect(listed()).not.toContain(DONE_TASK);
+    // Still-open work is untouched.
+    expect(listed()).toContain('Sand to 220 grit');
+  });
+
+  it('persists the choice on the project, not just in view state', async () => {
+    render(<ProjectDetail />);
+    await userEvent.click(screen.getByLabelText('Hide completed tasks'));
+
+    expect(ws().projects.find((p) => p.id === 'p3')?.hideCompleted).toBe(true);
+    // Saved like any other project edit.
+    expect(window.ariadne.saveCollections).toHaveBeenCalled();
+  });
+
+  it('is per-project — another project is unaffected', async () => {
+    render(<ProjectDetail />);
+    await userEvent.click(screen.getByLabelText('Hide completed tasks'));
+    expect(ws().projects.find((p) => p.id === 'p1')?.hideCompleted).toBeUndefined();
+  });
+
+  it('leaves the dependency map complete, so no arrow points at nothing', async () => {
+    render(<ProjectDetail />);
+    await userEvent.click(screen.getByLabelText('Hide completed tasks'));
+    // t13 is Done and is a dependency of t14; its node must survive.
+    expect(screen.getByTestId('dep-node-t13')).toBeInTheDocument();
+  });
+
+  it('explains itself when hiding empties the list', async () => {
+    const w = ws();
+    useStore.setState({
+      workspace: {
+        ...w,
+        tasks: w.tasks.map((t) =>
+          t.projectId === 'p3' ? { ...t, status: 'Done' as const, completedAt: '2026-07-08' } : t,
+        ),
+      },
+    });
+    render(<ProjectDetail />);
+    await userEvent.click(screen.getByLabelText('Hide completed tasks'));
+    expect(screen.getByText(/Everything here is done/)).toBeInTheDocument();
+  });
+});

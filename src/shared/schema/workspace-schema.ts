@@ -41,6 +41,7 @@ export const projectSchema = z.object({
     .optional()
     .catch(undefined),
   depMapHeight: z.number().finite().optional().catch(undefined),
+  hideCompleted: z.boolean().optional().catch(false),
   createdAt: isoDate,
 });
 

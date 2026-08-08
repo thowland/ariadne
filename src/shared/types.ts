@@ -68,6 +68,13 @@ export interface Project {
   depLayout?: Record<string, { x: number; y: number }>;
   /** Dependency-map canvas height in px; absent = fit the layout. */
   depMapHeight?: number;
+  /**
+   * Hide Done tasks on this project's screen (D30). Per-project and persisted,
+   * because it is a property of the project — a long-running backlog wants its
+   * finished work out of the way, a short project does not. Optional-additive
+   * like `archived`, so older workspaces round-trip unchanged.
+   */
+  hideCompleted?: boolean;
   createdAt: IsoDate;
 }
 

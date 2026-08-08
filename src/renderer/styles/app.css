@@ -411,6 +411,19 @@ p {
   font-weight: 600;
   color: var(--faint);
 }
+/* A persisted per-card switch sitting in the header (e.g. hide completed). */
+.card-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.card-toggle:hover {
+  color: var(--text);
+}
 
 /* ============ Pills & dots ============ */
 
@@ -552,11 +565,24 @@ p {
   white-space: nowrap;
 }
 .projects-card {
-  padding: 0;
+  /* The table's own cell padding was the only gutter, so the header sat flush
+     against the card's top edge and the first column against its left. */
+  padding: 6px 10px 2px;
   overflow: hidden;
 }
 .projects-table {
   width: 100%;
+}
+.projects-table th {
+  padding-top: 10px;
+}
+.projects-table td {
+  padding: 13px 12px;
+}
+/* The card edge already closes the table; a rule under the last row would
+   float above the padding. */
+.projects-table tr:last-child td {
+  border-bottom: none;
 }
 /* Archived rows stay legible but visibly parked, matching the sidebar's
    archived nav items. */

@@ -7,6 +7,7 @@ import {
   filesFileSchema,
   normalizeWorkspace,
   projectsFileSchema,
+  projectSchema,
   settingsSchema,
   tasksFileSchema,
   workspaceMetaSchema,
@@ -192,5 +193,39 @@ describe('badgeMode (D28)', () => {
   it('keeps a valid value', () => {
     expect(settingsSchema.parse({ badgeMode: 'overdue' }).badgeMode).toBe('overdue');
     expect(settingsSchema.parse({ badgeMode: 'due' }).badgeMode).toBe('due');
+  });
+});
+
+describe('hideCompleted (D30)', () => {
+  it('is absent on a project saved before the field existed', () => {
+    const parsed = projectSchema.parse({
+      id: 'p1',
+      name: 'X',
+      category: 'work',
+      tags: [],
+      color: '#4f5bd5',
+      status: 'Active',
+      notes: '',
+      links: [],
+      createdAt: '2026-07-01',
+    });
+    // Absent, not false — pre-1.21 documents must round-trip byte-identical.
+    expect('hideCompleted' in parsed).toBe(false);
+  });
+
+  it('keeps a real value and falls back for a bad one', () => {
+    const base = {
+      id: 'p1',
+      name: 'X',
+      category: 'work' as const,
+      tags: [],
+      color: '#4f5bd5',
+      status: 'Active',
+      notes: '',
+      links: [],
+      createdAt: '2026-07-01',
+    };
+    expect(projectSchema.parse({ ...base, hideCompleted: true }).hideCompleted).toBe(true);
+    expect(projectSchema.parse({ ...base, hideCompleted: 'yes' }).hideCompleted).toBe(false);
   });
 });

@@ -585,6 +585,43 @@ test('dragging a task onto a sidebar project reassigns it', async () => {
   await second.close();
 });
 
+test('hiding completed tasks is remembered per project across a restart (D30)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  const projectNav = win.getByRole('navigation', { name: 'Projects' });
+  // Scoped to the task list: dependency-map nodes carry the same titles
+  // (truncated), so an unscoped text match is not a reliable count.
+  const taskList = win.locator('.focus-section-body');
+
+  await projectNav.getByRole('button', { name: /Refinish boat table/ }).click();
+  await expect(taskList.getByText('Strip old varnish')).toBeVisible();
+  await win.getByLabel('Hide completed tasks').check();
+  // Gone from the task list, still on the dependency map.
+  await expect(taskList.getByText('Strip old varnish')).toHaveCount(0);
+  await expect(win.getByTestId('dep-node-t13')).toBeVisible();
+
+  // Another project is untouched — the setting belongs to the project.
+  await projectNav.getByRole('button', { name: /Q3 Platform Migration/ }).click();
+  await expect(win.getByLabel('Hide completed tasks')).not.toBeChecked();
+  await expect(taskList.getByText('Audit legacy service dependencies')).toBeVisible();
+
+  // Survives a restart, which is the whole point of persisting it.
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await win2
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+  await expect(win2.getByLabel('Hide completed tasks')).toBeChecked();
+  await expect(win2.locator('.focus-section-body').getByText('Strip old varnish')).toHaveCount(0);
+  await second.close();
+});
+
 test('projects inventory: sidebar heading opens it, rows open projects, archived gated', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);
