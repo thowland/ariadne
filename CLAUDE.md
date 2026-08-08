@@ -198,6 +198,18 @@ those, drive the real app under Playwright rather than asserting on intent:
   (`pdftoppm` is not installed; don't reach for the Read tool's PDF rendering.)
 - **The dock badge**: `app.evaluate(({ app }) => app.getBadgeCount())` reads what
   Electron actually handed the OS, not what the renderer believes.
+- **Gate OS-integration assertions on the platform.** The E2E suite runs on the
+  **Linux** CI runner, not on your Mac, so anything that only works on macOS
+  will pass locally and fail every CI run afterwards — `setBadgeCount` no-ops on
+  headless Ubuntu (it needs a Unity launcher) and left CI red for four runs
+  before anyone looked. Put the cross-platform half of the behaviour (the
+  setting persists, the count is right) in the unit suite and guard only the
+  OS-level assertion with `process.platform === 'darwin'`. Sanity-check the
+  skipped path by flipping the constant to `false` and re-running, or the
+  guarded branch is never exercised anywhere.
+- **CI failures do not block a release.** The release workflow builds
+  installers and does not run the E2E suite, so a broken E2E ships happily.
+  Check `gh run list` after pushing rather than trusting a green release.
 - **A drag**: Playwright's `locator.dragTo()` performs a real drag; the jsdom
   `fireEvent` version only proves the handlers are wired.
 - **Anything positional** (highlights, overlays): compare `boundingBox()` of the

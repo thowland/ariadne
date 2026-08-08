@@ -521,6 +521,17 @@ test('natural-language dates highlight in the title and set the due date (D29)',
   await app.close();
 });
 
+/**
+ * app.setBadgeCount only reaches a real badge on macOS and on Linux desktops
+ * with a Unity launcher. CI runs headless Ubuntu under xvfb, where the call
+ * no-ops and getBadgeCount stays 0 — so the OS-level assertions are gated on
+ * the platform. The counting logic and the renderer's push are covered
+ * cross-platform by the unit suite (derive.test.ts, App.test.tsx); what only
+ * an E2E can prove is that the IPC actually reaches the OS, and that is
+ * exactly the platform-specific part.
+ */
+const HAS_OS_BADGE = process.platform === 'darwin';
+
 test('the dock badge follows the setting and the workspace (D28)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);
@@ -529,28 +540,36 @@ test('the dock badge follows the setting and the workspace (D28)', async () => {
 
   // Reads the value Electron actually handed the OS, not our own state.
   const badge = async (): Promise<number> => app.evaluate(({ app: a }) => a.getBadgeCount());
+  const select = win.getByLabel('Dock badge');
 
   // Off by default: an existing workspace gains no badge on upgrade.
-  expect(await badge()).toBe(0);
+  if (HAS_OS_BADGE) expect(await badge()).toBe(0);
 
   await win.getByRole('button', { name: 'Settings' }).click();
-  await win.getByLabel('Dock badge').selectOption('overdue');
-  await expect.poll(badge).toBe(3); // seeded overdue tasks
+  await expect(select).toHaveValue('none');
 
-  await win.getByLabel('Dock badge').selectOption('due');
-  await expect.poll(badge).toBe(2); // seeded tasks due today
+  await select.selectOption('overdue');
+  if (HAS_OS_BADGE) await expect.poll(badge).toBe(3); // seeded overdue tasks
 
-  await win.getByLabel('Dock badge').selectOption('none');
-  await expect.poll(badge).toBe(0);
+  await select.selectOption('due');
+  if (HAS_OS_BADGE) await expect.poll(badge).toBe(2); // seeded tasks due today
 
-  // The choice survives a restart.
-  await win.getByLabel('Dock badge').selectOption('overdue');
-  await expect.poll(badge).toBe(3);
+  await select.selectOption('none');
+  if (HAS_OS_BADGE) await expect.poll(badge).toBe(0);
+
+  // The choice survives a restart — true on every platform, badge or not.
+  await select.selectOption('overdue');
+  if (HAS_OS_BADGE) await expect.poll(badge).toBe(3);
   await app.close();
+
   const second = await launch(dir);
   const win2 = await second.firstWindow();
   await expect(win2.getByTestId('home-headline')).toBeVisible();
-  await expect.poll(async () => second.evaluate(({ app: a }) => a.getBadgeCount())).toBe(3);
+  await win2.getByRole('button', { name: 'Settings' }).click();
+  await expect(win2.getByLabel('Dock badge')).toHaveValue('overdue');
+  if (HAS_OS_BADGE) {
+    await expect.poll(async () => second.evaluate(({ app: a }) => a.getBadgeCount())).toBe(3);
+  }
   await second.close();
 });
 
