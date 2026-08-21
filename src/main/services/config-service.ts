@@ -98,6 +98,7 @@ export class ConfigService {
         'projects.json',
         'tasks.json',
         'files.json',
+        'contacts.json',
         'settings.json',
       ]) {
         const source = join(currentDataDir, doc);

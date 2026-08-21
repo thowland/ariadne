@@ -444,3 +444,68 @@ describe('Reports — exports', () => {
     });
   });
 });
+
+describe('Reports — contact activity (D31)', () => {
+  const pick = async () => {
+    render(<Reports />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Contact activity' }));
+  };
+
+  it('ranks the people you have worked with most, with a way to reach them', async () => {
+    await pick();
+    const rows = screen.getByTestId('contact-rows');
+    expect(within(rows).getByText('Dana Reyes')).toBeInTheDocument();
+    expect(within(rows).getAllByRole('button', { name: 'Copy email' }).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('contact-stats')).toHaveTextContent('people involved');
+    expect(
+      within(screen.getByTestId('contact-by-company')).getByText('Northwind Systems'),
+    ).toBeInTheDocument();
+  });
+
+  it('gets the retrospective’s range controls, being a report over a period', async () => {
+    await pick();
+    expect(screen.getByLabelText('Date range preset')).toBeInTheDocument();
+    expect(screen.getByLabelText('From date')).toBeInTheDocument();
+  });
+
+  it('honours the work/home scope', async () => {
+    await pick();
+    await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'work');
+    // Elena is the accountant on a home project.
+    expect(screen.queryByText('Elena Vasquez')).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Report scope'), 'home');
+    expect(screen.getByText('Elena Vasquez')).toBeInTheDocument();
+    expect(screen.queryByText('Dana Reyes')).not.toBeInTheDocument();
+  });
+
+  it('opens a person from the report', async () => {
+    await pick();
+    await userEvent.click(screen.getByText('Dana Reyes'));
+    expect(useStore.getState().view).toBe('contact');
+    expect(useStore.getState().activeContactId).toBe('c1');
+  });
+
+  it('copies as plain text like every other report', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    await pick();
+    await userEvent.click(screen.getByRole('button', { name: 'Copy report' }));
+    expect(writeText.mock.calls[0]?.[0]).toContain('CONTACT ACTIVITY');
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe('Report copied to clipboard');
+    });
+  });
+
+  it('shows an empty state when nobody is linked in range', async () => {
+    const ws = useStore.getState().workspace;
+    if (ws === null) throw new Error('no workspace');
+    loadTestWorkspace({
+      ...ws,
+      contacts: [],
+      tasks: ws.tasks.map((t) => ({ ...t, contactIds: [] })),
+      projects: ws.projects.map((p) => ({ ...p, contactIds: [] })),
+    });
+    await pick();
+    expect(screen.getByTestId('contacts-empty')).toBeInTheDocument();
+  });
+});

@@ -104,7 +104,7 @@ test('full task lifecycle: create project, add tasks, dependency, edit, restart'
   await nameInput.fill('Garage workshop');
 
   // Quick-add two tasks.
-  const quickAdd = win.getByPlaceholder('Add a task and press Enter…');
+  const quickAdd = win.getByLabel('Add a task');
   await quickAdd.fill('Clear out shelves');
   await quickAdd.press('Enter');
   await quickAdd.fill('Install workbench');
@@ -908,6 +908,7 @@ test('report exports: PDF from every tab, CSV and column sorting on the portfoli
     'Retrospective',
     'At-risk',
     'Deferred',
+    'Contact activity',
   ]) {
     const target = join(out, `${tab.replace(/\W+/g, '-')}.pdf`);
     await stubSave(target);
@@ -947,6 +948,107 @@ test('report exports: PDF from every tab, CSV and column sorting on the portfoli
     'ascending',
   );
   expect(await firstProject()).toContain('Customer Onboarding Revamp');
+
+  await app.close();
+});
+
+test('contacts: @-mention a person onto a task, see them everywhere, and survive a restart', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  // Quick-add a task that @-mentions a seeded contact. The picker completes
+  // the name and the typed "@tom" comes back out of the title.
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+  const quickAdd = win.getByLabel('Add a task');
+
+  // A mistyped name matches nobody. Enter must add the task, not quietly
+  // invent a contact out of the typo and swallow the keystroke.
+  await quickAdd.fill('Sand the rail @Tomm');
+  await quickAdd.press('Enter');
+  // Scoped to the task list: the dependency map draws the title too.
+  await expect(win.locator('.trow-title', { hasText: 'Sand the rail @Tomm' })).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await expect(win.getByTestId('contacts-headline')).toHaveText('7 contacts');
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+
+  await quickAdd.fill('Ask @tom');
+  await win.getByRole('option', { name: /Tom Whitaker/ }).click();
+  // The typed fragment completes to the full name and stays in the title.
+  await expect(quickAdd).toHaveValue('Ask @Tom Whitaker');
+  await expect(win.getByTestId('quick-add-people')).toContainText('Tom Whitaker');
+  await quickAdd.fill('Ask @Tom Whitaker about the second coat');
+  await quickAdd.press('Enter');
+  await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
+
+  // The card's "+ Add person" opens a real field listing everyone unlinked,
+  // rather than focusing an invisible box that looks like a dead link.
+  await win.getByRole('button', { name: '+ Add person' }).click();
+  const picker = win.getByLabel('Add a contact to this project');
+  await expect(picker).toBeFocused();
+  await expect(win.getByRole('listbox', { name: 'Contact suggestions' })).toBeVisible();
+  await picker.press('Escape');
+  await expect(picker).toHaveCount(0);
+
+  // He is on the project's Contacts card, sourced from the tasks.
+  const card = win.getByTestId('project-contacts');
+  await expect(card.getByText('Tom Whitaker')).toBeVisible();
+  await expect(win.getByTestId('project-contact-c5')).toContainText('2 tasks');
+
+  // The twisty opens the reachable details in place.
+  await win.getByLabel('Tom Whitaker — show contact details').click();
+  await expect(win.getByTestId('project-contact-c5')).toContainText('tom@harborline.example');
+
+  // Search reaches contacts, including by a phone number typed without its
+  // punctuation.
+  await win.getByPlaceholder('Search tasks & projects…').fill('5554482201');
+  await expect(win.getByTestId('search-summary')).toContainText('1 contact');
+  await win.getByText('Tom Whitaker').first().click();
+  await expect(win.getByTestId('contact-headline')).toHaveText('Tom Whitaker');
+  await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
+
+  // Edit a field on the detail page; it must come back after a restart.
+  await win.getByLabel('Role').fill('Owner, Harborline Marine');
+  await first.close();
+
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  const row = win.getByTestId('contact-row-c5');
+  await expect(row).toContainText('Owner, Harborline Marine');
+  await expect(row).toContainText('Harborline Marine');
+  // contacts.json is a real document on disk, next to the others.
+  expect(existsSync(join(userData, 'data', 'contacts.json'))).toBe(true);
+
+  await second.close();
+});
+
+test('contacts: the activity report ranks people and never leaks across scope', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win.getByRole('button', { name: 'Reports' }).click();
+  await win.getByRole('tab', { name: 'Contact activity' }).click();
+  await expect(win.getByTestId('contact-stats')).toContainText('people involved');
+  const rows = win.getByTestId('contact-rows');
+  await expect(rows.getByText('Dana Reyes')).toBeVisible();
+  await expect(rows.getByText('Elena Vasquez')).toBeVisible();
+
+  // A work-scoped run cannot surface the accountant on a home project.
+  await win.getByLabel('Report scope').selectOption('work');
+  await expect(rows.getByText('Elena Vasquez')).toHaveCount(0);
+  await expect(rows.getByText('Dana Reyes')).toBeVisible();
 
   await app.close();
 });

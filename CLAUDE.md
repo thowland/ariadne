@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v1.20.0**
+(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.0.0**
 (`package.json`/`CHANGELOG.md` are authoritative).
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D29**); record
+source of truth for domain semantics and the decision table (**D1–D31**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -161,6 +161,29 @@ logic, check whether it is already there:
   (`repeat(4, 1fr)`), not `auto-fit`, which resolves against the print viewport
   rather than the paper; `<span>`s sized by inline style (dots, pills) are
   invisible until given an explicit `display`.
+- **Contacts** (D31): `shared/domain/contacts.ts` owns naming, the project↔contact
+  join, and the `@`-mention parser. The join is **one-directional** — a task owns
+  its `contactIds`, a project owns only the people attached to the project
+  itself, and the card shows `projectContacts`' union of the two. Never write the
+  same person into both sides "to keep them in sync"; that is the drift the union
+  exists to prevent. `contacts` is a full collection (`contacts.json`, in
+  `COLLECTION_NAMES`), so anything that enumerates collections — the write guard,
+  backups, the archive manifest, the data-dir migration — needs it too. The
+  mention rules are anchored like the D29 date rules and for the same reason,
+  and — also like D29 — the picked name **stays in the title**, completed in
+  place from `@dan` to `@Dana Reyes`. Enter never _creates_ a contact: with no
+  match it falls through to whatever owns the field, so quick-add still commits
+  the task instead of inventing a person out of a typo. The quick-add box
+  defers creation through `onCreateContact` until the task exists — do not
+  "simplify" that back into an immediate `newContact` call. **D29 and D31 share
+  one string**: `maskMentions` blanks `@name` runs (preserving every offset)
+  before `findNlDate` reads the title, because `tom` is a tomorrow
+  abbreviation and completing `@Tom Whitaker` otherwise sets a due date nobody
+  asked for. Sat, May, Mar and Wed are all names too — never run the date
+  scanner over unmasked text. A
+  workspace written before 2.0 has no `contacts.json` at all: that is a missing
+  document, not corruption, and `normalizeWorkspace` scrubs the now-dangling ids
+  rather than rendering people who do not exist.
 - **Natural-language dates** (D29): `shared/domain/nl-date.ts` is pure and takes
   `today` as an argument. Every rule is `\b`-anchored — that is what keeps `sat`
   out of "satisfy" and `mar` out of "marching" — and bare numbers are never read
@@ -182,7 +205,8 @@ logic, check whether it is already there:
   sole report that still counts them (D19), and the Projects inventory is the
   one screen that will show them, behind an explicit opt-in toggle;
   dependency-map node positions and card height are hand-placed, per-project,
-  optional-additive fields (D20); the dock badge (D28) counts the **whole**
+  optional-additive fields (D20); deleting a contact scrubs its links but never
+  deletes a task or project (D31); the dock badge (D28) counts the **whole**
   workspace and deliberately ignores the Work/Home filter, because it is what
   you see when the app is not in front of you.
 

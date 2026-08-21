@@ -14,7 +14,14 @@ import { todayIso } from '@shared/domain/clock';
 import type { IsoDate } from '@shared/types';
 import { BACKUP_KEEP_DEFAULT, BACKUP_KEEP_MAX } from '@shared/types';
 
-const DOCUMENTS = ['workspace.json', 'projects.json', 'tasks.json', 'files.json', 'settings.json'];
+const DOCUMENTS = [
+  'workspace.json',
+  'projects.json',
+  'tasks.json',
+  'files.json',
+  'contacts.json',
+  'settings.json',
+];
 const DAY_FOLDER_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface BackupResult {

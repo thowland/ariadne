@@ -4,6 +4,7 @@ import { seedWorkspace } from '../domain/seed';
 import { DEFAULT_SETTINGS } from '../types';
 
 import {
+  contactSchema,
   filesFileSchema,
   normalizeWorkspace,
   projectsFileSchema,
@@ -106,6 +107,7 @@ describe('normalizeWorkspace', () => {
       structuredClone(ws.projects),
       [...structuredClone(ws.tasks), orphanTask],
       [...structuredClone(ws.files), orphanFile],
+      structuredClone(ws.contacts),
       { ...ws.settings },
     );
     expect(workspace.tasks.some((t) => t.id === 'orphan')).toBe(false);
@@ -121,6 +123,7 @@ describe('normalizeWorkspace', () => {
       structuredClone(ws.projects),
       tasks,
       structuredClone(ws.files),
+      structuredClone(ws.contacts),
       { ...ws.settings },
     );
     expect(workspace.tasks.find((x) => x.id === 't2')?.dependsOn).toEqual(['t1']);
@@ -133,6 +136,7 @@ describe('normalizeWorkspace', () => {
       structuredClone(ws.projects),
       structuredClone(ws.tasks),
       files,
+      structuredClone(ws.contacts),
       { ...ws.settings },
     );
     expect(workspace.files[0]?.taskId).toBeNull();
@@ -148,6 +152,7 @@ describe('normalizeWorkspace', () => {
       structuredClone(ws.projects),
       tasks,
       structuredClone(ws.files),
+      structuredClone(ws.contacts),
       { ...ws.settings },
     );
     expect(workspace.tasks.find((t) => t.id === done.id)?.completedAt).not.toBeNull();
@@ -227,5 +232,68 @@ describe('hideCompleted (D30)', () => {
     };
     expect(projectSchema.parse({ ...base, hideCompleted: true }).hideCompleted).toBe(true);
     expect(projectSchema.parse({ ...base, hideCompleted: 'yes' }).hideCompleted).toBe(false);
+  });
+});
+
+describe('contactSchema (D31)', () => {
+  it('defaults every field but the id, so a half-filled person still loads', () => {
+    const parsed = contactSchema.safeParse({ id: 'c1', createdAt: '2026-07-08', phone: 42 });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data).toEqual({
+      id: 'c1',
+      firstName: '',
+      lastName: '',
+      company: '',
+      role: '',
+      email: '',
+      phone: '',
+      notes: '',
+      tags: [],
+      createdAt: '2026-07-08',
+    });
+  });
+
+  it('still insists on an id and a real date', () => {
+    expect(contactSchema.safeParse({ id: '', createdAt: '2026-07-08' }).success).toBe(false);
+    expect(contactSchema.safeParse({ id: 'c1', createdAt: '2026-02-30' }).success).toBe(false);
+  });
+});
+
+describe('normalizeWorkspace — contact links (D31)', () => {
+  const ws = seedWorkspace(TODAY);
+
+  it('scrubs ids pointing at contacts that are no longer there', () => {
+    const tasks = structuredClone(ws.tasks);
+    const t = tasks.find((x) => x.id === 't1');
+    if (t === undefined) throw new Error('fixture drift');
+    t.contactIds = ['c1', 'ghost'];
+    const projects = structuredClone(ws.projects);
+    const p = projects[0];
+    if (p === undefined) throw new Error('fixture drift');
+    p.contactIds = ['gone'];
+
+    const { workspace, warnings } = normalizeWorkspace(
+      projects,
+      tasks,
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      { ...ws.settings },
+    );
+    expect(workspace.tasks.find((x) => x.id === 't1')?.contactIds).toEqual(['c1']);
+    expect(workspace.projects[0]?.contactIds).toEqual([]);
+    expect(warnings.some((w) => w.includes('contact reference'))).toBe(true);
+  });
+
+  it('leaves a task with no contact list alone rather than materializing one', () => {
+    const { workspace } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      { ...ws.settings },
+    );
+    const untouched = workspace.tasks.find((t) => t.id === 't5' || t.contactIds === undefined);
+    expect(untouched?.contactIds).toBeUndefined();
   });
 });

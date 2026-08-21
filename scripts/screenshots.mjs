@@ -80,6 +80,46 @@ const SHOTS = [
     },
   },
   {
+    // The @-mention flow in one frame: a name completed in place, the chip it
+    // produced, and the offer to add somebody who is not in the book yet.
+    name: 'task-mentions',
+    async go(win) {
+      await win
+        .getByRole('navigation', { name: 'Projects' })
+        .getByRole('button', { name: /Refinish boat table/ })
+        .click();
+      const quickAdd = win.getByLabel('Add a task');
+      await quickAdd.fill('Ask @tom');
+      await win.getByRole('option', { name: /Tom Whitaker/ }).click();
+      await quickAdd.press('End');
+      await quickAdd.type(' and @Nia Okoro', { delay: 10 });
+      await win.getByRole('option', { name: /Add “Nia Okoro”/ }).waitFor();
+    },
+  },
+  {
+    name: 'contacts',
+    async go(win) {
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByTestId('contacts-table').waitFor();
+    },
+  },
+  {
+    name: 'contact-detail',
+    async go(win) {
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByTestId('contact-row-c1').click();
+      await win.getByTestId('contact-headline').waitFor();
+    },
+  },
+  {
+    name: 'contact-activity',
+    async go(win) {
+      await win.getByRole('button', { name: 'Reports' }).click();
+      await win.getByRole('tab', { name: 'Contact activity' }).click();
+      await win.getByTestId('contact-rows').waitFor();
+    },
+  },
+  {
     name: 'tags',
     async go(win) {
       await win.getByRole('button', { name: 'Tags', exact: true }).click();

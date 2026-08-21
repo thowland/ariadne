@@ -5,19 +5,26 @@ import { DEFAULT_SETTINGS, PROJECT_PALETTE } from '../types';
 
 import type { MutationCtx } from './mutate';
 import {
+  addContactToProject,
+  addContactToTask,
   clearAll,
+  createContact,
   createMarkdownFile,
   createProject,
   createTask,
   cycleTaskStatus,
+  deleteContact,
   deleteFile,
   deleteProject,
   deleteTask,
   moveProject,
   moveTasksToProject,
   registerUploadedFile,
+  removeContactFromProject,
   rescheduleTasks,
   replaceWorkspace,
+  setTaskContacts,
+  updateContact,
   updateFile,
   updateProject,
   updateSettings,
@@ -92,6 +99,7 @@ function ws(patch: Partial<Workspace> = {}): Workspace {
     projects: [project()],
     tasks: [],
     files: [],
+    contacts: [],
     settings: { ...DEFAULT_SETTINGS },
     ...patch,
   };
@@ -381,6 +389,114 @@ describe('files', () => {
   });
 });
 
+describe('contacts (D31)', () => {
+  const withPeople = (): Workspace =>
+    ws({
+      tasks: [task({ id: 't1', contactIds: ['c1', 'c2'] }), task({ id: 't2' })],
+      contacts: [
+        {
+          id: 'c1',
+          firstName: 'Dana',
+          lastName: 'Reyes',
+          company: 'Northwind',
+          role: 'Lead',
+          email: 'dana@example.com',
+          phone: '555',
+          notes: '',
+          tags: [],
+          createdAt: TODAY,
+        },
+        {
+          id: 'c2',
+          firstName: 'Marcus',
+          lastName: 'Bell',
+          company: '',
+          role: '',
+          email: '',
+          phone: '',
+          notes: '',
+          tags: [],
+          createdAt: TODAY,
+        },
+      ],
+    });
+
+  it('createContact fills every field with a blank default', () => {
+    const r = createContact(ws(), ctx(), { firstName: 'Dana' });
+    expect(r.changed).toEqual(['contacts']);
+    expect(r.workspace.contacts[0]).toEqual({
+      id: 'id1',
+      firstName: 'Dana',
+      lastName: '',
+      company: '',
+      role: '',
+      email: '',
+      phone: '',
+      notes: '',
+      tags: [],
+      createdAt: TODAY,
+    });
+  });
+
+  it('updateContact merges, and ignores an unknown id', () => {
+    const w = withPeople();
+    expect(updateContact(w, 'c1', { phone: '999' }).workspace.contacts[0]?.phone).toBe('999');
+    expect(updateContact(w, 'ghost', { phone: '999' }).changed).toEqual([]);
+  });
+
+  it('deleteContact scrubs every link but destroys no task or project', () => {
+    const w = addContactToProject(withPeople(), 'p1', 'c1').workspace;
+    const r = deleteContact(w, 'c1');
+    expect(r.changed).toEqual(['projects', 'tasks', 'contacts']);
+    expect(r.workspace.contacts.map((c) => c.id)).toEqual(['c2']);
+    expect(r.workspace.tasks).toHaveLength(2);
+    expect(r.workspace.tasks[0]?.contactIds).toEqual(['c2']);
+    expect(r.workspace.projects[0]?.contactIds).toEqual([]);
+  });
+
+  it('deleteContact touches only the contacts document when nothing links to them', () => {
+    const r = deleteContact(withPeople(), 'c2');
+    // c2 is on t1, so removing them does change tasks — use a truly unlinked
+    // person to check the narrow case.
+    expect(r.changed).toContain('tasks');
+    const lonely = createContact(withPeople(), ctx(), {});
+    expect(deleteContact(lonely.workspace, lonely.id).changed).toEqual(['contacts']);
+    expect(deleteContact(withPeople(), 'ghost').changed).toEqual([]);
+  });
+
+  it('setTaskContacts de-duplicates, drops unknown ids, and no-ops on no change', () => {
+    const w = withPeople();
+    expect(setTaskContacts(w, 't2', ['c1', 'c1', 'ghost']).workspace.tasks[1]?.contactIds).toEqual([
+      'c1',
+    ]);
+    expect(setTaskContacts(w, 't1', ['c1', 'c2']).changed).toEqual([]);
+    expect(setTaskContacts(w, 'ghost', ['c1']).changed).toEqual([]);
+  });
+
+  it('addContactToTask is idempotent', () => {
+    const w = withPeople();
+    expect(addContactToTask(w, 't2', 'c1').workspace.tasks[1]?.contactIds).toEqual(['c1']);
+    expect(addContactToTask(w, 't1', 'c1').changed).toEqual([]);
+    expect(addContactToTask(w, 'ghost', 'c1').changed).toEqual([]);
+  });
+
+  it('attaches and detaches a project stakeholder without touching their tasks', () => {
+    const w = addContactToProject(withPeople(), 'p1', 'c1').workspace;
+    expect(w.projects[0]?.contactIds).toEqual(['c1']);
+    // Already attached, unknown project, unknown contact: all no-ops.
+    expect(addContactToProject(w, 'p1', 'c1').changed).toEqual([]);
+    expect(addContactToProject(w, 'ghost', 'c1').changed).toEqual([]);
+    expect(addContactToProject(w, 'p1', 'ghost').changed).toEqual([]);
+
+    const off = removeContactFromProject(w, 'p1', 'c1');
+    expect(off.changed).toEqual(['projects']);
+    expect(off.workspace.projects[0]?.contactIds).toEqual([]);
+    // Their task links survive — they are still on the card, via the task.
+    expect(off.workspace.tasks[0]?.contactIds).toEqual(['c1', 'c2']);
+    expect(removeContactFromProject(off.workspace, 'p1', 'c1').changed).toEqual([]);
+  });
+});
+
 describe('settings & whole-workspace', () => {
   it('updateSettings merges', () => {
     const r = updateSettings(ws(), { todoistToken: 'abc' });
@@ -392,7 +508,7 @@ describe('settings & whole-workspace', () => {
     const next = ws({ projects: [] });
     const r = replaceWorkspace(next);
     expect(r.workspace).toBe(next);
-    expect(r.changed).toEqual(['projects', 'tasks', 'files', 'settings']);
+    expect(r.changed).toEqual(['projects', 'tasks', 'files', 'contacts', 'settings']);
     expect(r.replaceAll).toBe(true);
   });
 

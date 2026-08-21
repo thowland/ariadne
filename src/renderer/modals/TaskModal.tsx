@@ -1,3 +1,4 @@
+import { contactsOfTask } from '@shared/domain/contacts';
 import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
 import type { SingleTaskPushBlock } from '@shared/domain/todoist';
 import {
@@ -12,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getApi } from '../app/api';
 import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
+import { ContactEditor } from '../components/ContactEditor';
 import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
 import { NlDateField } from '../components/NlDateField';
@@ -73,6 +75,7 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
   const st = STATUS_COLORS[task.status];
   const closed = task.status === 'Done' || task.status === 'Dropped';
   const doneSubtasks = task.subtasks.filter((s) => s.done).length;
+  const people = contactsOfTask(workspace, task);
 
   const patch = (fields: Parameters<typeof updateTask>[2]): void => {
     apply((ws, ctx) => updateTask(ws, task.id, fields, ctx));
@@ -159,6 +162,11 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               setDateDismissed(true);
               patch({ dueDate: null });
             }}
+            mentionContacts={workspace.contacts}
+            mentionExclude={task.contactIds ?? []}
+            onMention={(contactId) => {
+              patch({ contactIds: [...(task.contactIds ?? []), contactId] });
+            }}
           />
           <button className="modal-close" aria-label="Close" onClick={closeModal}>
             ×
@@ -238,6 +246,16 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               tags={task.tags}
               onChange={(tags) => {
                 patch({ tags });
+              }}
+            />
+          </div>
+
+          <div>
+            <FieldLabel text={`People${people.length > 0 ? ` · ${String(people.length)}` : ''}`} />
+            <ContactEditor
+              contacts={people}
+              onChange={(contactIds) => {
+                patch({ contactIds });
               }}
             />
           </div>

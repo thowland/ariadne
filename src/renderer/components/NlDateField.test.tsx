@@ -1,8 +1,11 @@
-import type { IsoDate } from '@shared/types';
+import type { Contact, IsoDate } from '@shared/types';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+
+import { useStore } from '../app/store';
+import { loadTestWorkspace, setupTestApp } from '../test-utils';
 
 import { NlDateField } from './NlDateField';
 
@@ -115,5 +118,228 @@ describe('NlDateField', () => {
     await userEvent.clear(field);
     await userEvent.type(field, 'ship friday');
     expect(onDate).toHaveBeenLastCalledWith('2026-07-10');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// @-mentions (D31). The picker only exists when the caller supplies contacts,
+// so the date-only harness above proves the field still works without them.
+// ---------------------------------------------------------------------------
+
+const PEOPLE: Contact[] = [
+  {
+    id: 'c1',
+    firstName: 'Dana',
+    lastName: 'Reyes',
+    company: 'Northwind',
+    role: 'Platform Lead',
+    email: 'dana@example.com',
+    phone: '',
+    notes: '',
+    tags: [],
+    createdAt: TODAY,
+  },
+  {
+    id: 'c2',
+    firstName: 'Marcus',
+    lastName: 'Bell',
+    company: '',
+    role: 'SRE',
+    email: '',
+    phone: '',
+    notes: '',
+    tags: [],
+    createdAt: TODAY,
+  },
+];
+
+function MentionHarness({
+  onMention,
+  exclude = [],
+  onEnter,
+  onCreateContact,
+}: {
+  onMention: (id: string) => void;
+  exclude?: string[];
+  onEnter?: () => void;
+  onCreateContact?: (name: string) => string | null;
+}): React.JSX.Element {
+  const [value, setValue] = useState('');
+  return (
+    <>
+      <NlDateField
+        value={value}
+        onChange={setValue}
+        today={TODAY}
+        onDateChange={() => undefined}
+        dismissed={false}
+        onDismiss={() => undefined}
+        ariaLabel="Task title"
+        mentionContacts={PEOPLE}
+        mentionExclude={exclude}
+        onMention={onMention}
+        onCreateContact={onCreateContact}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onEnter?.();
+        }}
+      />
+      <div data-testid="text">{value}</div>
+    </>
+  );
+}
+
+describe('NlDateField — @-mentions', () => {
+  it('opens the picker on @ and narrows as you type', async () => {
+    render(<MentionHarness onMention={vi.fn()} />);
+    const field = screen.getByLabelText('Task title');
+    await userEvent.type(field, 'Ask @');
+    expect(screen.getByRole('listbox', { name: 'Mention a contact' })).toBeInTheDocument();
+    await userEvent.type(field, 'dan');
+    expect(screen.getByRole('option', { name: /Dana Reyes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Marcus Bell/ })).not.toBeInTheDocument();
+  });
+
+  it('links the person and completes the typed fragment to their full name', async () => {
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} />);
+    const field = screen.getByLabelText('Task title');
+    await userEvent.type(field, 'Ask @dana about the budget');
+    // Walk the caret back into the mention rather than retyping it.
+    await userEvent.type(field, '{Home}');
+    await userEvent.keyboard('{ArrowRight>9/}');
+    await userEvent.click(screen.getByRole('option', { name: /Dana Reyes/ }));
+
+    expect(onMention).toHaveBeenCalledWith('c1');
+    // The name stays in the title, completed in place.
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Dana Reyes about the budget');
+  });
+
+  it('Enter picks the top match instead of submitting the task', async () => {
+    const onMention = vi.fn();
+    const onEnter = vi.fn();
+    render(<MentionHarness onMention={onMention} onEnter={onEnter} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @dana{Enter}');
+    expect(onMention).toHaveBeenCalledWith('c1');
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Dana Reyes');
+  });
+
+  it('arrows move through the list, Escape closes it without linking', async () => {
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} />);
+    const field = screen.getByLabelText('Task title');
+    await userEvent.type(field, '@');
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    expect(onMention).toHaveBeenCalledWith('c2');
+
+    onMention.mockClear();
+    await userEvent.type(field, '@dan{Escape}');
+    expect(screen.queryByRole('listbox', { name: 'Mention a contact' })).not.toBeInTheDocument();
+    expect(onMention).not.toHaveBeenCalled();
+  });
+
+  it('never offers somebody already linked to this task', async () => {
+    render(<MentionHarness onMention={vi.fn()} exclude={['c1']} />);
+    await userEvent.type(screen.getByLabelText('Task title'), '@dan');
+    expect(screen.queryByRole('option', { name: /Dana Reyes/ })).not.toBeInTheDocument();
+  });
+
+  it('creates a contact from the title when nobody matches', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Chase @Nia Okoro');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
+
+    const created = useStore.getState().workspace?.contacts.find((c) => c.firstName === 'Nia');
+    expect(created?.lastName).toBe('Okoro');
+    expect(onMention).toHaveBeenCalledWith(created?.id);
+    expect(screen.getByTestId('text')).toHaveTextContent('Chase @Nia Okoro');
+  });
+
+  it('leaves an email address in the title alone', async () => {
+    render(<MentionHarness onMention={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'mail dana@northwind.example');
+    expect(screen.queryByRole('listbox', { name: 'Mention a contact' })).not.toBeInTheDocument();
+  });
+
+  it('Enter never creates a contact: a mistyped name commits the task instead', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onMention = vi.fn();
+    const onEnter = vi.fn();
+    render(<MentionHarness onMention={onMention} onEnter={onEnter} />);
+
+    // "@Tomm about" matches nobody, so the only row is "add this person".
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tomm about{Enter}');
+
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+    expect(onMention).not.toHaveBeenCalled();
+    // The keystroke reaches the caller, so the task is still added.
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Tomm about');
+  });
+
+  it('creating still works when the row is deliberately chosen', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const onMention = vi.fn();
+    const onEnter = vi.fn();
+    render(<MentionHarness onMention={onMention} onEnter={onEnter} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tomm');
+    // Arrowing onto the create row is the deliberate act Enter alone is not.
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    expect(useStore.getState().workspace?.contacts.some((c) => c.firstName === 'Tomm')).toBe(true);
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
+  it('Enter still picks the top match without touching the address book', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @dan{Enter}');
+    expect(onMention).toHaveBeenCalledWith('c1');
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+  });
+
+  it('lets the caller supply how a new name becomes a contact', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onCreateContact = vi.fn().mockReturnValue('pending:1');
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} onCreateContact={onCreateContact} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Chase @Nia Okoro');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
+
+    expect(onCreateContact).toHaveBeenCalledWith('Nia Okoro');
+    expect(onMention).toHaveBeenCalledWith('pending:1');
+    // Nothing reached the address book — that is the caller's call to make.
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+  });
+
+  it('a name behind an @ is never read as a date (D29 × D31)', async () => {
+    // "tom" abbreviates tomorrow. Once a picked mention leaves "@Tom Whitaker"
+    // in the title, the date scanner used to read it and set a due date
+    // nobody asked for — the exact false positive D29 exists to avoid.
+    const onDate = vi.fn();
+    render(<Harness onDate={onDate} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tom Whitaker about the coat');
+
+    expect(screen.queryByTestId('nl-date-chip')).not.toBeInTheDocument();
+    expect(document.querySelector('.nl-hit')).toBeNull();
+    expect(onDate).toHaveBeenLastCalledWith(null);
+  });
+
+  it('still reads a real date in the same sentence as a mention', async () => {
+    const onDate = vi.fn();
+    render(<Harness onDate={onDate} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tom Whitaker tomorrow');
+    expect(document.querySelector('.nl-hit')?.textContent).toBe('tomorrow');
+    expect(onDate).toHaveBeenLastCalledWith('2026-07-09');
   });
 });

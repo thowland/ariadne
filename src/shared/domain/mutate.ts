@@ -1,5 +1,6 @@
 import type {
   CollectionName,
+  Contact,
   FileEntry,
   IsoDate,
   Project,
@@ -7,7 +8,7 @@ import type {
   Task,
   Workspace,
 } from '../types';
-import { PROJECT_PALETTE, STATUS_CYCLE } from '../types';
+import { COLLECTION_NAMES, PROJECT_PALETTE, STATUS_CYCLE } from '../types';
 
 /**
  * The complete mutation command surface (spec §5.2). Every function is pure:
@@ -415,6 +416,166 @@ export function deleteFile(ws: Workspace, id: string): DeleteFilesResult {
   };
 }
 
+// ---------- contacts (D31) ----------
+
+export function createContact(
+  ws: Workspace,
+  ctx: MutationCtx,
+  patch: Partial<Omit<Contact, 'id'>> = {},
+): CreatedResult {
+  const id = ctx.newId();
+  const contact: Contact = {
+    id,
+    firstName: '',
+    lastName: '',
+    company: '',
+    role: '',
+    email: '',
+    phone: '',
+    notes: '',
+    tags: [],
+    createdAt: ctx.today,
+    ...patch,
+  };
+  return {
+    workspace: { ...ws, contacts: [...ws.contacts, contact] },
+    changed: ['contacts'],
+    id,
+  };
+}
+
+export function updateContact(
+  ws: Workspace,
+  id: string,
+  patch: Partial<Omit<Contact, 'id'>>,
+): MutationResult {
+  if (!ws.contacts.some((c) => c.id === id)) return unchanged(ws);
+  return {
+    workspace: {
+      ...ws,
+      contacts: ws.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    },
+    changed: ['contacts'],
+  };
+}
+
+/**
+ * Removes the contact and every link to it. Unlike a project delete this
+ * cascades to references only — no task or project is destroyed because the
+ * person filed against it left.
+ */
+export function deleteContact(ws: Workspace, id: string): MutationResult {
+  if (!ws.contacts.some((c) => c.id === id)) return unchanged(ws);
+  const changed: CollectionName[] = ['contacts'];
+
+  const tasks = ws.tasks.map((t) =>
+    (t.contactIds ?? []).includes(id)
+      ? { ...t, contactIds: (t.contactIds ?? []).filter((x) => x !== id) }
+      : t,
+  );
+  if (tasks.some((t, i) => t !== ws.tasks[i])) changed.push('tasks');
+
+  const projects = ws.projects.map((p) =>
+    (p.contactIds ?? []).includes(id)
+      ? { ...p, contactIds: (p.contactIds ?? []).filter((x) => x !== id) }
+      : p,
+  );
+  if (projects.some((p, i) => p !== ws.projects[i])) changed.push('projects');
+
+  return {
+    workspace: {
+      ...ws,
+      contacts: ws.contacts.filter((c) => c.id !== id),
+      tasks,
+      projects,
+    },
+    // COLLECTION_NAMES order, so a payload built from `changed` reads the same
+    // way every time.
+    changed: changed.sort((a, b) => COLLECTION_NAMES.indexOf(a) - COLLECTION_NAMES.indexOf(b)),
+  };
+}
+
+/** Replace a task's people wholesale (the chip editor's commit). */
+export function setTaskContacts(
+  ws: Workspace,
+  taskId: string,
+  contactIds: readonly string[],
+): MutationResult {
+  const task = ws.tasks.find((t) => t.id === taskId);
+  if (task === undefined) return unchanged(ws);
+  const known = new Set(ws.contacts.map((c) => c.id));
+  const next = [...new Set(contactIds)].filter((id) => known.has(id));
+  const current = task.contactIds ?? [];
+  if (next.length === current.length && next.every((id, i) => id === current[i])) {
+    return unchanged(ws);
+  }
+  return {
+    workspace: {
+      ...ws,
+      tasks: ws.tasks.map((t) => (t.id === taskId ? { ...t, contactIds: next } : t)),
+    },
+    changed: ['tasks'],
+  };
+}
+
+/** Link one contact to a task; a no-op if they are already on it. */
+export function addContactToTask(ws: Workspace, taskId: string, contactId: string): MutationResult {
+  const task = ws.tasks.find((t) => t.id === taskId);
+  if (task === undefined) return unchanged(ws);
+  return setTaskContacts(ws, taskId, [...(task.contactIds ?? []), contactId]);
+}
+
+/**
+ * Attach a contact to the project itself. The project's Contacts card also
+ * shows people reached through its tasks, but only a direct attachment
+ * survives those tasks being reassigned — which is what a stakeholder is.
+ */
+export function addContactToProject(
+  ws: Workspace,
+  projectId: string,
+  contactId: string,
+): MutationResult {
+  const project = ws.projects.find((p) => p.id === projectId);
+  if (project === undefined || !ws.contacts.some((c) => c.id === contactId)) return unchanged(ws);
+  const current = project.contactIds ?? [];
+  if (current.includes(contactId)) return unchanged(ws);
+  return {
+    workspace: {
+      ...ws,
+      projects: ws.projects.map((p) =>
+        p.id === projectId ? { ...p, contactIds: [...current, contactId] } : p,
+      ),
+    },
+    changed: ['projects'],
+  };
+}
+
+/**
+ * Detach a contact from a project. Their task links are untouched, so someone
+ * who still has work here stays on the card — now sourced from those tasks.
+ */
+export function removeContactFromProject(
+  ws: Workspace,
+  projectId: string,
+  contactId: string,
+): MutationResult {
+  const project = ws.projects.find((p) => p.id === projectId);
+  if (project === undefined || !(project.contactIds ?? []).includes(contactId)) {
+    return unchanged(ws);
+  }
+  return {
+    workspace: {
+      ...ws,
+      projects: ws.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, contactIds: (p.contactIds ?? []).filter((x) => x !== contactId) }
+          : p,
+      ),
+    },
+    changed: ['projects'],
+  };
+}
+
 // ---------- settings / whole-workspace ----------
 
 export function updateSettings(ws: Workspace, patch: Partial<Settings>): MutationResult {
@@ -428,16 +589,16 @@ export function updateSettings(ws: Workspace, patch: Partial<Settings>): Mutatio
 export function replaceWorkspace(next: Workspace): MutationResult {
   return {
     workspace: next,
-    changed: ['projects', 'tasks', 'files', 'settings'],
+    changed: [...COLLECTION_NAMES],
     replaceAll: true,
   };
 }
 
-/** Clear all projects/tasks/files (cascade); settings survive. */
+/** Clear all projects/tasks/files/contacts (cascade); settings survive. */
 export function clearAll(ws: Workspace): DeleteFilesResult {
   return {
-    workspace: { ...ws, projects: [], tasks: [], files: [] },
-    changed: ['projects', 'tasks', 'files'],
+    workspace: { ...ws, projects: [], tasks: [], files: [], contacts: [] },
+    changed: ['projects', 'tasks', 'files', 'contacts'],
     replaceAll: true,
     removedBlobIds: ws.files.filter((f) => f.kind === 'file').map((f) => f.id),
   };

@@ -8,6 +8,8 @@ const VIEW_TITLES: Record<ViewName, string> = {
   home: 'Command Center',
   calendar: 'Calendar',
   reports: 'Reports',
+  contacts: 'Contacts',
+  contact: 'Contact',
   files: 'Files',
   tags: 'Tags',
   settings: 'Settings',

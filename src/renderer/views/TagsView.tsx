@@ -6,9 +6,9 @@ import { Card } from '../components/primitives';
 
 /**
  * All tags in the workspace. The cloud searches on click — the same behavior
- * as clicking a tag chip on a project or task — and the management list below
- * renames (renaming onto an existing tag merges after a confirm) or deletes a
- * tag everywhere. Management moved here from Settings in v1.11: the list
+ * as clicking a tag chip on a project, task, or contact — and the management
+ * list below renames (renaming onto an existing tag merges after a confirm) or
+ * deletes a tag everywhere, contacts included (D31). Management moved here from Settings in v1.11: the list
  * grows with the workspace and was burying the actual settings.
  */
 export function TagsView(): React.JSX.Element {
@@ -73,7 +73,7 @@ export function TagsView(): React.JSX.Element {
                 }}
               >
                 <span className="tag-chip-label">#{u.tag}</span>
-                <span className="tag-cloud-count">{u.projects + u.tasks}</span>
+                <span className="tag-cloud-count">{u.projects + u.tasks + u.contacts}</span>
               </button>
             ))}
           </div>
@@ -114,9 +114,13 @@ export function TagsView(): React.JSX.Element {
                       <span className="tag-chip tag-manage-chip">#{u.tag}</span>
                     )}
                     <span className="tag-manage-counts">
-                      {u.projects > 0 && `${u.projects} project${u.projects === 1 ? '' : 's'}`}
-                      {u.projects > 0 && u.tasks > 0 && ' · '}
-                      {u.tasks > 0 && `${u.tasks} task${u.tasks === 1 ? '' : 's'}`}
+                      {[
+                        u.projects > 0 && `${u.projects} project${u.projects === 1 ? '' : 's'}`,
+                        u.tasks > 0 && `${u.tasks} task${u.tasks === 1 ? '' : 's'}`,
+                        u.contacts > 0 && `${u.contacts} contact${u.contacts === 1 ? '' : 's'}`,
+                      ]
+                        .filter((x) => x !== false)
+                        .join(' · ')}
                     </span>
                     <div className="spacer" />
                     <button
@@ -131,7 +135,7 @@ export function TagsView(): React.JSX.Element {
                       className="btn subtle tag-delete"
                       aria-label={`Delete tag ${u.tag}`}
                       onClick={() => {
-                        removeTag(u.tag, u.projects + u.tasks);
+                        removeTag(u.tag, u.projects + u.tasks + u.contacts);
                       }}
                     >
                       Delete

@@ -2,6 +2,7 @@ import type { FileEntry, Workspace } from '../types';
 import { DEFAULT_SETTINGS, SCHEMA_VERSION } from '../types';
 
 import {
+  contactsFileSchema,
   filesFileSchema,
   normalizeWorkspace,
   projectsFileSchema,
@@ -21,6 +22,7 @@ export interface ExportDocument {
   projects: Workspace['projects'];
   tasks: Workspace['tasks'];
   files: Workspace['files'];
+  contacts: Workspace['contacts'];
   settings: Workspace['settings'];
   _blobs: Record<string, string>;
 }
@@ -31,6 +33,7 @@ export function buildExport(workspace: Workspace, blobs: Record<string, string>)
     projects: workspace.projects,
     tasks: workspace.tasks,
     files: workspace.files,
+    contacts: workspace.contacts,
     settings: workspace.settings,
     _blobs: blobs,
   };
@@ -97,6 +100,13 @@ export function parseImport(rawText: string, newId: () => string): ImportResult 
   const tasks = tasksFileSchema.safeParse(doc.tasks);
   const rawFiles: unknown[] = Array.isArray(doc.files) ? (doc.files as unknown[]) : [];
   const files = filesFileSchema.safeParse([...rawFiles, ...extraFiles]);
+  // Absent in every export written before 2.0; an unreadable list costs the
+  // contacts, not the import.
+  const rawContacts: unknown[] = Array.isArray(doc.contacts) ? (doc.contacts as unknown[]) : [];
+  const contacts = contactsFileSchema.safeParse(rawContacts);
+  if (!contacts.success && rawContacts.length > 0) {
+    warnings.push('Contacts in this export failed validation and were skipped');
+  }
   const settings = settingsSchema.safeParse(doc.settings ?? { ...DEFAULT_SETTINGS });
   if (!projects.success || !tasks.success || !files.success) {
     return { ok: false, error: 'Export contents failed validation' };
@@ -106,6 +116,7 @@ export function parseImport(rawText: string, newId: () => string): ImportResult 
     projects.data,
     tasks.data,
     files.data,
+    contacts.success ? contacts.data : [],
     settings.success ? settings.data : { ...DEFAULT_SETTINGS },
   );
 

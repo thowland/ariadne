@@ -12,26 +12,28 @@ export interface TagUsage {
   tag: string;
   projects: number;
   tasks: number;
+  contacts: number;
 }
 
 /** Every tag in use, with per-collection counts, sorted alphabetically. */
 export function tagUsage(ws: Workspace): TagUsage[] {
   const byLower = new Map<string, TagUsage>();
-  const bump = (tag: string, kind: 'projects' | 'tasks'): void => {
+  const bump = (tag: string, kind: 'projects' | 'tasks' | 'contacts'): void => {
     const key = tag.toLowerCase();
     let usage = byLower.get(key);
     if (usage === undefined) {
-      usage = { tag, projects: 0, tasks: 0 };
+      usage = { tag, projects: 0, tasks: 0, contacts: 0 };
       byLower.set(key, usage);
     }
     usage[kind] += 1;
   };
   for (const p of ws.projects) for (const t of new Set(p.tags)) bump(t, 'projects');
   for (const t of ws.tasks) for (const tag of new Set(t.tags)) bump(tag, 'tasks');
+  for (const c of ws.contacts) for (const tag of new Set(c.tags)) bump(tag, 'contacts');
   return [...byLower.values()].sort((a, b) => a.tag.localeCompare(b.tag));
 }
 
-/** Distinct known tags (projects + tasks), sorted. */
+/** Distinct known tags (projects + tasks + contacts), sorted. */
 export function allKnownTags(ws: Workspace): string[] {
   return tagUsage(ws).map((u) => u.tag);
 }
@@ -83,6 +85,7 @@ export function renameTag(ws: Workspace, from: string, to: string): MutationResu
   const changed: CollectionName[] = [];
   let projects = ws.projects;
   let tasks = ws.tasks;
+  let contacts = ws.contacts;
 
   const nextProjects = ws.projects.map((p) => {
     const next = replaceInList(p.tags, fromLower, target);
@@ -102,11 +105,20 @@ export function renameTag(ws: Workspace, from: string, to: string): MutationResu
     changed.push('tasks');
   }
 
+  const nextContacts = ws.contacts.map((c) => {
+    const next = replaceInList(c.tags, fromLower, target);
+    return next === null ? c : { ...c, tags: next };
+  });
+  if (nextContacts.some((c, i) => c !== ws.contacts[i])) {
+    contacts = nextContacts;
+    changed.push('contacts');
+  }
+
   if (changed.length === 0) return { workspace: ws, changed: [] };
-  return { workspace: { ...ws, projects, tasks }, changed };
+  return { workspace: { ...ws, projects, tasks, contacts }, changed };
 }
 
-/** Remove the tag from every project and task. */
+/** Remove the tag from every project, task, and contact. */
 export function deleteTag(ws: Workspace, tag: string): MutationResult {
   const lower = normalizeTag(tag).toLowerCase();
   if (lower === '') return { workspace: ws, changed: [] };
@@ -114,6 +126,7 @@ export function deleteTag(ws: Workspace, tag: string): MutationResult {
   const changed: CollectionName[] = [];
   let projects = ws.projects;
   let tasks = ws.tasks;
+  let contacts = ws.contacts;
 
   const nextProjects = ws.projects.map((p) =>
     p.tags.some((t) => t.toLowerCase() === lower)
@@ -135,6 +148,16 @@ export function deleteTag(ws: Workspace, tag: string): MutationResult {
     changed.push('tasks');
   }
 
+  const nextContacts = ws.contacts.map((c) =>
+    c.tags.some((x) => x.toLowerCase() === lower)
+      ? { ...c, tags: c.tags.filter((x) => x.toLowerCase() !== lower) }
+      : c,
+  );
+  if (nextContacts.some((c, i) => c !== ws.contacts[i])) {
+    contacts = nextContacts;
+    changed.push('contacts');
+  }
+
   if (changed.length === 0) return { workspace: ws, changed: [] };
-  return { workspace: { ...ws, projects, tasks }, changed };
+  return { workspace: { ...ws, projects, tasks, contacts }, changed };
 }

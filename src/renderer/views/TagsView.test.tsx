@@ -64,8 +64,11 @@ describe('TagsView — management (moved from Settings in v1.11)', () => {
     const list = screen.getByTestId('tag-manage-list');
     const infraRow = within(list).getByText('#infra').closest('.tag-manage-row');
     expect(infraRow).toHaveTextContent('1 project');
-    // Seed has 8 distinct project tags.
-    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(8);
+    // Seed has 8 distinct project/task tags plus #vendor and #team, which
+    // only the contacts carry (D31).
+    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(10);
+    const vendorRow = within(list).getByText('#vendor').closest('.tag-manage-row');
+    expect(vendorRow).toHaveTextContent('3 contacts');
   });
 
   it('renames a tag inline', async () => {
@@ -115,7 +118,7 @@ describe('TagsView — management (moved from Settings in v1.11)', () => {
     await userEvent.type(box, '#fin');
     expect(within(list).getByText('#finance')).toBeInTheDocument();
     await userEvent.clear(box);
-    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(8);
+    expect(within(list).getAllByRole('button', { name: 'Rename…' })).toHaveLength(10);
   });
 
   it('shows an empty note when the filter matches nothing', async () => {
@@ -133,10 +136,12 @@ describe('TagsView — management (moved from Settings in v1.11)', () => {
     const row = within(list).getByText('#finance').closest<HTMLElement>('.tag-manage-row');
     await userEvent.click(within(row!).getByRole('button', { name: 'Delete tag finance' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
-    expect(dialog).toHaveTextContent('Remove #finance from 1 item?');
+    // Project p4 and contact c4 both carry it — the count spans collections.
+    expect(dialog).toHaveTextContent('Remove #finance from 2 items?');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
     await vi.waitFor(() => {
       expect(ws().projects.find((p) => p.id === 'p4')?.tags).toEqual([]);
     });
+    expect(ws().contacts.find((c) => c.id === 'c4')?.tags).toEqual([]);
   });
 });

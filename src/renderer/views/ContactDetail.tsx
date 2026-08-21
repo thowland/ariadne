@@ -1,0 +1,288 @@
+import { contactName, projectsOfContact, tasksOfContact } from '@shared/domain/contacts';
+import { isOpen } from '@shared/domain/derive';
+import { deleteContact, updateContact } from '@shared/domain/mutate';
+import { byProjectListOrder } from '@shared/domain/sort';
+import type { Contact } from '@shared/types';
+
+import { useStore } from '../app/store';
+import { ContactAvatar, CopyValue } from '../components/ContactBits';
+import { Card, Dot } from '../components/primitives';
+import { TagEditor } from '../components/TagEditor';
+import { TaskRow } from '../components/TaskRow';
+
+/** One labelled text input on the contact form. */
+function Field({
+  label,
+  value,
+  placeholder,
+  onChange,
+  type = 'text',
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  type?: string;
+}): React.JSX.Element {
+  return (
+    <div>
+      <div className="field-label">{label.toUpperCase()}</div>
+      <input
+        className="inp full"
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        aria-label={label}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * A single contact (D31): their details, editable in place like a project's
+ * are, plus everything of theirs that is in flight. The two lists are the
+ * point — the address book part is easy, and "what did I ask this person for"
+ * is the question that actually sends you looking for them.
+ */
+export function ContactDetail(): React.JSX.Element {
+  const { workspace, activeContactId, apply, go, openProject, askConfirm, showToast } = useStore();
+
+  const contact = workspace?.contacts.find((c) => c.id === activeContactId);
+  if (contact === undefined || workspace === null) {
+    return <div className="stub-view">Contact not found.</div>;
+  }
+
+  const name = contactName(contact);
+  const tasks = tasksOfContact(workspace, contact.id);
+  const projects = projectsOfContact(workspace, contact.id);
+  const openCount = tasks.filter(isOpen).length;
+
+  const patch = (fields: Partial<Omit<Contact, 'id'>>): void => {
+    apply((ws) => updateContact(ws, contact.id, fields));
+  };
+
+  const remove = (): void => {
+    void askConfirm(
+      tasks.length > 0
+        ? `Delete ${name}? They come off ${String(tasks.length)} task${
+            tasks.length === 1 ? '' : 's'
+          }; the tasks themselves stay.`
+        : `Delete ${name}?`,
+    ).then((ok) => {
+      if (!ok) return;
+      apply((ws) => deleteContact(ws, contact.id));
+      go('contacts');
+      showToast(`${name} deleted`);
+    });
+  };
+
+  return (
+    <div className="view-wrap fadein" style={{ maxWidth: 1080 }}>
+      <div className="contact-detail-header">
+        <button
+          className="lib-btn back-link"
+          onClick={() => {
+            go('contacts');
+          }}
+        >
+          ← All contacts
+        </button>
+        <div className="spacer" />
+        <button className="btn danger" onClick={remove}>
+          Delete
+        </button>
+      </div>
+
+      <div className="contact-hero">
+        <ContactAvatar contact={contact} size={54} />
+        <div className="contact-hero-body">
+          <h1 className="hero-title" data-testid="contact-headline">
+            {name}
+          </h1>
+          <div className="contact-hero-meta">
+            {[contact.role, contact.company].filter((x) => x.trim() !== '').join(' · ') ||
+              'No role or company recorded'}
+            {openCount > 0 && (
+              <span className="contact-hero-count">
+                {openCount} open task{openCount === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="spacer" />
+        {/* The copy row is the fast path: name, email and phone without
+            scrolling to the form below or selecting any text. */}
+        <div className="contact-hero-copy" data-testid="contact-copy-row">
+          <CopyValue value={name} what="name" label="Copy name" />
+          <CopyValue value={contact.email} what="email" label="Copy email" />
+          <CopyValue value={contact.phone} what="phone number" label="Copy phone" />
+        </div>
+      </div>
+
+      <div className="project-grid">
+        <div className="project-main">
+          <Card title="Tasks" count={tasks.length}>
+            <div className="focus-section-body">
+              {projects.length > 0 ? (
+                projects.map((project) => {
+                  const own = tasks
+                    .filter((t) => t.projectId === project.id)
+                    .sort(byProjectListOrder);
+                  if (own.length === 0) return null;
+                  return (
+                    <div key={project.id} className="contact-task-group">
+                      <button
+                        className="report-project-head contact-group-head"
+                        onClick={() => {
+                          openProject(project.id);
+                        }}
+                      >
+                        <Dot color={project.color} size={10} />
+                        <span className="report-project-name">{project.name}</span>
+                        <span className="card-count">{own.length}</span>
+                      </button>
+                      {own.map((t) => (
+                        <TaskRow key={t.id} task={t} />
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="card-empty">
+                  Nothing assigned yet. Type <code>@{contact.firstName || name}</code> in a task
+                  title to link them to a piece of work.
+                </div>
+              )}
+              {projects.length > 0 && tasks.length === 0 && (
+                <div className="card-empty">
+                  Attached to {projects.length} project{projects.length === 1 ? '' : 's'}, but not
+                  to any task yet.
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card title="Projects" count={projects.length}>
+            <div className="focus-section-body">
+              {projects.length > 0 ? (
+                projects.map((project) => {
+                  const own = tasks.filter((t) => t.projectId === project.id);
+                  const direct = (project.contactIds ?? []).includes(contact.id);
+                  return (
+                    <button
+                      key={project.id}
+                      className="report-line contact-project-line"
+                      onClick={() => {
+                        openProject(project.id);
+                      }}
+                    >
+                      <Dot color={project.color} size={8} />
+                      <span className="report-line-title">{project.name}</span>
+                      <span className="report-line-due muted">
+                        {direct ? 'stakeholder' : ''}
+                        {direct && own.length > 0 ? ' · ' : ''}
+                        {own.length > 0
+                          ? `${String(own.length)} task${own.length === 1 ? '' : 's'}`
+                          : ''}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="card-empty">Not involved in any project yet.</div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        <div className="project-side">
+          <Card title="Details">
+            <div className="card-pad contact-form">
+              <div className="field-grid">
+                <Field
+                  label="First name"
+                  value={contact.firstName}
+                  placeholder="Dana"
+                  onChange={(firstName) => {
+                    patch({ firstName });
+                  }}
+                />
+                <Field
+                  label="Last name"
+                  value={contact.lastName}
+                  placeholder="Reyes"
+                  onChange={(lastName) => {
+                    patch({ lastName });
+                  }}
+                />
+                <Field
+                  label="Company"
+                  value={contact.company}
+                  placeholder="Northwind Systems"
+                  onChange={(company) => {
+                    patch({ company });
+                  }}
+                />
+                <Field
+                  label="Role"
+                  value={contact.role}
+                  placeholder="Platform Lead"
+                  onChange={(role) => {
+                    patch({ role });
+                  }}
+                />
+              </div>
+              {/* No copy buttons beside these two: the header already carries
+                  them, and a second pair here squeezed the fields down to
+                  nothing on a narrow side column. */}
+              <Field
+                label="Email"
+                type="email"
+                value={contact.email}
+                placeholder="dana@example.com"
+                onChange={(email) => {
+                  patch({ email });
+                }}
+              />
+              <Field
+                label="Phone"
+                type="tel"
+                value={contact.phone}
+                placeholder="(555) 010-0000"
+                onChange={(phone) => {
+                  patch({ phone });
+                }}
+              />
+              <div>
+                <div className="field-label">TAGS</div>
+                <TagEditor
+                  tags={contact.tags}
+                  onChange={(tags) => {
+                    patch({ tags });
+                  }}
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Notes">
+            <div className="card-pad">
+              <textarea
+                className="inp notes-area"
+                value={contact.notes}
+                aria-label="Contact notes"
+                placeholder="How you know them, what they care about, how they prefer to be reached…"
+                onChange={(e) => {
+                  patch({ notes: e.target.value });
+                }}
+              />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

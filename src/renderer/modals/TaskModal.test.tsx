@@ -294,4 +294,38 @@ describe('TaskModal — natural-language dates in the title (D29)', () => {
     // The text itself is untouched.
     expect(task('t6').title).toBe('Write runbook tomorrow');
   });
+
+  it('lists the task’s people and unlinks one (D31)', async () => {
+    openModal('t2'); // "Provision new k8s cluster" — Dana and Marcus
+    const field = screen.getByTestId('task-contacts');
+    expect(within(field).getByText('Dana Reyes')).toBeInTheDocument();
+    await userEvent.click(within(field).getByRole('button', { name: 'Remove Marcus Bell' }));
+    expect(ws().tasks.find((t) => t.id === 't2')?.contactIds).toEqual(['c1']);
+  });
+
+  it('adds a person through the People picker', async () => {
+    openModal('t2');
+    await userEvent.type(screen.getByLabelText('Add a contact to this task'), 'sofia');
+    await userEvent.click(screen.getByRole('option', { name: /Sofia Grant/ }));
+    expect(ws().tasks.find((t) => t.id === 't2')?.contactIds).toEqual(['c1', 'c2', 'c6']);
+  });
+
+  it('links someone by @-mentioning them, completing the name in the title', async () => {
+    openModal('t4'); // "Migrate billing service" — nobody on it yet
+    const title = screen.getByLabelText('Task title');
+    await userEvent.type(title, ' with @sofia');
+    await userEvent.click(screen.getByRole('option', { name: /Sofia Grant/ }));
+
+    const task = ws().tasks.find((t) => t.id === 't4');
+    expect(task?.contactIds).toEqual(['c6']);
+    expect(task?.title).toBe('Migrate billing service with @Sofia Grant');
+  });
+
+  it('a contact chip navigates to that person and closes the editor', async () => {
+    openModal('t2');
+    await userEvent.click(screen.getByTitle('Open Dana Reyes'));
+    expect(useStore.getState().modal).toBeNull();
+    expect(useStore.getState().view).toBe('contact');
+    expect(useStore.getState().activeContactId).toBe('c1');
+  });
 });

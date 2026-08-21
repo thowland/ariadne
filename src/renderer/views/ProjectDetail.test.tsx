@@ -74,7 +74,7 @@ describe('ProjectDetail', () => {
 
   it('quick-added tasks append at the end of the pinned order', async () => {
     render(<ProjectDetail />);
-    const input = screen.getByPlaceholderText('Add a task and press Enter…');
+    const input = screen.getByPlaceholderText('Add a task, or @ someone, and press Enter…');
     await userEvent.type(input, 'Buff the finish{Enter}');
     const titles = screen
       .getAllByTitle(/Advance status/)
@@ -94,7 +94,7 @@ describe('ProjectDetail', () => {
 
   it('quick-adds a task with Enter', async () => {
     render(<ProjectDetail />);
-    const input = screen.getByPlaceholderText('Add a task and press Enter…');
+    const input = screen.getByPlaceholderText('Add a task, or @ someone, and press Enter…');
     await userEvent.type(input, 'Buy more sandpaper{Enter}');
     expect(input).toHaveValue('');
     const added = ws().tasks.find((t) => t.title === 'Buy more sandpaper');
@@ -330,5 +330,92 @@ describe('ProjectDetail — hide completed tasks (D30)', () => {
     render(<ProjectDetail />);
     await userEvent.click(screen.getByLabelText('Hide completed tasks'));
     expect(screen.getByText(/Everything here is done/)).toBeInTheDocument();
+  });
+
+  it('shows the project’s Contacts card, unioned across its tasks (D31)', () => {
+    render(<ProjectDetail />);
+    const card = screen.getByTestId('project-contacts');
+    expect(within(card).getByText('Tom Whitaker')).toBeInTheDocument();
+  });
+
+  it('@-mentions a person into a quick-added task', async () => {
+    render(<ProjectDetail />);
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Ask @tom about coat timing');
+    // Walk back into the mention rather than retyping it.
+    await userEvent.type(input, '{Home}');
+    await userEvent.keyboard('{ArrowRight>8/}');
+    await userEvent.click(screen.getByRole('option', { name: /Tom Whitaker/ }));
+
+    // Pending until the task exists — the chip shows who it will carry.
+    expect(
+      within(screen.getByTestId('quick-add-people')).getByText('Tom Whitaker'),
+    ).toBeInTheDocument();
+    await userEvent.type(input, '{Enter}');
+
+    const created = ws().tasks[ws().tasks.length - 1];
+    expect(created?.title).toBe('Ask @Tom Whitaker about coat timing');
+    expect(created?.contactIds).toEqual(['c5']);
+    // The pending chips are cleared for the next task.
+    expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
+  });
+
+  it('drops a pending person before the task is created', async () => {
+    render(<ProjectDetail />);
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, '@tom');
+    await userEvent.click(screen.getByRole('option', { name: /Tom Whitaker/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Tom Whitaker' }));
+    expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
+  });
+
+  it('a new name is not written to the address book until the task is added', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Call @Nia Okoro');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
+
+    // Named, shown as pending — but nobody has been created.
+    const chips = screen.getByTestId('quick-add-people');
+    expect(within(chips).getByText('Nia Okoro')).toBeInTheDocument();
+    expect(within(chips).getByText('new')).toBeInTheDocument();
+    expect(ws().contacts).toHaveLength(before);
+
+    await userEvent.type(input, '{Enter}');
+    const created = ws().contacts.find((c) => c.firstName === 'Nia');
+    expect(created?.lastName).toBe('Okoro');
+    const task = ws().tasks[ws().tasks.length - 1];
+    expect(task?.contactIds).toEqual([created?.id]);
+  });
+
+  it('a name typed and then thought better of leaves nothing behind', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Call @Nia Okora');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okora”/ }));
+    // Spotted the typo: drop the chip and fix the title before adding.
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Nia Okora' }));
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Call the shop{Enter}');
+
+    expect(ws().contacts).toHaveLength(before);
+    expect(ws().contacts.some((c) => c.lastName === 'Okora')).toBe(false);
+    expect(ws().tasks[ws().tasks.length - 1]?.title).toBe('Call the shop');
+  });
+
+  it('Enter on a mistyped name adds the task instead of inventing a contact', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    // "@Tomm about" matches nobody; Enter here means "add the task".
+    await userEvent.type(input, 'Ask @Tomm about the coat{Enter}');
+
+    expect(ws().contacts).toHaveLength(before);
+    const task = ws().tasks[ws().tasks.length - 1];
+    expect(task?.title).toBe('Ask @Tomm about the coat');
+    expect(task?.contactIds).toBeUndefined();
+    expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
   });
 });

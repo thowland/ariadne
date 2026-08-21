@@ -2,7 +2,7 @@ import { todayIso } from '@shared/domain/clock';
 import type { Scope } from '@shared/domain/derive';
 import { newId } from '@shared/domain/id';
 import type { MutationCtx, MutationResult } from '@shared/domain/mutate';
-import { createProject, createTask, updateSettings } from '@shared/domain/mutate';
+import { createContact, createProject, createTask, updateSettings } from '@shared/domain/mutate';
 import { applyTodoistCompletions, TODOIST_SYNC_LOOKBACK_DAYS } from '@shared/domain/todoist';
 import type {
   DebugLogCategory,
@@ -22,7 +22,16 @@ function logDebug(ws: Workspace | null, category: DebugLogCategory, message: str
 export type Mutation<R extends MutationResult> = (ws: Workspace, ctx: MutationCtx) => R;
 
 export type ViewName =
-  'home' | 'calendar' | 'project' | 'projects' | 'reports' | 'files' | 'tags' | 'settings';
+  | 'home'
+  | 'calendar'
+  | 'project'
+  | 'projects'
+  | 'reports'
+  | 'contacts'
+  | 'contact'
+  | 'files'
+  | 'tags'
+  | 'settings';
 
 export interface DayModalState {
   type: 'day';
@@ -133,6 +142,8 @@ export interface AriadneStore {
   // ----- ui slice (never persisted) -----
   view: ViewName;
   activeProjectId: string | null;
+  /** Contact whose detail page is open; null on every other view. */
+  activeContactId: string | null;
   q: string;
   scope: Scope;
   toast: string | null;
@@ -149,6 +160,8 @@ export interface AriadneStore {
 
   go: (view: ViewName) => void;
   openProject: (id: string) => void;
+  /** Opens a contact's detail page (D31). */
+  openContact: (id: string) => void;
   /** Opens the task editor modal over the current view. */
   openTask: (id: string) => void;
   /** Opens the single-day view (calendar truncation). */
@@ -187,6 +200,12 @@ export interface AriadneStore {
   setCalWeek: (anchor: IsoDate | null) => void;
   /** Sidebar "+" — create a project and jump to it. */
   newProject: () => void;
+  /**
+   * Create a blank contact and open its detail page. Returns the new id so
+   * callers that are mid-flow (the @-mention picker, the project card) can
+   * link it to whatever they were editing.
+   */
+  newContact: (patch?: Parameters<typeof createContact>[2]) => string | null;
   /** Top bar "+ New task" — create in the active (or first) project and edit it. */
   newTaskGlobal: () => void;
 }
@@ -308,6 +327,7 @@ export const useStore = create<AriadneStore>((set, get) => ({
   // ----- ui slice -----
   view: 'home',
   activeProjectId: null,
+  activeContactId: null,
   q: '',
   scope: 'all',
   toast: null,
@@ -327,6 +347,13 @@ export const useStore = create<AriadneStore>((set, get) => ({
   openProject: (id) => {
     logDebug(get().workspace, 'activity', `navigate: project ${id}`);
     set({ view: 'project', activeProjectId: id, q: '' });
+  },
+
+  openContact: (id) => {
+    if (get().workspace?.contacts.some((c) => c.id === id) === true) {
+      logDebug(get().workspace, 'activity', `navigate: contact ${id}`);
+      set({ view: 'contact', activeContactId: id, q: '' });
+    }
   },
 
   openTask: (id) => {
@@ -444,6 +471,11 @@ export const useStore = create<AriadneStore>((set, get) => ({
       get().openProject(result.id);
       get().showToast('Project created');
     }
+  },
+
+  newContact: (patch = {}) => {
+    const result = get().apply((ws, ctx) => createContact(ws, ctx, patch));
+    return result?.id ?? null;
   },
 
   newTaskGlobal: () => {

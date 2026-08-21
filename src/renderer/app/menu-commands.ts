@@ -69,6 +69,9 @@ export function runMenuCommand(command: MenuCommand): void {
     case 'goReports':
       s.go('reports');
       return;
+    case 'goContacts':
+      s.go('contacts');
+      return;
     case 'goFiles':
       s.go('files');
       return;

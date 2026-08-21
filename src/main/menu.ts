@@ -135,8 +135,9 @@ export function buildAppMenuTemplate({
       cmd('Command Center', 'goHome', send, 'CmdOrCtrl+1'),
       cmd('Calendar', 'goCalendar', send, 'CmdOrCtrl+2'),
       cmd('Reports', 'goReports', send, 'CmdOrCtrl+3'),
-      cmd('Files', 'goFiles', send, 'CmdOrCtrl+4'),
-      cmd('Tags', 'goTags', send, 'CmdOrCtrl+5'),
+      cmd('Contacts', 'goContacts', send, 'CmdOrCtrl+4'),
+      cmd('Files', 'goFiles', send, 'CmdOrCtrl+5'),
+      cmd('Tags', 'goTags', send, 'CmdOrCtrl+6'),
       SEP,
       {
         label: 'Scope',

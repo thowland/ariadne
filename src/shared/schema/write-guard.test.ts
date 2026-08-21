@@ -17,11 +17,17 @@ function names(result: { accepted: [CollectionName, unknown][] }): CollectionNam
 describe('screenWorkspaceSave', () => {
   it('accepts a valid full payload verbatim', () => {
     const r = screenWorkspaceSave(
-      { projects: ws.projects, tasks: ws.tasks, files: ws.files, settings: ws.settings },
+      {
+        projects: ws.projects,
+        tasks: ws.tasks,
+        files: ws.files,
+        contacts: ws.contacts,
+        settings: ws.settings,
+      },
       counts(5),
     );
     expect(r.rejected).toEqual([]);
-    expect(names(r)).toEqual(['projects', 'tasks', 'files', 'settings']);
+    expect(names(r)).toEqual(['projects', 'tasks', 'files', 'contacts', 'settings']);
     // Verbatim: the original array instance is what gets written.
     expect(r.accepted[0]?.[1]).toBe(ws.projects);
   });
@@ -74,5 +80,29 @@ describe('screenWorkspaceSave', () => {
   it('never blocks settings (object, not a list)', () => {
     const r = screenWorkspaceSave({ settings: ws.settings }, counts(99));
     expect(r.rejected).toEqual([]);
+  });
+});
+
+describe('contacts (D31) go through the same screen', () => {
+  it('accepts a valid contacts payload', () => {
+    const r = screenWorkspaceSave({ contacts: ws.contacts }, counts(5));
+    expect(names(r)).toEqual(['contacts']);
+  });
+
+  it('rejects a malformed contacts payload rather than writing it', () => {
+    const r = screenWorkspaceSave({ contacts: [{ firstName: 'no id' }] }, counts(5));
+    expect(r.accepted).toEqual([]);
+    expect(r.rejected.map((x) => x.name)).toEqual(['contacts']);
+  });
+
+  it('refuses to empty a populated address book by accident, but allows the wipe', () => {
+    expect(screenWorkspaceSave({ contacts: [] }, counts(7)).rejected.map((x) => x.name)).toEqual([
+      'contacts',
+    ]);
+    expect(names(screenWorkspaceSave({ contacts: [], replaceAll: true }, counts(7)))).toEqual([
+      'contacts',
+    ]);
+    // Deleting the last contact is not a shrink worth blocking.
+    expect(names(screenWorkspaceSave({ contacts: [] }, counts(1)))).toEqual(['contacts']);
   });
 });

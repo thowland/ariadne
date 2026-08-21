@@ -132,7 +132,13 @@ describe('ArchiveService.importFrom', () => {
     await svc.exportTo(target);
 
     // Wipe the live workspace, then restore from the archive.
-    await storage.saveWorkspaceNow({ projects: [], tasks: [], files: [], settings: ws.settings });
+    await storage.saveWorkspaceNow({
+      projects: [],
+      tasks: [],
+      files: [],
+      contacts: [],
+      settings: ws.settings,
+    });
     await blobs.deleteMany(['bin1']);
 
     const result = await svc.importFrom(target);
