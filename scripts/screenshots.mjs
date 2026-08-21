@@ -80,6 +80,29 @@ const SHOTS = [
     },
   },
   {
+    name: 'contacts',
+    async go(win) {
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByTestId('contacts-table').waitFor();
+    },
+  },
+  {
+    name: 'contact-detail',
+    async go(win) {
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByTestId('contact-row-c1').click();
+      await win.getByTestId('contact-headline').waitFor();
+    },
+  },
+  {
+    name: 'contact-activity',
+    async go(win) {
+      await win.getByRole('button', { name: 'Reports' }).click();
+      await win.getByRole('tab', { name: 'Contact activity' }).click();
+      await win.getByTestId('contact-rows').waitFor();
+    },
+  },
+  {
     name: 'tags',
     async go(win) {
       await win.getByRole('button', { name: 'Tags', exact: true }).click();

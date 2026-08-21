@@ -40,8 +40,9 @@ function shortcuts(mod: string): { group: string; items: Shortcut[] }[] {
         { keys: `${mod}1`, what: 'Command Center' },
         { keys: `${mod}2`, what: 'Calendar' },
         { keys: `${mod}3`, what: 'Reports' },
-        { keys: `${mod}4`, what: 'Files' },
-        { keys: `${mod}5`, what: 'Tags' },
+        { keys: `${mod}4`, what: 'Contacts' },
+        { keys: `${mod}5`, what: 'Files' },
+        { keys: `${mod}6`, what: 'Tags' },
         { keys: `${mod},`, what: 'Settings' },
         { keys: `${mod}F`, what: 'Jump to search' },
         { keys: 'Esc', what: 'Close the open dialog' },
@@ -87,6 +88,10 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             </li>
             <li>
               <strong>Calendar</strong> — month or single-week view of everything with a due date.
+            </li>
+            <li>
+              <strong>Contacts</strong> — the people you work with, and what you have asked of them.
+              Type <code>@</code> in a task title to link someone to it.
             </li>
             <li>
               <strong>Files</strong> — every uploaded document and markdown note in one library.

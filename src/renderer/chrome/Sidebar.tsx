@@ -22,6 +22,7 @@ const NAV: readonly (readonly [ViewName, string])[] = [
   ['home', 'Command Center'],
   ['calendar', 'Calendar'],
   ['reports', 'Reports'],
+  ['contacts', 'Contacts'],
   ['files', 'Files'],
   ['tags', 'Tags'],
   ['settings', 'Settings'],
@@ -57,6 +58,11 @@ export function Sidebar(): React.JSX.Element {
   const overdueTotal = tasks.filter(
     (t) => activeIds.has(t.projectId) && isOverdue(t, today),
   ).length;
+
+  // A contact's detail page is a leaf of the Contacts screen, so the nav item
+  // stays lit while you are on it — the same way a project stays lit.
+  const navActive = (key: ViewName): boolean =>
+    !searching && (view === key || (key === 'contacts' && view === 'contact'));
 
   /**
    * Right-click actions for a project (D21). Everything here is also reachable
@@ -156,7 +162,7 @@ export function Sidebar(): React.JSX.Element {
         {NAV.map(([key, label]) => (
           <button
             key={key}
-            className={`navitem ${view === key && !searching ? 'active' : ''}`}
+            className={`navitem ${navActive(key) ? 'active' : ''}`}
             onClick={() => {
               go(key);
             }}

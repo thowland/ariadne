@@ -70,6 +70,7 @@ export function setupTestApp(
     warnings: [],
     view: 'home',
     activeProjectId: null,
+    activeContactId: null,
     q: '',
     scope: 'all',
     toast: null,

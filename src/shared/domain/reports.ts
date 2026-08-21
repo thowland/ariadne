@@ -1,6 +1,7 @@
-import type { Deferral, IsoDate, Project, Task, TaskPriority, Workspace } from '../types';
+import type { Contact, Deferral, IsoDate, Project, Task, TaskPriority, Workspace } from '../types';
 import { TASK_PRIORITIES } from '../types';
 
+import { contactName, contactSortName } from './contacts';
 import { dayDiff, fmtLong, fmtShort, isoAdd, isValidIsoDate, weekStart } from './dates';
 import {
   indexTasks,
@@ -13,7 +14,7 @@ import {
 import { byDue } from './sort';
 
 /**
- * The four report builders + plain-text serializers (prototype viewReports /
+ * The report builders + plain-text serializers (prototype viewReports /
  * copyReport). Reports are scoped by a project filter so a work report can
  * never leak home projects, and vice versa.
  */
@@ -590,6 +591,175 @@ export function deferredText(result: DeferralResult, today: IsoDate): string {
     out += '\nBy project:\n';
     for (const p of a.byProject) {
       out += `- ${p.project.name}: ${p.deferrals} reschedule(s) across ${p.tasks} task(s), +${p.days}d\n`;
+    }
+  }
+  return out;
+}
+
+// ---------- Contact activity (D31) ----------
+
+/**
+ * A task counts toward the window when it was completed in it, created in it,
+ * or is still open and due in it. Deliberately broader than "completed": work
+ * you are *currently* carrying for someone is collaboration too, and a report
+ * that only counted finished tasks would rank a person at zero right up to
+ * the day their project ships.
+ */
+function taskInWindow(t: Task, from: IsoDate, to: IsoDate): boolean {
+  if (t.completedAt !== null && t.completedAt >= from && t.completedAt <= to) return true;
+  if (t.createdAt >= from && t.createdAt <= to) return true;
+  return isOpen(t) && t.dueDate !== null && t.dueDate >= from && t.dueDate <= to;
+}
+
+export interface ContactActivityRow {
+  contact: Contact;
+  /** In-window tasks still open. */
+  open: number;
+  /** In-window tasks completed. */
+  done: number;
+  /** In-window open tasks already past due. */
+  overdue: number;
+  /** Every in-window task linked to them (the ranking key). */
+  total: number;
+  /** In-scope projects they touch, through a task or a direct attachment. */
+  projects: Project[];
+  /** Latest completion (or creation) among their in-window tasks. */
+  lastActivity: IsoDate | null;
+  /** Days between `lastActivity` and today; null when there is no activity. */
+  daysSinceLast: number | null;
+}
+
+export interface ContactActivityAnalytics {
+  /** Contacts with any in-window activity or in-scope attachment. */
+  people: number;
+  /** Distinct organizations across those people ("" is not a company). */
+  companies: number;
+  /** In-window tasks with at least one contact on them. */
+  collaborativeTasks: number;
+  /** In-window tasks in scope, whether or not anyone is linked. */
+  windowTasks: number;
+  /** Contacts whose in-window tasks are all still open — outstanding asks. */
+  peopleWithOpenWork: number;
+  /** Open in-window tasks past due across every contact. */
+  overdueWithPeople: number;
+  /** Busiest organizations first. */
+  byCompany: { company: string; people: number; tasks: number }[];
+}
+
+export interface ContactActivityResult {
+  rows: ContactActivityRow[];
+  analytics: ContactActivityAnalytics;
+}
+
+/**
+ * Who you have been working with, over a date range (D31).
+ *
+ * Scoped through `filterProjects` like every other report, so a work-filtered
+ * run can never surface the plumber attached to a home project. Contacts
+ * attached to an in-scope project but carrying no in-window task still get a
+ * row — a stakeholder with nothing assigned is a real answer to "who is
+ * involved here" — and sort to the bottom on a total of zero.
+ */
+export function contactActivity(
+  ws: Workspace,
+  filter: ReportFilter,
+  from: IsoDate,
+  to: IsoDate,
+  today: IsoDate,
+): ContactActivityResult {
+  const projects = filterProjects(ws.projects, filter);
+  const byProjectId = new Map(projects.map((p) => [p.id, p]));
+
+  const inWindow = ws.tasks.filter(
+    (t) => byProjectId.has(t.projectId) && taskInWindow(t, from, to),
+  );
+
+  const rows: ContactActivityRow[] = [];
+  for (const contact of ws.contacts) {
+    const tasks = inWindow.filter((t) => (t.contactIds ?? []).includes(contact.id));
+    const touched = new Set(tasks.map((t) => t.projectId));
+    for (const p of projects) if ((p.contactIds ?? []).includes(contact.id)) touched.add(p.id);
+    if (tasks.length === 0 && touched.size === 0) continue;
+
+    const dates = tasks.map((t) => t.completedAt ?? t.createdAt).sort();
+    const lastActivity = dates[dates.length - 1] ?? null;
+    rows.push({
+      contact,
+      open: tasks.filter(isOpen).length,
+      done: tasks.filter((t) => t.status === 'Done').length,
+      overdue: tasks.filter((t) => isOverdue(t, today)).length,
+      total: tasks.length,
+      projects: projects.filter((p) => touched.has(p.id)),
+      lastActivity,
+      daysSinceLast: lastActivity === null ? null : Math.max(0, dayDiff(today, lastActivity)),
+    });
+  }
+
+  rows.sort(
+    (a, b) =>
+      b.total - a.total ||
+      b.done - a.done ||
+      b.projects.length - a.projects.length ||
+      contactSortName(a.contact).localeCompare(contactSortName(b.contact)),
+  );
+
+  const companyRows = new Map<string, { company: string; people: number; tasks: number }>();
+  for (const r of rows) {
+    const company = r.contact.company.trim();
+    if (company === '') continue;
+    const entry = companyRows.get(company.toLowerCase()) ?? { company, people: 0, tasks: 0 };
+    entry.people += 1;
+    entry.tasks += r.total;
+    companyRows.set(company.toLowerCase(), entry);
+  }
+
+  return {
+    rows,
+    analytics: {
+      people: rows.length,
+      companies: companyRows.size,
+      collaborativeTasks: inWindow.filter((t) => (t.contactIds ?? []).length > 0).length,
+      windowTasks: inWindow.length,
+      peopleWithOpenWork: rows.filter((r) => r.open > 0).length,
+      overdueWithPeople: rows.reduce((sum, r) => sum + r.overdue, 0),
+      byCompany: [...companyRows.values()].sort(
+        (a, b) => b.tasks - a.tasks || b.people - a.people || a.company.localeCompare(b.company),
+      ),
+    },
+  };
+}
+
+/** "1 person" / "4 people" — the plural English actually uses. */
+function people(n: number): string {
+  return `${String(n)} ${n === 1 ? 'person' : 'people'}`;
+}
+
+export function contactActivityText(
+  result: ContactActivityResult,
+  from: IsoDate,
+  to: IsoDate,
+): string {
+  const a = result.analytics;
+  let out = `CONTACT ACTIVITY — ${fmtShort(from)} to ${fmtShort(to)}\n`;
+  out += `${people(a.people)} across ${String(a.companies)} organization(s); `;
+  out += `${a.collaborativeTasks} of ${a.windowTasks} task(s) in range involve someone.\n`;
+  out += `${a.peopleWithOpenWork} still carrying open work; ${a.overdueWithPeople} overdue.\n\n`;
+  for (const r of result.rows) {
+    out += `- ${contactName(r.contact)}`;
+    if (r.contact.company.trim() !== '') out += ` (${r.contact.company})`;
+    out += `: ${r.total} task(s) — ${r.open} open, ${r.done} done`;
+    if (r.overdue > 0) out += `, ${r.overdue} overdue`;
+    out += `; ${r.projects.length} project(s)`;
+    if (r.lastActivity !== null) out += `; last ${fmtShort(r.lastActivity)}`;
+    out += '\n';
+    if (r.contact.email.trim() !== '' || r.contact.phone.trim() !== '') {
+      out += `  ${[r.contact.email, r.contact.phone].filter((x) => x.trim() !== '').join(' · ')}\n`;
+    }
+  }
+  if (a.byCompany.length > 0) {
+    out += '\nBy organization:\n';
+    for (const c of a.byCompany) {
+      out += `- ${c.company}: ${c.tasks} task(s) across ${people(c.people)}\n`;
     }
   }
   return out;

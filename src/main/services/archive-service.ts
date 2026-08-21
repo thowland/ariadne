@@ -32,7 +32,7 @@ export interface ArchiveManifest {
   formatVersion: number;
   appVersion: string;
   exportedAt: string;
-  counts: { projects: number; tasks: number; files: number; blobs: number };
+  counts: { projects: number; tasks: number; files: number; contacts: number; blobs: number };
 }
 
 export type ArchiveExportResult =
@@ -83,6 +83,7 @@ export class ArchiveService {
       projects: workspace.projects.length,
       tasks: workspace.tasks.length,
       files: workspace.files.length,
+      contacts: workspace.contacts.length,
       blobs: blobCount,
     };
     const manifest: ArchiveManifest = {

@@ -113,11 +113,12 @@ describe('buildAppMenuTemplate', () => {
       'Command Center',
       'Calendar',
       'Reports',
+      'Contacts',
       'Files',
-      'Tags',
     ]);
+    expect(view.map((i) => i.label)).toContain('Tags');
     expect(view.map((i) => i.accelerator)).toEqual(
-      expect.arrayContaining(['CmdOrCtrl+1', 'CmdOrCtrl+5']),
+      expect.arrayContaining(['CmdOrCtrl+1', 'CmdOrCtrl+6']),
     );
   });
 

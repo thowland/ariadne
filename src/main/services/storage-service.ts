@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import type { SaveStatusEvent } from '@shared/ipc-contract';
 import {
+  contactsFileSchema,
   filesFileSchema,
   normalizeWorkspace,
   projectsFileSchema,
@@ -101,6 +102,9 @@ export class StorageService {
     const projects = await this.loadDocument('projects.json', projectsFileSchema, [], warnings);
     const tasks = await this.loadDocument('tasks.json', tasksFileSchema, [], warnings);
     const files = await this.loadDocument('files.json', filesFileSchema, [], warnings);
+    // Absent on every workspace written before 2.0 — loadDocument treats a
+    // missing document as empty rather than corruption, so upgrading is silent.
+    const contacts = await this.loadDocument('contacts.json', contactsFileSchema, [], warnings);
     const settings = await this.loadDocument(
       'settings.json',
       settingsSchema,
@@ -108,7 +112,7 @@ export class StorageService {
       warnings,
     );
 
-    const normalized = normalizeWorkspace(projects, tasks, files, settings);
+    const normalized = normalizeWorkspace(projects, tasks, files, contacts, settings);
     return { workspace: normalized.workspace, warnings: [...warnings, ...normalized.warnings] };
   }
 
@@ -119,6 +123,7 @@ export class StorageService {
       this.atomicWrite(this.docPath('projects'), workspace.projects),
       this.atomicWrite(this.docPath('tasks'), workspace.tasks),
       this.atomicWrite(this.docPath('files'), workspace.files),
+      this.atomicWrite(this.docPath('contacts'), workspace.contacts),
       this.atomicWrite(this.docPath('settings'), workspace.settings),
     ]);
   }

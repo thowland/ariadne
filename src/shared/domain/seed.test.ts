@@ -11,10 +11,26 @@ const TODAY = '2026-07-08';
 describe('seedWorkspace', () => {
   const ws = seedWorkspace(TODAY);
 
+  it('reaches the interesting branches of every contacts surface (D31)', () => {
+    // A stakeholder attached to a project but to none of its tasks, two
+    // people at one outside company, and colleagues with no company at all:
+    // the union card, the company breakdown, and the "no company" path are
+    // all exercised by the demo state rather than only by hand-built fixtures.
+    expect(ws.projects.some((p) => (p.contactIds ?? []).length > 0)).toBe(true);
+    expect(ws.tasks.filter((t) => (t.contactIds ?? []).length > 0).length).toBeGreaterThan(5);
+    const c7 = ws.contacts.find((c) => c.id === 'c7');
+    expect(c7).toBeDefined();
+    expect(ws.tasks.some((t) => (t.contactIds ?? []).includes('c7'))).toBe(false);
+    expect(ws.contacts.filter((c) => c.company === 'Northwind Systems')).toHaveLength(2);
+    expect(ws.contacts.some((c) => c.company === '')).toBe(true);
+    expect(ws.contacts.every((c) => c.email !== '' && c.phone !== '')).toBe(true);
+  });
+
   it('matches the prototype dataset shape', () => {
     expect(ws.projects).toHaveLength(6);
     expect(ws.tasks).toHaveLength(30);
     expect(ws.files).toHaveLength(5);
+    expect(ws.contacts).toHaveLength(7);
     expect(ws.settings.todoistToken).toBe('');
   });
 
@@ -23,6 +39,7 @@ describe('seedWorkspace', () => {
       structuredClone(ws.projects),
       structuredClone(ws.tasks),
       structuredClone(ws.files),
+      structuredClone(ws.contacts),
       { ...ws.settings },
     );
     expect(warnings).toEqual([]);

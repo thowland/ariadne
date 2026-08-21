@@ -136,6 +136,52 @@ export const REPORT_PRINT_CSS = `
      comparable side by side rather than reading as two unrelated lists. */
   .defer-breakdowns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
+  /* Contact activity (D31). Two things bite here. The avatar is a <span>
+     sized by inline style, so without an explicit display it collapses to
+     nothing and every row loses its identity marker; and the row's body is a
+     <button>, which prints centered and boxed unless it is flattened back to
+     ordinary flow content the way the sortable headers are. */
+  .contact-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 700;
+    flex: none;
+    margin-right: 5px;
+  }
+  .contact-report-row { align-items: center; gap: 10px; }
+  .contact-report-open {
+    all: unset;
+    font: inherit;
+    color: inherit;
+    display: block;
+    flex: 1;
+    min-width: 0;
+  }
+  .contact-report-name { display: flex; align-items: center; gap: 5px; }
+  .contact-report-reach {
+    display: flex;
+    gap: 10px;
+    white-space: nowrap;
+    font-size: 10px;
+    color: #55554d;
+  }
+  /* The copy buttons are chrome; on paper only the value they carry matters,
+     and the ⧉ glyph beside it is noise. */
+  .copy-value {
+    all: unset;
+    font: inherit;
+    color: inherit;
+    display: inline;
+  }
+  /* Swap the on-screen label for the value it copies: "Email" tells a reader
+     of a printed report nothing, the address tells them everything. */
+  .copy-value-text { display: none; }
+  .copy-value-icon { display: none; }
+  .copy-value::after { content: attr(data-print); }
+
   /* Progress bars carry real information, so they print. */
   .portfolio-progress { display: flex; align-items: center; gap: 6px; }
   .progress-track { width: 54px; height: 5px; background: #e6e6de; border-radius: 3px; }

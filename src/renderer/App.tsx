@@ -13,6 +13,8 @@ import { Logo } from './components/Logo';
 import { ModalHost } from './modals/TaskModal';
 import { Calendar } from './views/Calendar';
 import { CommandCenter } from './views/CommandCenter';
+import { ContactDetail } from './views/ContactDetail';
+import { Contacts } from './views/Contacts';
 import { FilesLibrary } from './views/FilesLibrary';
 import { ProjectDetail } from './views/ProjectDetail';
 import { Projects } from './views/Projects';
@@ -35,6 +37,10 @@ function ViewBody(): React.JSX.Element {
       return <Calendar />;
     case 'reports':
       return <Reports />;
+    case 'contacts':
+      return <Contacts />;
+    case 'contact':
+      return <ContactDetail />;
     case 'files':
       return <FilesLibrary />;
     case 'tags':

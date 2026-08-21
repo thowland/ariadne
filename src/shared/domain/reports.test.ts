@@ -4,6 +4,8 @@ import { isoAdd } from './dates';
 import {
   atRiskReport,
   atRiskText,
+  contactActivity,
+  contactActivityText,
   deferredReport,
   deferredText,
   filterProjects,
@@ -501,5 +503,86 @@ describe('deferredReport (D23)', () => {
     expect(text).toContain('4× deferred');
     expect(text).toContain('+12d');
     expect(text).toContain('By project:');
+  });
+});
+
+describe('contactActivity (D31)', () => {
+  // The seed's dates hang off TODAY, so a wide window catches everything.
+  const FROM = isoAdd(TODAY, -60);
+  const TO = isoAdd(TODAY, 60);
+
+  it('ranks by how many of their tasks fall in the window', () => {
+    const { rows } = contactActivity(ws, 'all', FROM, TO, TODAY);
+    const totals = rows.map((r) => r.total);
+    expect([...totals].sort((a, b) => b - a)).toEqual(totals);
+    expect(rows[0]?.total).toBeGreaterThan(0);
+  });
+
+  it('splits each person’s window into open, done and overdue', () => {
+    const { rows } = contactActivity(ws, 'all', FROM, TO, TODAY);
+    const dana = rows.find((r) => r.contact.id === 'c1');
+    expect(dana).toMatchObject({ total: 3, open: 2, done: 1, overdue: 1 });
+    expect(dana?.projects.map((p) => p.id)).toEqual(['p1']);
+    expect(dana?.daysSinceLast).not.toBeNull();
+  });
+
+  it('never leaks across the work/home scope', () => {
+    const work = contactActivity(ws, 'work', FROM, TO, TODAY).rows.map((r) => r.contact.id);
+    // c4 (accountant) and c5 (varnish shop) only touch home projects.
+    expect(work).not.toContain('c4');
+    expect(work).not.toContain('c5');
+    const home = contactActivity(ws, 'home', FROM, TO, TODAY).rows.map((r) => r.contact.id);
+    expect(home).toEqual(expect.arrayContaining(['c4', 'c5']));
+    expect(home).not.toContain('c1');
+  });
+
+  it('keeps a stakeholder with no tasks, on a total of zero', () => {
+    const rows = contactActivity(ws, 'all', FROM, TO, TODAY).rows;
+    const aidan = rows.find((r) => r.contact.id === 'c7');
+    expect(aidan).toMatchObject({ total: 0, open: 0, done: 0, lastActivity: null });
+    expect(aidan?.daysSinceLast).toBeNull();
+    expect(aidan?.projects.map((p) => p.id)).toEqual(['p1']);
+    // Zero activity sorts last, not first.
+    expect(rows[rows.length - 1]?.contact.id).toBe('c7');
+  });
+
+  it('honours the window: a range with no activity in it empties the report', () => {
+    const far = isoAdd(TODAY, 400);
+    const { rows, analytics } = contactActivity(ws, 'all', far, isoAdd(far, 7), TODAY);
+    // Only the directly attached stakeholders survive; nobody has a task there.
+    expect(rows.every((r) => r.total === 0)).toBe(true);
+    expect(analytics.collaborativeTasks).toBe(0);
+    expect(analytics.windowTasks).toBe(0);
+  });
+
+  it('counts a task completed in the window even when it was created before it', () => {
+    // "Audit legacy service dependencies" completed 14 days ago.
+    const from = isoAdd(TODAY, -15);
+    const dana = contactActivity(ws, 'all', from, TODAY, TODAY).rows.find(
+      (r) => r.contact.id === 'c1',
+    );
+    expect(dana?.done).toBe(1);
+  });
+
+  it('summarizes people, organizations and how much work is shared', () => {
+    const { analytics } = contactActivity(ws, 'all', FROM, TO, TODAY);
+    expect(analytics.people).toBe(7);
+    // Northwind, Vasquez & Co, Harborline — colleagues have no company.
+    expect(analytics.companies).toBe(3);
+    expect(analytics.collaborativeTasks).toBeLessThan(analytics.windowTasks);
+    expect(analytics.peopleWithOpenWork).toBeGreaterThan(0);
+    expect(analytics.byCompany[0]?.company).toBe('Northwind Systems');
+    expect(analytics.byCompany[0]?.people).toBe(2);
+    // Sorted by task volume.
+    const tasks = analytics.byCompany.map((c) => c.tasks);
+    expect([...tasks].sort((a, b) => b - a)).toEqual(tasks);
+  });
+
+  it('serializes to plain text with the range, the roster, and how to reach them', () => {
+    const text = contactActivityText(contactActivity(ws, 'all', FROM, TO, TODAY), FROM, TO);
+    expect(text).toContain('CONTACT ACTIVITY');
+    expect(text).toContain('Dana Reyes (Northwind Systems)');
+    expect(text).toContain('dana.reyes@northwind.example');
+    expect(text).toContain('By organization:');
   });
 });

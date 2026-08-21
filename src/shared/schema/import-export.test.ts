@@ -24,6 +24,7 @@ describe('buildExport / parseImport round trip', () => {
     expect(parsed.value.workspace.projects).toEqual(ws.projects);
     expect(parsed.value.workspace.tasks).toEqual(ws.tasks);
     expect(parsed.value.workspace.files).toEqual(ws.files);
+    expect(parsed.value.workspace.contacts).toEqual(ws.contacts);
     expect(parsed.value.blobs).toEqual({ blob1: 'data:text/plain;base64,aGk=' });
     expect(parsed.value.warnings).toEqual([]);
   });
@@ -114,5 +115,30 @@ describe('parseImport — prototype compatibility', () => {
       ok: false,
       error: expect.stringContaining('missing projects/tasks') as string,
     });
+  });
+});
+
+describe('contacts in the export document (D31)', () => {
+  const ws = seedWorkspace(TODAY);
+
+  it('loads an export written before 2.0, which has no contacts at all', () => {
+    const doc = { ...buildExport(ws, {}) } as Partial<Record<string, unknown>>;
+    delete doc.contacts;
+    const parsed = parseImport(JSON.stringify(doc), ids());
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.workspace.contacts).toEqual([]);
+    // Every contact link is scrubbed with them, rather than pointing at ghosts.
+    expect(parsed.value.workspace.tasks.every((t) => (t.contactIds ?? []).length === 0)).toBe(true);
+    expect(parsed.value.warnings.some((w) => w.includes('contact reference'))).toBe(true);
+  });
+
+  it('warns and drops the address book when it fails validation', () => {
+    const doc = { ...buildExport(ws, {}), contacts: [{ nope: true }] };
+    const parsed = parseImport(JSON.stringify(doc), ids());
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.workspace.contacts).toEqual([]);
+    expect(parsed.value.warnings.some((w) => w.includes('Contacts in this export'))).toBe(true);
   });
 });

@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.0.0 — 2026-08-21
+
+The version number moves to 2.0 because Ariadne now tracks **people**, not just
+work. Everything you already had is unchanged and your existing workspace opens
+exactly as it did; there is simply a new half to the app.
+
+- **Contacts (D31).** A contact has a first and last name, a company, a role, an
+  email, a phone number, notes, and tags. Nothing is required beyond a name, so
+  someone can be captured in three seconds and filled in later.
+- **Link people to work by typing `@`.** In a task title — in the quick-add box
+  or the task editor — type `@` and a few letters of a name. Pick from the list
+  and the person is attached to the task; the `@name` you typed comes back out
+  of the title, because the link is the point, not the prose. If they are not in
+  the book yet, the last row of the list adds them on the spot without taking
+  you anywhere. Every task also has a **People** field for the same thing the
+  long way round.
+- **A Contacts card on every project.** It lists the people attached to the
+  project itself _and_ everyone linked to one of its tasks, so adding someone to
+  a task puts them there with no second step. Each row opens a twisty with their
+  email and phone, both click-to-copy.
+- **A Contacts screen**, between Reports and Files in the sidebar (⌘4 / Ctrl+4;
+  Files and Tags shift down one). Sort the whole address book by name, company,
+  role, open tasks, completed tasks, project count, or last activity, filter it,
+  and copy an email, a phone number, or a name straight from the list.
+- **A page per contact** with their details editable in place, beside every task
+  and project they touch — click any of them to go straight there. Their name,
+  email, and number copy from the header.
+- **Search covers people now**, across name, company, role, email, phone, notes,
+  and tags. A phone number matches however you type it: `5552148890` finds
+  `(555) 214-8890`.
+- **A Contact activity report** — who you have actually been working with over a
+  date range, ranked by how much of their work crossed your desk, with open,
+  done, and overdue counts, the organizations behind them, and where the
+  collaboration is concentrated. It respects the Work/Home filter like every
+  other report, so a work-scoped run cannot surface the person attached to a
+  personal project. When exported to PDF the copy buttons print the actual
+  address and number, since paper has no clipboard.
+- **Tags now cover contacts too**, so `#vendor` or `#team` counts, renames, and
+  deletions reach them along with projects and tasks.
+- The sample workspace ships with seven contacts wired into its projects and
+  tasks, so every one of these surfaces has something in it on first run.
+
+Nothing talks to your operating system's address book, by design.
+
 ## 1.21.0 — 2026-08-08
 
 - **Hide completed tasks on a project, and have it stay hidden (D30).** A

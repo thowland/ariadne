@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { isValidIsoDate } from '../domain/dates';
-import type { FileEntry, Project, Settings, Task, Workspace } from '../types';
+import type { Contact, FileEntry, Project, Settings, Task, Workspace } from '../types';
 import { BADGE_CHOICES, TASK_PRIORITIES, TASK_STATUSES } from '../types';
 
 /**
@@ -42,6 +42,7 @@ export const projectSchema = z.object({
     .catch(undefined),
   depMapHeight: z.number().finite().optional().catch(undefined),
   hideCompleted: z.boolean().optional().catch(false),
+  contactIds: z.array(z.string()).optional().catch(undefined),
   createdAt: isoDate,
 });
 
@@ -74,6 +75,25 @@ export const taskSchema = z.object({
     )
     .optional()
     .catch(undefined),
+  contactIds: z.array(z.string()).optional().catch(undefined),
+});
+
+/**
+ * Contacts (D31). Everything but the id has a `.catch()` default: a contact
+ * missing a phone number is a contact, and refusing to load one because a
+ * field is the wrong shape would lose the person entirely.
+ */
+export const contactSchema = z.object({
+  id: z.string().min(1),
+  firstName: z.string().catch(''),
+  lastName: z.string().catch(''),
+  company: z.string().catch(''),
+  role: z.string().catch(''),
+  email: z.string().catch(''),
+  phone: z.string().catch(''),
+  notes: z.string().catch(''),
+  tags: z.array(z.string()).catch([]),
+  createdAt: isoDate,
 });
 
 export const fileEntrySchema = z.object({
@@ -116,6 +136,7 @@ export const settingsSchema = z.object({
 export const projectsFileSchema = z.array(projectSchema);
 export const tasksFileSchema = z.array(taskSchema);
 export const filesFileSchema = z.array(fileEntrySchema);
+export const contactsFileSchema = z.array(contactSchema);
 
 export const workspaceMetaSchema = z.object({
   schemaVersion: z.number().int().positive(),
@@ -131,6 +152,7 @@ export function normalizeWorkspace(
   projects: Project[],
   tasks: Task[],
   files: FileEntry[],
+  contacts: Contact[],
   settings: Settings,
 ): { workspace: Workspace; warnings: string[] } {
   const warnings: string[] = [];
@@ -152,6 +174,24 @@ export function normalizeWorkspace(
     if (t.status !== 'Done' && t.completedAt !== null) t.completedAt = null;
   }
 
+  // Contact links point at a separate collection, so a contact deleted by an
+  // older build (or a hand-edited contacts.json) can leave ids behind. Scrub
+  // them rather than rendering a person who no longer exists.
+  const contactIds = new Set(contacts.map((c) => c.id));
+  const scrubContacts = (entity: { contactIds?: string[] }): boolean => {
+    if (entity.contactIds === undefined) return false;
+    const kept = entity.contactIds.filter((id) => contactIds.has(id));
+    if (kept.length === entity.contactIds.length) return false;
+    entity.contactIds = kept;
+    return true;
+  };
+  let scrubbed = 0;
+  for (const p of projects) if (scrubContacts(p)) scrubbed += 1;
+  for (const t of keptTasks) if (scrubContacts(t)) scrubbed += 1;
+  if (scrubbed > 0) {
+    warnings.push(`Removed contact reference(s) from ${String(scrubbed)} item(s)`);
+  }
+
   const keptFiles = files.filter((f) => projectIds.has(f.projectId));
   if (keptFiles.length !== files.length) {
     warnings.push(`Dropped ${files.length - keptFiles.length} file(s) with no parent project`);
@@ -162,7 +202,7 @@ export function normalizeWorkspace(
   }
 
   return {
-    workspace: { projects, tasks: keptTasks, files: keptFiles, settings },
+    workspace: { projects, tasks: keptTasks, files: keptFiles, contacts, settings },
     warnings,
   };
 }

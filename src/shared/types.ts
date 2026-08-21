@@ -75,6 +75,12 @@ export interface Project {
    * like `archived`, so older workspaces round-trip unchanged.
    */
   hideCompleted?: boolean;
+  /**
+   * People attached to the project itself (D31). The project's Contacts card
+   * shows these *plus* everyone linked to one of its tasks, so this list only
+   * holds the ones added directly — a stakeholder with no task of their own.
+   */
+  contactIds?: string[];
   createdAt: IsoDate;
 }
 
@@ -117,6 +123,39 @@ export interface Task {
    * and fixtures round-trip unchanged; absent means "never deferred".
    */
   deferrals?: Deferral[];
+  /**
+   * People associated with this task (D31), by contact id. Optional-additive
+   * like `deferrals`, so pre-2.0 workspaces round-trip byte-identical;
+   * absent means "nobody linked".
+   */
+  contactIds?: string[];
+}
+
+/**
+ * A person you work with (D31). Deliberately a small, flat record: the app is
+ * not trying to be an address book, it is trying to answer "who asked me for
+ * this and how do I reach them". Every field beyond the name is optional at
+ * the semantic level (empty string = not recorded), so a contact captured in
+ * three seconds from an @-mention is a valid contact.
+ *
+ * Built to grow: new fields are added the same way `archived` was added to
+ * Project — optional-additive with a `.catch()` default in the schema, never
+ * a migration step.
+ */
+export interface Contact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  /** Employer or org; free-form, and the grouping key on the contacts screen. */
+  company: string;
+  /** Job title or how they relate to you ("VP Eng", "Acme account rep"). */
+  role: string;
+  email: string;
+  phone: string;
+  notes: string;
+  /** Free-form, shared with the project/task tag vocabulary. */
+  tags: string[];
+  createdAt: IsoDate;
 }
 
 export interface FileEntry {
@@ -197,10 +236,11 @@ export interface Workspace {
   projects: Project[];
   tasks: Task[];
   files: FileEntry[];
+  contacts: Contact[];
   settings: Settings;
 }
 
-export const COLLECTION_NAMES = ['projects', 'tasks', 'files', 'settings'] as const;
+export const COLLECTION_NAMES = ['projects', 'tasks', 'files', 'contacts', 'settings'] as const;
 export type CollectionName = (typeof COLLECTION_NAMES)[number];
 
 export const SCHEMA_VERSION = 1;
@@ -213,5 +253,5 @@ export interface AppConfig {
 }
 
 export function emptyWorkspace(): Workspace {
-  return { projects: [], tasks: [], files: [], settings: { ...DEFAULT_SETTINGS } };
+  return { projects: [], tasks: [], files: [], contacts: [], settings: { ...DEFAULT_SETTINGS } };
 }

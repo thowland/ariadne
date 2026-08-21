@@ -2,6 +2,7 @@ import type { CollectionName } from '../types';
 import { COLLECTION_NAMES } from '../types';
 
 import {
+  contactsFileSchema,
   filesFileSchema,
   projectsFileSchema,
   settingsSchema,
@@ -31,6 +32,7 @@ const WRITE_SCHEMAS = {
   projects: projectsFileSchema,
   tasks: tasksFileSchema,
   files: filesFileSchema,
+  contacts: contactsFileSchema,
   settings: settingsSchema,
 } as const;
 

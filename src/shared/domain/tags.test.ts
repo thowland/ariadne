@@ -17,7 +17,7 @@ describe('tagUsage / allKnownTags', () => {
   it('counts distinct usage per collection, case-insensitively', () => {
     const usage = tagUsage(wsWithTaskTags());
     const infra = usage.find((u) => u.tag === 'infra');
-    expect(infra).toEqual({ tag: 'infra', projects: 1, tasks: 1 });
+    expect(infra).toEqual({ tag: 'infra', projects: 1, tasks: 1, contacts: 0 });
     // 'urgent' + 'Urgent' collapse into one entry (first-seen casing kept).
     const urgent = usage.find((u) => u.tag.toLowerCase() === 'urgent');
     expect(urgent).toMatchObject({ projects: 0, tasks: 2 });

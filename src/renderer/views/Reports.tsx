@@ -1,9 +1,11 @@
+import { contactName } from '@shared/domain/contacts';
 import { toCsv } from '@shared/domain/csv';
 import { isoAdd } from '@shared/domain/dates';
 import { fmtLong, fmtShort } from '@shared/domain/dates';
 import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
 import { buildReportDocument, reportFileName } from '@shared/domain/report-print';
 import type {
+  ContactActivityResult,
   DeferralResult,
   PortfolioSortKey,
   ReportFilter,
@@ -16,6 +18,8 @@ import type {
 import {
   atRiskReport,
   atRiskText,
+  contactActivity,
+  contactActivityText,
   DEFER_THRESHOLD_DEFAULT,
   DEFER_THRESHOLDS,
   deferredReport,
@@ -38,10 +42,14 @@ import { useRef, useState } from 'react';
 
 import { getApi } from '../app/api';
 import { useStore } from '../app/store';
+import { ContactAvatar, CopyValue } from '../components/ContactBits';
 import { CategoryPill, Dot, SegmentedControl } from '../components/primitives';
 import { PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
-type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk' | 'deferred';
+type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk' | 'deferred' | 'contacts';
+
+/** Reports that describe a date range rather than a moment. */
+const RANGED: ReadonlySet<ReportType> = new Set<ReportType>(['retro', 'contacts']);
 
 /** Columns whose first click should sort high-to-low. */
 const NUMERIC_COLUMNS = new Set<PortfolioSortKey>(['progress', 'open', 'done', 'overdue']);
@@ -52,6 +60,7 @@ const TYPE_OPTIONS = [
   ['retro', 'Retrospective'],
   ['risk', 'At-risk'],
   ['deferred', 'Deferred'],
+  ['contacts', 'Contact activity'],
 ] as const;
 
 function ReportLine({ task }: { task: Task }): React.JSX.Element {
@@ -500,6 +509,136 @@ function DeferredReport({
   );
 }
 
+/**
+ * Contact activity (D31): who you have actually been working with over the
+ * range, ranked by how much of their work crossed your desk. Scoped by the
+ * same project filter as every other report, so a work-filtered run cannot
+ * surface the person attached to a home project.
+ */
+function ContactActivityReport({ result }: { result: ContactActivityResult }): React.JSX.Element {
+  const { openContact, openProject } = useStore();
+  const a = result.analytics;
+
+  if (result.rows.length === 0) {
+    return (
+      <div className="report-block card-empty" data-testid="contacts-empty">
+        No contact is linked to anything in this filter and date range. Link people to tasks (type @
+        in a task title) and this fills in.
+      </div>
+    );
+  }
+
+  const busiest = result.rows[0]?.total ?? 1;
+
+  return (
+    <div className="report-stack">
+      <div className="report-block defer-stats" data-testid="contact-stats">
+        <Stat value={a.people} label="people involved" />
+        <Stat value={a.companies} label="organizations" />
+        <Stat value={a.collaborativeTasks} label="shared tasks" />
+        <Stat value={a.windowTasks} label="tasks in range" />
+        <Stat value={a.peopleWithOpenWork} label="carrying open work" />
+        <Stat
+          value={a.overdueWithPeople}
+          label="overdue with people"
+          tone={a.overdueWithPeople > 0 ? '#c23b2b' : undefined}
+        />
+      </div>
+
+      <div className="report-block" data-testid="contact-rows">
+        {result.rows.map((r) => (
+          <div key={r.contact.id} className="trow contact-report-row">
+            <div className="defer-count" title={`${String(r.total)} task(s) in range`}>
+              <span className="defer-count-num">{r.total}</span>
+              <div className="defer-bar-track">
+                <div
+                  className="defer-bar-fill"
+                  style={{
+                    width: `${String((r.total / Math.max(1, busiest)) * 100)}%`,
+                    background: r.overdue > 0 ? '#c23b2b' : '#4f5bd5',
+                  }}
+                />
+              </div>
+            </div>
+            <button
+              className="trow-body contact-report-open"
+              onClick={() => {
+                openContact(r.contact.id);
+              }}
+            >
+              <div className="risk-title contact-report-name">
+                <ContactAvatar contact={r.contact} size={20} />
+                {contactName(r.contact)}
+              </div>
+              <div className="trow-project">
+                {[r.contact.role, r.contact.company].filter((x) => x.trim() !== '').join(' · ')}
+                <span className="defer-trail">
+                  {r.open} open · {r.done} done
+                  {r.overdue > 0 ? ` · ${String(r.overdue)} overdue` : ''} · {r.projects.length}{' '}
+                  project{r.projects.length === 1 ? '' : 's'}
+                  {r.lastActivity !== null ? ` · last ${fmtShort(r.lastActivity)}` : ''}
+                </span>
+              </div>
+            </button>
+            <span className="contact-report-reach">
+              <CopyValue value={r.contact.email} what="email" label="Email" />
+              <CopyValue value={r.contact.phone} what="phone number" label="Phone" />
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="defer-breakdowns">
+        <div className="report-block" data-testid="contact-by-company">
+          <div className="weekly-col-label">WHO YOU DEAL WITH MOST</div>
+          {a.byCompany.length > 0 ? (
+            a.byCompany.map((c) => (
+              <div key={c.company} className="report-line">
+                <Dot color="#4f5bd5" size={7} />
+                <span className="report-line-title">{c.company}</span>
+                <span className="report-line-due muted">
+                  {c.tasks} task{c.tasks === 1 ? '' : 's'} · {c.people}{' '}
+                  {c.people === 1 ? 'person' : 'people'}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="card-empty">Nobody in range has a company recorded.</div>
+          )}
+        </div>
+        <div className="report-block" data-testid="contact-by-project">
+          <div className="weekly-col-label">WHERE THE COLLABORATION IS</div>
+          {[...new Map(result.rows.flatMap((r) => r.projects.map((p) => [p.id, p]))).values()].map(
+            (p) => {
+              const people = result.rows.filter((r) => r.projects.some((x) => x.id === p.id));
+              return (
+                <div
+                  key={p.id}
+                  className="report-line"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    openProject(p.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') openProject(p.id);
+                  }}
+                >
+                  <Dot color={p.color} size={7} />
+                  <span className="report-line-title">{p.name}</span>
+                  <span className="report-line-due muted">
+                    {people.length} {people.length === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
+              );
+            },
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The reports surface (prototype viewReports). */
 export function Reports(): React.JSX.Element {
   const { workspace, today, showToast } = useStore();
@@ -534,6 +673,8 @@ export function Reports(): React.JSX.Element {
       text = retrospectiveText(retrospective(workspace, filter, from, to), from, to);
     else if (type === 'deferred')
       text = deferredText(deferredReport(workspace, filter, deferMin, today), today);
+    else if (type === 'contacts')
+      text = contactActivityText(contactActivity(workspace, filter, from, to, today), from, to);
     else text = atRiskText(atRiskReport(workspace, filter, today), today);
 
     navigator.clipboard.writeText(text).then(
@@ -553,8 +694,8 @@ export function Reports(): React.JSX.Element {
       : filter.startsWith('tag:')
         ? `#${filter.slice(4)}`
         : `${filter[0]?.toUpperCase() ?? ''}${filter.slice(1)} only`;
-  // The retrospective is the one report over a range rather than a moment.
-  const periodLabel = type === 'retro' ? `${fmtShort(from)} – ${fmtShort(to)}` : fmtLong(today);
+  // Two reports describe a range rather than a moment.
+  const periodLabel = RANGED.has(type) ? `${fmtShort(from)} – ${fmtShort(to)}` : fmtLong(today);
 
   /**
    * Exports whatever is on screen. The report's own markup is captured and
@@ -630,6 +771,8 @@ export function Reports(): React.JSX.Element {
         )}
       </div>
     );
+  } else if (type === 'contacts') {
+    body = <ContactActivityReport result={contactActivity(workspace, filter, from, to, today)} />;
   } else if (type === 'deferred') {
     body = (
       <DeferredReport result={deferredReport(workspace, filter, deferMin, today)} today={today} />
@@ -641,7 +784,7 @@ export function Reports(): React.JSX.Element {
       <div className="report-controls">
         <SegmentedControl value={type} options={TYPE_OPTIONS} onChange={setType} />
         <div className="spacer" />
-        {type === 'retro' && (
+        {RANGED.has(type) && (
           <div className="retro-range-inputs">
             <select
               className="inp select"

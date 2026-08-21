@@ -1,3 +1,4 @@
+import { contactName, contactsOfTask } from '@shared/domain/contacts';
 import { isoAdd } from '@shared/domain/dates';
 import { isBlocked, taskDueLabel } from '@shared/domain/derive';
 import { cycleTaskStatus, deleteTask, rescheduleTasks, updateTask } from '@shared/domain/mutate';
@@ -8,6 +9,7 @@ import { useStore } from '../app/store';
 import type { ContextMenuItem } from '../app/store';
 import { BLOCKED_PILL, PRIORITY_COLORS, STATUS_COLORS } from '../styles/colors';
 
+import { ContactAvatar } from './ContactBits';
 import { menuHandler } from './ContextMenu';
 import { Dot, Pill } from './primitives';
 
@@ -43,6 +45,10 @@ export function TaskRow({
   const byId = new Map((workspace?.tasks ?? []).map((t) => [t.id, t]));
   const blocked = isBlocked(task, byId);
   const showPrio = (task.priority === 'Critical' || task.priority === 'High') && !blocked;
+  // Who is on this task (D31). Shown as avatars rather than names: the row is
+  // already dense, and "is anyone else involved" is the question a list
+  // answers — the names are one click away in the editor.
+  const people = workspace === null ? [] : contactsOfTask(workspace, task);
 
   const reschedule = (due: string | null, said: string): void => {
     apply((ws) => rescheduleTasks(ws, [task.id], due));
@@ -178,6 +184,18 @@ export function TaskRow({
           </div>
         )}
       </div>
+      {people.length > 0 && (
+        <span
+          className="trow-people"
+          title={`With ${people.map(contactName).join(', ')}`}
+          aria-label={`With ${people.map(contactName).join(', ')}`}
+        >
+          {people.slice(0, 3).map((c) => (
+            <ContactAvatar key={c.id} contact={c} size={18} />
+          ))}
+          {people.length > 3 && <span className="trow-people-more">+{people.length - 3}</span>}
+        </span>
+      )}
       {blocked && <Pill text="blocked" c={BLOCKED_PILL.c} bg={BLOCKED_PILL.bg} />}
       {showPrio && (
         <span title={`${task.priority} priority`}>

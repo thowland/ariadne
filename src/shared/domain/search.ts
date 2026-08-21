@@ -2,8 +2,14 @@ import type { Project, Task } from '../types';
 
 /**
  * Top-bar search. Case-insensitive substring match; projects on name/tags,
- * tasks on title/notes/tags (prototype viewSearch).
+ * tasks on title/notes/tags (prototype viewSearch), contacts on everything
+ * recorded about them.
+ *
+ * `searchContacts` lives in `contacts.ts` next to the rest of the contact
+ * vocabulary and is re-exported here so every caller has one import for
+ * "search the workspace".
  */
+export { searchContacts } from './contacts';
 
 export function searchProjects(projects: readonly Project[], query: string): Project[] {
   const q = query.trim().toLowerCase();

@@ -48,7 +48,7 @@ function bigWorkspace(): Workspace {
       });
     }
   }
-  return { projects, tasks, files: [], settings: { ...DEFAULT_SETTINGS } };
+  return { projects, tasks, files: [], contacts: [], settings: { ...DEFAULT_SETTINGS } };
 }
 
 let dir: string;

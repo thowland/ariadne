@@ -1,4 +1,4 @@
-import type { IsoDate, Project, Task, Workspace } from '../types';
+import type { Contact, IsoDate, Project, Task, Workspace } from '../types';
 import { DEFAULT_SETTINGS, PROJECT_PALETTE } from '../types';
 
 import { isoAdd } from './dates';
@@ -26,6 +26,10 @@ export function seedWorkspace(today: IsoDate): Workspace {
         { title: 'Migration RFC', url: 'https://example.com/rfc' },
         { title: 'Runbook (draft)', url: 'https://example.com/runbook' },
       ],
+      // A stakeholder with no task of his own: the case that only a *direct*
+      // project attachment can express, and the reason the Contacts card is a
+      // union rather than a roll-up of the task links.
+      contactIds: ['c7'],
       createdAt: d(-40),
     },
     {
@@ -38,6 +42,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       notes:
         'Reduce time-to-first-value in onboarding. Research done; now designing the new flow and scoping eng.',
       links: [{ title: 'Research readout', url: 'https://example.com/research' }],
+      contactIds: ['c3'],
       createdAt: d(-30),
     },
     {
@@ -62,6 +67,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       notes:
         'Pull together everything for the accountant. Extension is filed; final docs due soon.',
       links: [],
+      contactIds: ['c4'],
       createdAt: d(-15),
     },
     {
@@ -114,6 +120,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const a = mk('p1', {
     title: 'Audit legacy service dependencies',
+    contactIds: ['c1'],
     status: 'Done',
     priority: 'High',
     dueDate: d(-16),
@@ -121,6 +128,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const b = mk('p1', {
     title: 'Provision new k8s cluster',
+    contactIds: ['c1', 'c2'],
     status: 'Doing',
     priority: 'High',
     dueDate: d(2),
@@ -133,6 +141,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const c = mk('p1', {
     title: 'Migrate auth service',
+    contactIds: ['c1'],
     status: 'Todo',
     priority: 'Critical',
     dueDate: d(-1),
@@ -155,6 +164,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p1', {
     title: 'Cutover & DNS switch',
+    contactIds: ['c2'],
     status: 'Waiting',
     priority: 'Critical',
     dueDate: d(16),
@@ -162,6 +172,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p1', {
     title: 'Write migration runbook',
+    contactIds: ['c2'],
     status: 'Doing',
     priority: 'Medium',
     dueDate: d(0),
@@ -173,6 +184,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const f = mk('p2', {
     title: 'User interviews (8 participants)',
+    contactIds: ['c3'],
     status: 'Done',
     priority: 'Medium',
     dueDate: d(-22),
@@ -180,6 +192,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const g = mk('p2', {
     title: 'Synthesize findings',
+    contactIds: ['c3'],
     status: 'Done',
     priority: 'Medium',
     dueDate: d(-11),
@@ -195,6 +208,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const w = mk('p2', {
     title: 'New onboarding wireframes',
+    contactIds: ['c3'],
     status: 'Doing',
     priority: 'High',
     dueDate: d(0),
@@ -235,6 +249,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const s3 = mk('p3', {
     title: 'Apply first coat of spar varnish',
+    contactIds: ['c5'],
     status: 'Todo',
     priority: 'Medium',
     dueDate: d(3),
@@ -257,6 +272,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const x1 = mk('p4', {
     title: 'Gather 1099s and receipts',
+    contactIds: ['c4'],
     status: 'Doing',
     priority: 'High',
     dueDate: d(-3),
@@ -275,6 +291,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p4', {
     title: 'Meet with accountant',
+    contactIds: ['c4'],
     status: 'Todo',
     priority: 'Critical',
     dueDate: d(4),
@@ -296,6 +313,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const j2 = mk('p5', {
     title: 'Screen candidates (12)',
+    contactIds: ['c6'],
     status: 'Doing',
     priority: 'Medium',
     dueDate: d(1),
@@ -303,6 +321,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const j3 = mk('p5', {
     title: 'Onsite loops (4)',
+    contactIds: ['c6'],
     status: 'Todo',
     priority: 'High',
     dueDate: d(11),
@@ -310,6 +329,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p5', {
     title: 'Make offer',
+    contactIds: ['c6'],
     status: 'Waiting',
     priority: 'High',
     dueDate: d(18),
@@ -349,6 +369,101 @@ export function seedWorkspace(today: IsoDate): Workspace {
     dueDate: d(9),
     dependsOn: [r2],
   });
+
+  /**
+   * The sample address book (D31). Deliberately mixed: two people at the same
+   * outside vendor, three colleagues with no company, two one-off
+   * home-project contacts, and one stakeholder attached to a project but to
+   * none of its tasks — so the Contacts card, the contacts screen's grouping,
+   * and the Contact Activity report all render their interesting branches
+   * from the seed rather than only from a workspace someone built by hand.
+   */
+  const contacts: Contact[] = [
+    {
+      id: 'c1',
+      firstName: 'Dana',
+      lastName: 'Reyes',
+      company: 'Northwind Systems',
+      role: 'Platform Lead',
+      email: 'dana.reyes@northwind.example',
+      phone: '(555) 214-8890',
+      notes: 'Owns the k8s platform on their side. Prefers a short call over email threads.',
+      tags: ['vendor'],
+      createdAt: d(-40),
+    },
+    {
+      id: 'c2',
+      firstName: 'Marcus',
+      lastName: 'Bell',
+      company: '',
+      role: 'SRE, on-call rotation',
+      email: 'marcus.bell@example.com',
+      phone: '(555) 771-3042',
+      notes: 'Has to sign off on the DNS cutover window.',
+      tags: ['team'],
+      createdAt: d(-38),
+    },
+    {
+      id: 'c3',
+      firstName: 'Priya',
+      lastName: 'Nair',
+      company: '',
+      role: 'Product Designer',
+      email: 'priya.nair@example.com',
+      phone: '(555) 662-1177',
+      notes: 'Ran the onboarding interviews; owns the wireframes.',
+      tags: ['team', 'ux'],
+      createdAt: d(-30),
+    },
+    {
+      id: 'c4',
+      firstName: 'Elena',
+      lastName: 'Vasquez',
+      company: 'Vasquez & Co CPA',
+      role: 'Accountant',
+      email: 'elena@vasquezcpa.example',
+      phone: '(555) 903-4410',
+      notes: 'Filed the extension. Wants everything as PDFs, not photos.',
+      tags: ['finance'],
+      createdAt: d(-15),
+    },
+    {
+      id: 'c5',
+      firstName: 'Tom',
+      lastName: 'Whitaker',
+      company: 'Harborline Marine',
+      role: 'Shop Owner',
+      email: 'tom@harborline.example',
+      phone: '(555) 448-2201',
+      notes: 'Sold the spar varnish; good for questions about coat timing.',
+      tags: ['vendor'],
+      createdAt: d(-20),
+    },
+    {
+      id: 'c6',
+      firstName: 'Sofia',
+      lastName: 'Grant',
+      company: '',
+      role: 'Recruiter',
+      email: 'sofia.grant@example.com',
+      phone: '(555) 330-9915',
+      notes: 'Running the senior engineer pipeline. Sends the loop schedule Fridays.',
+      tags: ['team', 'hiring'],
+      createdAt: d(-45),
+    },
+    {
+      id: 'c7',
+      firstName: 'Aidan',
+      lastName: 'Cross',
+      company: 'Northwind Systems',
+      role: 'Account Manager',
+      email: 'aidan.cross@northwind.example',
+      phone: '(555) 214-8801',
+      notes: 'Commercial contact for the migration contract — no day-to-day tasks.',
+      tags: ['vendor'],
+      createdAt: d(-40),
+    },
+  ];
 
   const files: Workspace['files'] = [
     {
@@ -418,5 +533,5 @@ export function seedWorkspace(today: IsoDate): Workspace {
     },
   ];
 
-  return { projects, tasks, files, settings: { ...DEFAULT_SETTINGS } };
+  return { projects, tasks, files, contacts, settings: { ...DEFAULT_SETTINGS } };
 }

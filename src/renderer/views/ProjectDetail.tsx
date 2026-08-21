@@ -1,3 +1,4 @@
+import { contactName } from '@shared/domain/contacts';
 import {
   createMarkdownFile,
   createTask,
@@ -11,6 +12,8 @@ import { useRef, useState } from 'react';
 import { getApi } from '../app/api';
 import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
+import { ContactAvatar } from '../components/ContactBits';
+import { ContactsCard } from '../components/ContactsCard';
 import { DependencyMap } from '../components/DependencyMap';
 import { FileRow } from '../components/FileRow';
 import { LinkListEditor } from '../components/LinkListEditor';
@@ -38,6 +41,9 @@ export function ProjectDetail(): React.JSX.Element {
   // whether the user has waved it off for what they are currently typing.
   const [quickDue, setQuickDue] = useState<IsoDate | null>(null);
   const [quickDismissed, setQuickDismissed] = useState(false);
+  // People @-mentioned while composing the quick-add task. The task does not
+  // exist yet, so the links are held here and applied when it is created.
+  const [quickContacts, setQuickContacts] = useState<string[]>([]);
   // The visual task order is pinned per visit so clicking the status circle
   // never reshuffles the list; it re-sorts on the next visit to the project.
   const pinnedRef = useRef<{ projectId: string; ids: string[] } | null>(null);
@@ -83,10 +89,17 @@ export function ProjectDetail(): React.JSX.Element {
     if (title === '') return;
     // The date phrase stays in the title, as typed — it reads naturally there
     // and the due date is visible on the row anyway.
-    apply((ws, ctx) => createTask(ws, ctx, project.id, { title, dueDate: quickDue }));
+    apply((ws, ctx) =>
+      createTask(ws, ctx, project.id, {
+        title,
+        dueDate: quickDue,
+        ...(quickContacts.length > 0 ? { contactIds: quickContacts } : {}),
+      }),
+    );
     setQuickTitle('');
     setQuickDue(null);
     setQuickDismissed(false);
+    setQuickContacts([]);
   };
 
   const addAndEdit = (): void => {
@@ -221,8 +234,15 @@ export function ProjectDetail(): React.JSX.Element {
                   onDismiss={() => {
                     setQuickDismissed(true);
                   }}
-                  placeholder="Add a task and press Enter…"
+                  placeholder="Add a task, or @ someone, and press Enter…"
                   ariaLabel="Add a task"
+                  mentionContacts={workspace?.contacts ?? []}
+                  mentionExclude={quickContacts}
+                  onMention={(contactId) => {
+                    setQuickContacts((ids) =>
+                      ids.includes(contactId) ? ids : [...ids, contactId],
+                    );
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') quickAdd();
                   }}
@@ -232,6 +252,30 @@ export function ProjectDetail(): React.JSX.Element {
                 Add
               </button>
             </div>
+            {quickContacts.length > 0 && (
+              <div className="quick-add-people" data-testid="quick-add-people">
+                {quickContacts.map((id) => {
+                  const c = workspace?.contacts.find((x) => x.id === id);
+                  if (c === undefined) return null;
+                  return (
+                    <span key={id} className="contact-chip">
+                      <span className="contact-chip-label">
+                        <ContactAvatar contact={c} size={18} />
+                        {contactName(c)}
+                      </span>
+                      <button
+                        aria-label={`Remove ${contactName(c)}`}
+                        onClick={() => {
+                          setQuickContacts((ids) => ids.filter((x) => x !== id));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </Card>
           <Card
             title="Dependency map"
@@ -282,6 +326,7 @@ export function ProjectDetail(): React.JSX.Element {
               />
             </div>
           </Card>
+          <ContactsCard projectId={project.id} />
           <Card
             title="Files & documents"
             count={files.length}

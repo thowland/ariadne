@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v1.15.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v2.0.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -30,8 +30,12 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
 | **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                   | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
 | [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                     | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
 | **Retrospective** — what actually got finished over a date range, with completions over time; archived projects still count.              | **Files library** — every attachment across every project in one place.                                                             |
-| [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                  | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
-| **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                        | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
+| [![The contacts list](docs/screenshots/contacts.png)](docs/screenshots/contacts.png)                                                      | [![A contact's detail page](docs/screenshots/contact-detail.png)](docs/screenshots/contact-detail.png)                              |
+| **Contacts** — everyone you work with, sortable by load, company, or last activity, with one-click copy for a name, email, or number.     | **Contact detail** — their details, plus every task and project they touch, each one a click from the work itself.                  |
+| [![The contact activity report](docs/screenshots/contact-activity.png)](docs/screenshots/contact-activity.png)                            | [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                            |
+| **Contact activity** — who you have actually been working with over a date range, ranked, with the organizations behind them.             | **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                  |
+| [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                               |                                                                                                                                     |
+| **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                       |                                                                                                                                     |
 
 - **Command Center** — the daily review. Stat cards, an overdue banner, and focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked),
@@ -68,8 +72,11 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   which looks backwards and so still credits work finished before the project
   was parked (decision D19). A **deferred** report ranks the tasks whose due
   date keeps sliding by reschedule count, with churn analytics, so chronic
-  slippage is visible rather than buried (decision D23). Every report copies
-  out as plain text.
+  slippage is visible rather than buried (decision D23). A **contact activity**
+  report ranks the people you have worked with over a date range, with the
+  organizations behind them (decision D31). Every report copies out as plain
+  text, and exports to PDF — where the click-to-copy buttons print the address
+  or number they would have copied, since paper has no clipboard.
 - **Right-click accelerators** — a context menu on every task row (due today /
   tomorrow / next week, clear the date, complete, drop, move to another
   project, delete) and on every sidebar project (archive or restore, move all
@@ -78,6 +85,19 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   clears the whole backlog onto today in one go. None of it is the only route
   to anything: the menus are shortcuts over actions the ordinary UI already
   has, so the surface stays discoverable for everyone else.
+- **Contacts** (decision D31) — the people behind the work. A contact carries a
+  name, company, role, email, phone, notes, and tags; a task can be linked to
+  any number of them by typing `@` and a few letters of a name, which completes
+  in place and creates the person on the spot if they are new. Every project
+  grows a **Contacts** card listing the people attached to the project itself
+  _plus_ everyone on one of its tasks, each expandable to click-to-copy details.
+  A **Contacts** screen sorts the whole address book by open load, company, or
+  last activity; a contact's own page holds their details beside every task and
+  project they touch. Search covers them — including a phone number typed
+  without its punctuation — and the **Contact activity** report ranks who you
+  have been working with over a date range. Nothing syncs with the OS address
+  book: this is the enterprise-shaped half of your contacts, kept where the work
+  is.
 - **Tags** — prefix autocomplete everywhere, click-to-search, and a **Tags** view
   listing every tag with usage counts plus rename, merge, and delete management.
 - **Todoist** — push upcoming tasks into #Home or #Work with @project labels
@@ -222,26 +242,26 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 ```
 <dataDir>/
   workspace.json                # { schemaVersion }
-  projects.json  tasks.json  files.json  settings.json
+  projects.json  tasks.json  files.json  contacts.json  settings.json
   blobs/<fileId>.<ext>          # uploaded files (served via ariadne-blob://)
   backups/<YYYY-MM-DD>/         # daily + on-quit whole-workspace backups
 ```
 
 ### Module map
 
-| Where                             | What                                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Settings, Workspace), enums, constants                                                                  |
-| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                                 |
-| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                |
-| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                             |
-| `src/shared/domain/*.ts`          | reports, calendar, dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                                      |
-| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                  |
-| `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins          |
-| `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                 |
-| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                         |
-| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
-| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, debug log                                        |
+| Where                             | What                                                                                                                                                                 |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts`             | Entities (Project, Task, FileEntry, Contact, Settings, Workspace), enums, constants                                                                                  |
+| `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                                                          |
+| `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                                         |
+| `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                                                      |
+| `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                                               |
+| `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                                           |
+| `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                                   |
+| `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |
+| `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                                                  |
+| `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Contacts, ContactDetail, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
+| `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, contacts, debug log                                                       |
 
 ## Adding a feature
 
@@ -449,7 +469,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D21. Record any deliberate behavior change as a new row
+  decision table D1–D31. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.

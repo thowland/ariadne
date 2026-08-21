@@ -71,6 +71,7 @@ export const MENU_COMMANDS = [
   'goHome',
   'goCalendar',
   'goReports',
+  'goContacts',
   'goFiles',
   'goTags',
   'goSettings',
@@ -167,7 +168,7 @@ export interface ExportRunResponse {
 export interface ArchiveExportResponse {
   savedPath: string | null;
   error?: string;
-  counts?: { projects: number; tasks: number; files: number; blobs: number };
+  counts?: { projects: number; tasks: number; files: number; contacts: number; blobs: number };
 }
 
 export type ArchiveImportResponse =

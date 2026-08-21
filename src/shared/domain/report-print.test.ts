@@ -65,6 +65,13 @@ describe('buildReportDocument', () => {
       'trow-body',
       'risk-title',
       'risk-reason',
+      'contact-avatar',
+      'contact-report-row',
+      'contact-report-open',
+      'contact-report-name',
+      'contact-report-reach',
+      'copy-value',
+      'copy-value-icon',
     ]) {
       expect(REPORT_PRINT_CSS, `.${cls} has no print rule`).toContain(`.${cls} `);
     }
@@ -79,6 +86,19 @@ describe('buildReportDocument', () => {
     );
     expect(REPORT_PRINT_CSS).not.toMatch(/\.defer-stats \{[^}]*auto-fit/);
     expect(REPORT_PRINT_CSS).toMatch(/\.defer-breakdowns \{[^}]*grid-template-columns: 1fr 1fr/);
+  });
+
+  it('prints the copied value rather than the button label', () => {
+    // On screen the button says "Email"; on paper that is useless, so the
+    // stylesheet swaps in the address the button would have copied.
+    expect(REPORT_PRINT_CSS).toMatch(/\.copy-value-text \{ display: none/);
+    expect(REPORT_PRINT_CSS).toMatch(/\.copy-value::after \{ content: attr\(data-print\)/);
+  });
+
+  it('gives the contact avatar an explicit display so its inline size applies', () => {
+    // A <span> sized only by width/height stays inline, where those do
+    // nothing — the same trap the project dots fell into.
+    expect(REPORT_PRINT_CSS).toMatch(/\.contact-avatar \{[^}]*display: inline-flex/);
   });
 });
 

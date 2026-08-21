@@ -278,3 +278,43 @@ describe('StorageService', () => {
     expect(warnings.some((w) => w.includes('no parent project'))).toBe(true);
   });
 });
+
+describe('StorageService — contacts (D31)', () => {
+  it('writes contacts.json and reads it back', async () => {
+    const svc = makeService();
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+    expect(existsSync(join(dir, 'contacts.json'))).toBe(true);
+    const loaded = await svc.loadWorkspace();
+    expect(loaded.workspace?.contacts).toEqual(seeded.contacts);
+    expect(loaded.warnings).toEqual([]);
+  });
+
+  it('loads a pre-2.0 workspace, which has no contacts.json, without complaint', async () => {
+    const svc = makeService();
+    const seeded = seedWorkspace(TODAY);
+    await svc.saveWorkspaceNow(seeded);
+    rmSync(join(dir, 'contacts.json'));
+
+    const loaded = await svc.loadWorkspace();
+    expect(loaded.workspace?.contacts).toEqual([]);
+    // A missing document is not corruption, so nothing is quarantined…
+    expect(readdirSync(dir).some((f) => f.includes('corrupt'))).toBe(false);
+    // …but the now-dangling links are scrubbed, and that is worth saying.
+    expect(loaded.warnings).toEqual([expect.stringContaining('Removed contact reference(s)')]);
+    expect(loaded.workspace?.tasks.every((t) => (t.contactIds ?? []).length === 0)).toBe(true);
+  });
+
+  it('persists a contacts write through the debounced path', async () => {
+    const svc = makeService();
+    await svc.saveWorkspaceNow(seedWorkspace(TODAY));
+    const rejected = svc.savePayload({ contacts: [] });
+    // Seven seeded contacts: emptying them without replaceAll is refused.
+    expect(rejected.map((r) => r.name)).toEqual(['contacts']);
+
+    const kept = seedWorkspace(TODAY).contacts.slice(0, 3);
+    expect(svc.savePayload({ contacts: kept })).toEqual([]);
+    await sleep(30);
+    expect(JSON.parse(readFileSync(join(dir, 'contacts.json'), 'utf8'))).toEqual(kept);
+  });
+});
