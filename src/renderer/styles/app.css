@@ -3333,7 +3333,24 @@ input.inp.full {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 12px 10px;
+  /* Above the field, not below it: the mention dropdown opens downwards and
+     would otherwise cover the very chips it is producing. */
+  padding: 10px 12px 0;
+}
+/* Named but not yet in the address book: dashed, so "not saved yet" is
+   visible rather than something you have to know. */
+.contact-chip.pending {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+}
+.contact-chip-new {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-left: 2px;
 }
 
 /* Avatars on a task row: identity at a glance, names on hover. */

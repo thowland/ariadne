@@ -171,7 +171,16 @@ logic, check whether it is already there:
   backups, the archive manifest, the data-dir migration — needs it too. The
   mention rules are anchored like the D29 date rules and for the same reason,
   and — also like D29 — the picked name **stays in the title**, completed in
-  place from `@dan` to `@Dana Reyes`. A
+  place from `@dan` to `@Dana Reyes`. Enter never _creates_ a contact: with no
+  match it falls through to whatever owns the field, so quick-add still commits
+  the task instead of inventing a person out of a typo. The quick-add box
+  defers creation through `onCreateContact` until the task exists — do not
+  "simplify" that back into an immediate `newContact` call. **D29 and D31 share
+  one string**: `maskMentions` blanks `@name` runs (preserving every offset)
+  before `findNlDate` reads the title, because `tom` is a tomorrow
+  abbreviation and completing `@Tom Whitaker` otherwise sets a due date nobody
+  asked for. Sat, May, Mar and Wed are all names too — never run the date
+  scanner over unmasked text. A
   workspace written before 2.0 has no `contacts.json` at all: that is a missing
   document, not corruption, and `normalizeWorkspace` scrubs the now-dangling ids
   rather than rendering people who do not exist.

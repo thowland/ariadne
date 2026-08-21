@@ -14,8 +14,12 @@ exactly as it did; there is simply a new half to the app.
   and the person is attached to the task, while what you typed completes to
   their full name and stays in the title — "Ask @Dana Reyes about the budget"
   still reads as a sentence. If they are not in the book yet, the last row of
-  the list adds them on the spot without taking you anywhere. Every task also
-  has a **People** field for the same thing the long way round.
+  the list adds them, and you have to pick that row on purpose: pressing Enter
+  on a name that matches nobody adds the **task**, not a contact, so a typo
+  never turns into an address-book entry. In the quick-add box a new person is
+  held as a dashed "new" chip and is only written when the task itself is
+  added, so a name you correct or drop first leaves nothing behind. Every task
+  also has a **People** field for the same thing the long way round.
 - **A Contacts card on every project.** It lists the people attached to the
   project itself _and_ everyone linked to one of its tasks, so adding someone to
   a task puts them there with no second step. Each row opens a twisty with their
@@ -37,6 +41,11 @@ exactly as it did; there is simply a new half to the app.
   other report, so a work-scoped run cannot surface the person attached to a
   personal project. When exported to PDF the copy buttons print the actual
   address and number, since paper has no clipboard.
+- **A name is never mistaken for a date.** "Tom" is short for tomorrow as far
+  as the date detector is concerned (v1.20), so linking Tom Whitaker used to
+  quietly set a due date. Names behind an `@` are now invisible to it, while a
+  real date in the same title still works: "Ask @Tom Whitaker tomorrow" links
+  Tom _and_ sets tomorrow.
 - **Tags now cover contacts too**, so `#vendor` or `#team` counts, renames, and
   deletions reach them along with projects and tasks.
 - The sample workspace ships with seven contacts wired into its projects and

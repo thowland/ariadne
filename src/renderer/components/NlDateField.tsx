@@ -2,6 +2,7 @@ import {
   completeMention,
   contactName,
   findMention,
+  maskMentions,
   mentionCandidates,
 } from '@shared/domain/contacts';
 import type { MentionQuery } from '@shared/domain/contacts';
@@ -49,6 +50,7 @@ export function NlDateField({
   mentionContacts,
   mentionExclude = [],
   onMention,
+  onCreateContact,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -69,8 +71,16 @@ export function NlDateField({
   mentionContacts?: readonly Contact[];
   /** Contacts already linked, so the picker never offers a duplicate. */
   mentionExclude?: readonly string[];
-  /** Fired with the picked contact's id; the `@name` text is removed. */
+  /** Fired with the picked contact's id once the name is completed in place. */
   onMention?: (contactId: string) => void;
+  /**
+   * Turns a typed name into a contact id when the "add this person" row is
+   * chosen. Defaults to creating the contact straight away; the project
+   * quick-add overrides it to hold a provisional person until the task is
+   * actually created, so a name typed and then corrected never reaches the
+   * address book.
+   */
+  onCreateContact?: (name: string) => string | null;
 }): React.JSX.Element {
   const localRef = useRef<HTMLTextAreaElement>(null);
   const field = inputRef ?? localRef;
@@ -87,7 +97,10 @@ export function NlDateField({
   // Re-detect on every change to the text or the date. `today` matters: the
   // app can sit open across midnight, and "tomorrow" has to follow it.
   useEffect(() => {
-    const found = dismissed ? null : findNlDate(value, today);
+    // Scan the text with the @names blanked out: a colleague called Tom is
+    // not the word "tom", which D29 reads as tomorrow. Masking preserves every
+    // offset, so the mirror's highlight still lands on the real characters.
+    const found = dismissed ? null : findNlDate(maskMentions(value), today);
     setMatch(found);
     onDateChange(found?.date ?? null, found);
     // onDateChange is a fresh closure each render in most callers; depending on
@@ -161,13 +174,15 @@ export function NlDateField({
 
   const commitRow = (index: number): void => {
     const contact = suggestions[index];
-    if (contact !== undefined) link(contact.id, contactName(contact));
-    else if (canCreate) {
-      // A brand-new person's display name is exactly what was typed, which is
-      // also what splitTypedName just carved into first/last.
-      const id = newContact({ ...splitTypedName(typed) });
-      if (id !== null) link(id, typed);
+    if (contact !== undefined) {
+      link(contact.id, contactName(contact));
+      return;
     }
+    if (!canCreate) return;
+    // A brand-new person's display name is exactly what was typed, which is
+    // also what splitTypedName carves into first/last.
+    const id = onCreateContact?.(typed) ?? newContact({ ...splitTypedName(typed) });
+    if (id !== null) link(id, typed);
   };
 
   const before = match === null ? value : value.slice(0, match.start);
@@ -222,9 +237,20 @@ export function NlDateField({
               return;
             }
             if (e.key === 'Enter') {
-              e.preventDefault();
-              commitRow(highlighted >= 0 ? highlighted : 0);
-              return;
+              // Enter picks a person, but it never *creates* one. With a
+              // mistyped name nothing matches, the only row is "add this
+              // person", and Enter here means what it means everywhere else
+              // in the field — commit the task. Creating has to be chosen:
+              // click the row, or arrow onto it first. Otherwise a typo in
+              // "Ask @Tomm about the coat" quietly becomes an address-book
+              // entry, and swallows the keystroke that was adding the task.
+              const index = highlighted >= 0 ? highlighted : suggestions.length > 0 ? 0 : -1;
+              if (index >= 0) {
+                e.preventDefault();
+                commitRow(index);
+                return;
+              }
+              setMention(null);
             }
             if (e.key === 'Escape') {
               e.stopPropagation();

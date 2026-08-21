@@ -11,6 +11,7 @@ import {
   contactSortName,
   contactsOfTask,
   findMention,
+  maskMentions,
   mentionCandidates,
   projectContacts,
   projectsOfContact,
@@ -295,6 +296,34 @@ describe('completeMention', () => {
     expect(at('Email @dan re: Q3 and @x', 10, 'Daniel Ash').text).toBe(
       'Email @Daniel Ash re: Q3 and @x',
     );
+  });
+});
+
+describe('maskMentions', () => {
+  it('blanks the name but keeps every offset', () => {
+    const text = 'Ask @Tom about it';
+    const masked = maskMentions(text);
+    expect(masked).toBe('Ask      about it');
+    expect(masked).toHaveLength(text.length);
+    // The unmasked half is untouched, character for character.
+    expect(masked.slice(8)).toBe(text.slice(8));
+  });
+
+  it('stops a name being read as date vocabulary', () => {
+    // "tom" is a D29 abbreviation for tomorrow; Tom Whitaker is not.
+    expect(maskMentions('Ask @Tom Whitaker about the coat')).not.toMatch(/\btom\b/i);
+    expect(maskMentions('Chase @Sat and @May')).not.toMatch(/\b(sat|may)\b/i);
+  });
+
+  it('leaves the sentence around it alone', () => {
+    expect(maskMentions('call Bob tomorrow')).toBe('call Bob tomorrow');
+    // An email address is not a mention, so its text stays readable.
+    expect(maskMentions('mail dana@northwind.example')).toBe('mail dana@northwind.example');
+    expect(maskMentions('')).toBe('');
+  });
+
+  it('masks only the first token, not the rest of the line', () => {
+    expect(maskMentions('@Tom Whitaker friday')).toBe('     Whitaker friday');
   });
 });
 

@@ -1,5 +1,6 @@
 import { contactName } from '@shared/domain/contacts';
 import {
+  createContact,
   createMarkdownFile,
   createTask,
   deleteProject,
@@ -12,7 +13,7 @@ import { useRef, useState } from 'react';
 import { getApi } from '../app/api';
 import { uploadFiles } from '../app/files';
 import { useStore } from '../app/store';
-import { ContactAvatar } from '../components/ContactBits';
+import { ContactAvatar, splitTypedName } from '../components/ContactBits';
 import { ContactsCard } from '../components/ContactsCard';
 import { DependencyMap } from '../components/DependencyMap';
 import { FileRow } from '../components/FileRow';
@@ -22,6 +23,20 @@ import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
 import { UploadDropZone } from '../components/UploadDropZone';
+
+/**
+ * Somebody @-mentioned into a quick-add task that does not exist yet. An
+ * existing contact carries their id; a person named for the first time
+ * carries only their name, and is not written to the address book until the
+ * task is actually created — a name typed, mis-typed, or thought better of
+ * before pressing Enter should leave nothing behind.
+ */
+interface QuickPerson {
+  /** Contact id, or a provisional key for someone not created yet. */
+  key: string;
+  contactId: string | null;
+  name: string;
+}
 
 /** The per-project workspace (prototype viewProject). */
 export function ProjectDetail(): React.JSX.Element {
@@ -42,8 +57,10 @@ export function ProjectDetail(): React.JSX.Element {
   const [quickDue, setQuickDue] = useState<IsoDate | null>(null);
   const [quickDismissed, setQuickDismissed] = useState(false);
   // People @-mentioned while composing the quick-add task. The task does not
-  // exist yet, so the links are held here and applied when it is created.
-  const [quickContacts, setQuickContacts] = useState<string[]>([]);
+  // exist yet, so the links — and any brand-new contacts — are held here and
+  // only written when it is created.
+  const [quickPeople, setQuickPeople] = useState<QuickPerson[]>([]);
+  const provisional = useRef(0);
   // The visual task order is pinned per visit so clicking the status circle
   // never reshuffles the list; it re-sorts on the next visit to the project.
   const pinnedRef = useRef<{ projectId: string; ids: string[] } | null>(null);
@@ -87,19 +104,30 @@ export function ProjectDetail(): React.JSX.Element {
   const quickAdd = (): void => {
     const title = quickTitle.trim();
     if (title === '') return;
+    // Provisional people become real contacts only now, at the moment the
+    // task they were named on is committed.
+    const contactIds: string[] = [];
+    for (const person of quickPeople) {
+      if (person.contactId !== null) {
+        contactIds.push(person.contactId);
+        continue;
+      }
+      const created = apply((ws, ctx) => createContact(ws, ctx, splitTypedName(person.name)));
+      if (created !== null) contactIds.push(created.id);
+    }
     // The date phrase stays in the title, as typed — it reads naturally there
     // and the due date is visible on the row anyway.
     apply((ws, ctx) =>
       createTask(ws, ctx, project.id, {
         title,
         dueDate: quickDue,
-        ...(quickContacts.length > 0 ? { contactIds: quickContacts } : {}),
+        ...(contactIds.length > 0 ? { contactIds } : {}),
       }),
     );
     setQuickTitle('');
     setQuickDue(null);
     setQuickDismissed(false);
-    setQuickContacts([]);
+    setQuickPeople([]);
   };
 
   const addAndEdit = (): void => {
@@ -219,6 +247,37 @@ export function ProjectDetail(): React.JSX.Element {
                 <div className="card-empty">No tasks yet.</div>
               )}
             </div>
+            {quickPeople.length > 0 && (
+              <div className="quick-add-people" data-testid="quick-add-people">
+                {quickPeople.map((person) => {
+                  const c =
+                    person.contactId === null
+                      ? undefined
+                      : workspace?.contacts.find((x) => x.id === person.contactId);
+                  return (
+                    <span
+                      key={person.key}
+                      className={`contact-chip ${c === undefined ? 'pending' : ''}`}
+                    >
+                      <span className="contact-chip-label">
+                        {c !== undefined && <ContactAvatar contact={c} size={18} />}
+                        {person.name}
+                        {/* Says out loud that nobody has been added yet. */}
+                        {c === undefined && <span className="contact-chip-new">new</span>}
+                      </span>
+                      <button
+                        aria-label={`Remove ${person.name}`}
+                        onClick={() => {
+                          setQuickPeople((list) => list.filter((p) => p.key !== person.key));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
             <div className="quick-add-row">
               <div className="inp quick-add-input">
                 <NlDateField
@@ -237,11 +296,29 @@ export function ProjectDetail(): React.JSX.Element {
                   placeholder="Add a task, or @ someone, and press Enter…"
                   ariaLabel="Add a task"
                   mentionContacts={workspace?.contacts ?? []}
-                  mentionExclude={quickContacts}
-                  onMention={(contactId) => {
-                    setQuickContacts((ids) =>
-                      ids.includes(contactId) ? ids : [...ids, contactId],
+                  mentionExclude={quickPeople
+                    .map((p) => p.contactId)
+                    .filter((id): id is string => id !== null)}
+                  onCreateContact={(name) => {
+                    // Hold them, don't create them. The key stands in for a
+                    // contact id until the task exists.
+                    const existing = quickPeople.find(
+                      (p) => p.contactId === null && p.name.toLowerCase() === name.toLowerCase(),
                     );
+                    if (existing !== undefined) return existing.key;
+                    provisional.current += 1;
+                    const key = `pending:${String(provisional.current)}`;
+                    setQuickPeople((list) => [...list, { key, contactId: null, name }]);
+                    return key;
+                  }}
+                  onMention={(contactId) => {
+                    setQuickPeople((list) => {
+                      // A provisional person was appended by onCreateContact.
+                      if (list.some((p) => p.key === contactId)) return list;
+                      const c = workspace?.contacts.find((x) => x.id === contactId);
+                      if (c === undefined) return list;
+                      return [...list, { key: contactId, contactId, name: contactName(c) }];
+                    });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') quickAdd();
@@ -252,30 +329,6 @@ export function ProjectDetail(): React.JSX.Element {
                 Add
               </button>
             </div>
-            {quickContacts.length > 0 && (
-              <div className="quick-add-people" data-testid="quick-add-people">
-                {quickContacts.map((id) => {
-                  const c = workspace?.contacts.find((x) => x.id === id);
-                  if (c === undefined) return null;
-                  return (
-                    <span key={id} className="contact-chip">
-                      <span className="contact-chip-label">
-                        <ContactAvatar contact={c} size={18} />
-                        {contactName(c)}
-                      </span>
-                      <button
-                        aria-label={`Remove ${contactName(c)}`}
-                        onClick={() => {
-                          setQuickContacts((ids) => ids.filter((x) => x !== id));
-                        }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
           </Card>
           <Card
             title="Dependency map"

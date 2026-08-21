@@ -368,4 +368,54 @@ describe('ProjectDetail — hide completed tasks (D30)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Remove Tom Whitaker' }));
     expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
   });
+
+  it('a new name is not written to the address book until the task is added', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Call @Nia Okoro');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
+
+    // Named, shown as pending — but nobody has been created.
+    const chips = screen.getByTestId('quick-add-people');
+    expect(within(chips).getByText('Nia Okoro')).toBeInTheDocument();
+    expect(within(chips).getByText('new')).toBeInTheDocument();
+    expect(ws().contacts).toHaveLength(before);
+
+    await userEvent.type(input, '{Enter}');
+    const created = ws().contacts.find((c) => c.firstName === 'Nia');
+    expect(created?.lastName).toBe('Okoro');
+    const task = ws().tasks[ws().tasks.length - 1];
+    expect(task?.contactIds).toEqual([created?.id]);
+  });
+
+  it('a name typed and then thought better of leaves nothing behind', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Call @Nia Okora');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okora”/ }));
+    // Spotted the typo: drop the chip and fix the title before adding.
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Nia Okora' }));
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Call the shop{Enter}');
+
+    expect(ws().contacts).toHaveLength(before);
+    expect(ws().contacts.some((c) => c.lastName === 'Okora')).toBe(false);
+    expect(ws().tasks[ws().tasks.length - 1]?.title).toBe('Call the shop');
+  });
+
+  it('Enter on a mistyped name adds the task instead of inventing a contact', async () => {
+    render(<ProjectDetail />);
+    const before = ws().contacts.length;
+    const input = screen.getByLabelText('Add a task');
+    // "@Tomm about" matches nobody; Enter here means "add the task".
+    await userEvent.type(input, 'Ask @Tomm about the coat{Enter}');
+
+    expect(ws().contacts).toHaveLength(before);
+    const task = ws().tasks[ws().tasks.length - 1];
+    expect(task?.title).toBe('Ask @Tomm about the coat');
+    expect(task?.contactIds).toBeUndefined();
+    expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
+  });
 });

@@ -22,20 +22,20 @@ Every screenshot below comes from the sample workspace the app seeds on first
 run, so you can reproduce all of it by launching a fresh copy. Regenerate them
 with `npm run screenshots` (see [Screenshots](#screenshots)).
 
-|                                                                                                                                           |                                                                                                                                     |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [![Project detail with the dependency map](docs/screenshots/project-detail.png)](docs/screenshots/project-detail.png)                     | [![The task editor](docs/screenshots/task-editor.png)](docs/screenshots/task-editor.png)                                            |
-| **Project and dependency map** — tasks, notes, links, tags, and files on one screen, over a draggable graph of the project's task chains. | **Task editor** — status, priority, due date, subtasks, "Blocked by" dependencies, attachments, links, and a one-task Todoist push. |
-| [![The calendar month view](docs/screenshots/calendar.png)](docs/screenshots/calendar.png)                                                | [![The weekly status report](docs/screenshots/reports.png)](docs/screenshots/reports.png)                                           |
-| **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                   | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
-| [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                     | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
-| **Retrospective** — what actually got finished over a date range, with completions over time; archived projects still count.              | **Files library** — every attachment across every project in one place.                                                             |
-| [![The contacts list](docs/screenshots/contacts.png)](docs/screenshots/contacts.png)                                                      | [![A contact's detail page](docs/screenshots/contact-detail.png)](docs/screenshots/contact-detail.png)                              |
-| **Contacts** — everyone you work with, sortable by load, company, or last activity, with one-click copy for a name, email, or number.     | **Contact detail** — their details, plus every task and project they touch, each one a click from the work itself.                  |
-| [![The contact activity report](docs/screenshots/contact-activity.png)](docs/screenshots/contact-activity.png)                            | [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                            |
-| **Contact activity** — who you have actually been working with over a date range, ranked, with the organizations behind them.             | **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                  |
-| [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                               |                                                                                                                                     |
-| **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                       |                                                                                                                                     |
+|                                                                                                                                             |                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [![Project detail with the dependency map](docs/screenshots/project-detail.png)](docs/screenshots/project-detail.png)                       | [![The task editor](docs/screenshots/task-editor.png)](docs/screenshots/task-editor.png)                                            |
+| **Project and dependency map** — tasks, notes, links, tags, and files on one screen, over a draggable graph of the project's task chains.   | **Task editor** — status, priority, due date, subtasks, "Blocked by" dependencies, attachments, links, and a one-task Todoist push. |
+| [![The calendar month view](docs/screenshots/calendar.png)](docs/screenshots/calendar.png)                                                  | [![The weekly status report](docs/screenshots/reports.png)](docs/screenshots/reports.png)                                           |
+| **Calendar** — a month grid or a single Sun–Sat week, with priority-colored chips and an Upcoming list.                                     | **Weekly status** — done / planned / at-risk per project, scoped to Work, Home, or a tag, and copyable as plain text.               |
+| [![The retrospective report](docs/screenshots/retrospective.png)](docs/screenshots/retrospective.png)                                       | [![The cross-project files library](docs/screenshots/files.png)](docs/screenshots/files.png)                                        |
+| **Retrospective** — what actually got finished over a date range, with completions over time; archived projects still count.                | **Files library** — every attachment across every project in one place.                                                             |
+| [![The contacts list](docs/screenshots/contacts.png)](docs/screenshots/contacts.png)                                                        | [![A contact's detail page](docs/screenshots/contact-detail.png)](docs/screenshots/contact-detail.png)                              |
+| **Contacts** — everyone you work with, sortable by load, company, or last activity, with one-click copy for a name, email, or number.       | **Contact detail** — their details, plus every task and project they touch, each one a click from the work itself.                  |
+| [![Linking a person to a task with @](docs/screenshots/task-mentions.png)](docs/screenshots/task-mentions.png)                              | [![The contact activity report](docs/screenshots/contact-activity.png)](docs/screenshots/contact-activity.png)                      |
+| **@-mentions** — type `@` and a few letters in a task title; the name completes in place, and somebody new is held until the task is added. | **Contact activity** — who you have actually been working with over a date range, ranked, with the organizations behind them.       |
+| [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                    | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
+| **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                          | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
 
 - **Command Center** — the daily review. Stat cards, an overdue banner, and focus
   sections (Overdue, Due today, Due this week, High priority · later, Blocked),
@@ -89,7 +89,11 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   name, company, role, email, phone, notes, and tags; a task can be linked to
   any number of them by typing `@` and a few letters of a name, which completes
   to their full name in place — the name stays in the title, the way a D29 date
-  phrase does — and creates the person on the spot if they are new. Every project
+  phrase does — and offers to create the person on the spot if they are new.
+  That offer has to be taken deliberately: Enter on a name matching nobody adds
+  the task, and a person named in the quick-add box is only written to the
+  address book once the task itself is, so a typo never leaves a stray contact
+  behind. Every project
   grows a **Contacts** card listing the people attached to the project itself
   _plus_ everyone on one of its tasks, each expandable to click-to-copy details.
   A **Contacts** screen sorts the whole address book by open load, company, or

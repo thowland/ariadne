@@ -157,10 +157,12 @@ function MentionHarness({
   onMention,
   exclude = [],
   onEnter,
+  onCreateContact,
 }: {
   onMention: (id: string) => void;
   exclude?: string[];
   onEnter?: () => void;
+  onCreateContact?: (name: string) => string | null;
 }): React.JSX.Element {
   const [value, setValue] = useState('');
   return (
@@ -176,6 +178,7 @@ function MentionHarness({
         mentionContacts={PEOPLE}
         mentionExclude={exclude}
         onMention={onMention}
+        onCreateContact={onCreateContact}
         onKeyDown={(e) => {
           if (e.key === 'Enter') onEnter?.();
         }}
@@ -259,5 +262,84 @@ describe('NlDateField — @-mentions', () => {
     render(<MentionHarness onMention={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Task title'), 'mail dana@northwind.example');
     expect(screen.queryByRole('listbox', { name: 'Mention a contact' })).not.toBeInTheDocument();
+  });
+
+  it('Enter never creates a contact: a mistyped name commits the task instead', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onMention = vi.fn();
+    const onEnter = vi.fn();
+    render(<MentionHarness onMention={onMention} onEnter={onEnter} />);
+
+    // "@Tomm about" matches nobody, so the only row is "add this person".
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tomm about{Enter}');
+
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+    expect(onMention).not.toHaveBeenCalled();
+    // The keystroke reaches the caller, so the task is still added.
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Tomm about');
+  });
+
+  it('creating still works when the row is deliberately chosen', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const onMention = vi.fn();
+    const onEnter = vi.fn();
+    render(<MentionHarness onMention={onMention} onEnter={onEnter} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tomm');
+    // Arrowing onto the create row is the deliberate act Enter alone is not.
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    expect(useStore.getState().workspace?.contacts.some((c) => c.firstName === 'Tomm')).toBe(true);
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
+  it('Enter still picks the top match without touching the address book', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @dan{Enter}');
+    expect(onMention).toHaveBeenCalledWith('c1');
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+  });
+
+  it('lets the caller supply how a new name becomes a contact', async () => {
+    setupTestApp();
+    loadTestWorkspace();
+    const before = useStore.getState().workspace?.contacts.length ?? 0;
+    const onCreateContact = vi.fn().mockReturnValue('pending:1');
+    const onMention = vi.fn();
+    render(<MentionHarness onMention={onMention} onCreateContact={onCreateContact} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Chase @Nia Okoro');
+    await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
+
+    expect(onCreateContact).toHaveBeenCalledWith('Nia Okoro');
+    expect(onMention).toHaveBeenCalledWith('pending:1');
+    // Nothing reached the address book — that is the caller's call to make.
+    expect(useStore.getState().workspace?.contacts).toHaveLength(before);
+  });
+
+  it('a name behind an @ is never read as a date (D29 × D31)', async () => {
+    // "tom" abbreviates tomorrow. Once a picked mention leaves "@Tom Whitaker"
+    // in the title, the date scanner used to read it and set a due date
+    // nobody asked for — the exact false positive D29 exists to avoid.
+    const onDate = vi.fn();
+    render(<Harness onDate={onDate} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tom Whitaker about the coat');
+
+    expect(screen.queryByTestId('nl-date-chip')).not.toBeInTheDocument();
+    expect(document.querySelector('.nl-hit')).toBeNull();
+    expect(onDate).toHaveBeenLastCalledWith(null);
+  });
+
+  it('still reads a real date in the same sentence as a mention', async () => {
+    const onDate = vi.fn();
+    render(<Harness onDate={onDate} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Ask @Tom Whitaker tomorrow');
+    expect(document.querySelector('.nl-hit')?.textContent).toBe('tomorrow');
+    expect(onDate).toHaveBeenLastCalledWith('2026-07-09');
   });
 });

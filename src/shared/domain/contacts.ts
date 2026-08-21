@@ -354,6 +354,26 @@ export function completeMention(
   };
 }
 
+/**
+ * Blanks out `@name` runs, keeping the string's length and every offset, so a
+ * second scanner over the same text cannot read a person's name as its own
+ * vocabulary.
+ *
+ * This is load-bearing, not tidiness. `tom` is a D29 abbreviation for
+ * tomorrow, and once a picked mention leaves `@Tom Whitaker` sitting in the
+ * title, the date scanner reads it and silently sets a due date nobody asked
+ * for — precisely the false positive D29 is built to avoid. Names are not
+ * prose, so they are removed from the prose before it is parsed. Only the
+ * first token after the `@` is masked: that is where a completed first name
+ * lands, and swallowing further words would start eating the sentence.
+ */
+export function maskMentions(text: string): string {
+  return text.replace(
+    /(^|[\s([{])@[-\p{L}\p{N}'’.]+/gu,
+    (run, boundary: string) => boundary + ' '.repeat(run.length - boundary.length),
+  );
+}
+
 // ---------- Search ----------
 
 /**

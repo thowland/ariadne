@@ -966,6 +966,20 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
     .getByRole('button', { name: /Refinish boat table/ })
     .click();
   const quickAdd = win.getByLabel('Add a task');
+
+  // A mistyped name matches nobody. Enter must add the task, not quietly
+  // invent a contact out of the typo and swallow the keystroke.
+  await quickAdd.fill('Sand the rail @Tomm');
+  await quickAdd.press('Enter');
+  // Scoped to the task list: the dependency map draws the title too.
+  await expect(win.locator('.trow-title', { hasText: 'Sand the rail @Tomm' })).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await expect(win.getByTestId('contacts-headline')).toHaveText('7 contacts');
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+
   await quickAdd.fill('Ask @tom');
   await win.getByRole('option', { name: /Tom Whitaker/ }).click();
   // The typed fragment completes to the full name and stays in the title.

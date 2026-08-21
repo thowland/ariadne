@@ -80,6 +80,23 @@ const SHOTS = [
     },
   },
   {
+    // The @-mention flow in one frame: a name completed in place, the chip it
+    // produced, and the offer to add somebody who is not in the book yet.
+    name: 'task-mentions',
+    async go(win) {
+      await win
+        .getByRole('navigation', { name: 'Projects' })
+        .getByRole('button', { name: /Refinish boat table/ })
+        .click();
+      const quickAdd = win.getByLabel('Add a task');
+      await quickAdd.fill('Ask @tom');
+      await win.getByRole('option', { name: /Tom Whitaker/ }).click();
+      await quickAdd.press('End');
+      await quickAdd.type(' and @Nia Okoro', { delay: 10 });
+      await win.getByRole('option', { name: /Add “Nia Okoro”/ }).waitFor();
+    },
+  },
+  {
     name: 'contacts',
     async go(win) {
       await win.getByRole('button', { name: 'Contacts', exact: true }).click();
