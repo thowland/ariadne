@@ -75,8 +75,26 @@ describe('ContactsCard', () => {
     expect(useStore.getState().activeContactId).toBe('c1');
   });
 
+  const openPicker = async (): Promise<void> => {
+    await userEvent.click(screen.getByRole('button', { name: '+ Add person' }));
+  };
+
+  it('opens a real field and lists everyone before a letter is typed', async () => {
+    renderCard();
+    expect(screen.queryByLabelText('Add a contact to this project')).not.toBeInTheDocument();
+    await openPicker();
+    const field = screen.getByLabelText('Add a contact to this project');
+    expect(field).toHaveFocus();
+    // A click that focuses an invisible box with no list reads as a dead
+    // link; the unlinked contacts are listed straight away instead.
+    expect(screen.getByRole('listbox', { name: 'Contact suggestions' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(1);
+    expect(screen.queryByRole('option', { name: /Dana Reyes/ })).not.toBeInTheDocument();
+  });
+
   it('attaches an existing contact through the picker', async () => {
     renderCard();
+    await openPicker();
     await userEvent.type(screen.getByLabelText('Add a contact to this project'), 'sofia');
     await userEvent.click(screen.getByRole('option', { name: /Sofia Grant/ }));
     expect(ws().projects.find((p) => p.id === 'p1')?.contactIds).toEqual(['c7', 'c6']);
@@ -85,6 +103,7 @@ describe('ContactsCard', () => {
 
   it('creates a brand-new person from the picker without leaving the project', async () => {
     renderCard();
+    await openPicker();
     await userEvent.type(screen.getByLabelText('Add a contact to this project'), 'Nia Okoro');
     await userEvent.click(screen.getByRole('option', { name: /Add “Nia Okoro”/ }));
     const created = ws().contacts.find((c) => c.firstName === 'Nia');
@@ -96,6 +115,7 @@ describe('ContactsCard', () => {
 
   it('does not offer to create somebody who is already in the book', async () => {
     renderCard();
+    await openPicker();
     await userEvent.type(screen.getByLabelText('Add a contact to this project'), 'Sofia Grant');
     expect(screen.queryByRole('option', { name: /Add “Sofia Grant”/ })).not.toBeInTheDocument();
   });

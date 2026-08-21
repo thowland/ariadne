@@ -310,7 +310,7 @@ describe('TaskModal — natural-language dates in the title (D29)', () => {
     expect(ws().tasks.find((t) => t.id === 't2')?.contactIds).toEqual(['c1', 'c2', 'c6']);
   });
 
-  it('links someone by @-mentioning them in the title, and drops the @name', async () => {
+  it('links someone by @-mentioning them, completing the name in the title', async () => {
     openModal('t4'); // "Migrate billing service" — nobody on it yet
     const title = screen.getByLabelText('Task title');
     await userEvent.type(title, ' with @sofia');
@@ -318,7 +318,7 @@ describe('TaskModal — natural-language dates in the title (D29)', () => {
 
     const task = ws().tasks.find((t) => t.id === 't4');
     expect(task?.contactIds).toEqual(['c6']);
-    expect(task?.title).toBe('Migrate billing service with');
+    expect(task?.title).toBe('Migrate billing service with @Sofia Grant');
   });
 
   it('a contact chip navigates to that person and closes the editor', async () => {

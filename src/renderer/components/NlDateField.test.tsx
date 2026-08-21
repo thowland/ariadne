@@ -196,7 +196,7 @@ describe('NlDateField — @-mentions', () => {
     expect(screen.queryByRole('option', { name: /Marcus Bell/ })).not.toBeInTheDocument();
   });
 
-  it('links the person and takes the @name back out of the title', async () => {
+  it('links the person and completes the typed fragment to their full name', async () => {
     const onMention = vi.fn();
     render(<MentionHarness onMention={onMention} />);
     const field = screen.getByLabelText('Task title');
@@ -207,7 +207,8 @@ describe('NlDateField — @-mentions', () => {
     await userEvent.click(screen.getByRole('option', { name: /Dana Reyes/ }));
 
     expect(onMention).toHaveBeenCalledWith('c1');
-    expect(screen.getByTestId('text')).toHaveTextContent('Ask about the budget');
+    // The name stays in the title, completed in place.
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Dana Reyes about the budget');
   });
 
   it('Enter picks the top match instead of submitting the task', async () => {
@@ -217,7 +218,7 @@ describe('NlDateField — @-mentions', () => {
     await userEvent.type(screen.getByLabelText('Task title'), 'Ask @dana{Enter}');
     expect(onMention).toHaveBeenCalledWith('c1');
     expect(onEnter).not.toHaveBeenCalled();
-    expect(screen.getByTestId('text')).toHaveTextContent('Ask');
+    expect(screen.getByTestId('text')).toHaveTextContent('Ask @Dana Reyes');
   });
 
   it('arrows move through the list, Escape closes it without linking', async () => {
@@ -251,7 +252,7 @@ describe('NlDateField — @-mentions', () => {
     const created = useStore.getState().workspace?.contacts.find((c) => c.firstName === 'Nia');
     expect(created?.lastName).toBe('Okoro');
     expect(onMention).toHaveBeenCalledWith(created?.id);
-    expect(screen.getByTestId('text')).toHaveTextContent('Chase');
+    expect(screen.getByTestId('text')).toHaveTextContent('Chase @Nia Okoro');
   });
 
   it('leaves an email address in the title alone', async () => {

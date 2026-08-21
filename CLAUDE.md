@@ -169,8 +169,9 @@ logic, check whether it is already there:
   exists to prevent. `contacts` is a full collection (`contacts.json`, in
   `COLLECTION_NAMES`), so anything that enumerates collections — the write guard,
   backups, the archive manifest, the data-dir migration — needs it too. The
-  mention rules are anchored like the D29 date rules and for the same reason, and
-  unlike a date phrase the picked `@name` is **removed** from the title. A
+  mention rules are anchored like the D29 date rules and for the same reason,
+  and — also like D29 — the picked name **stays in the title**, completed in
+  place from `@dan` to `@Dana Reyes`. A
   workspace written before 2.0 has no `contacts.json` at all: that is a missing
   document, not corruption, and `normalizeWorkspace` scrubs the now-dangling ids
   rather than rendering people who do not exist.

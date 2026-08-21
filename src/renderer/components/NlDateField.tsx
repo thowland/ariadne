@@ -1,8 +1,8 @@
 import {
+  completeMention,
   contactName,
   findMention,
   mentionCandidates,
-  removeMention,
 } from '@shared/domain/contacts';
 import type { MentionQuery } from '@shared/domain/contacts';
 import { relativeDueLabel } from '@shared/domain/derive';
@@ -29,9 +29,9 @@ import { ContactAvatar, splitTypedName } from './ContactBits';
  * caret only ever see the real field. The proposed date is announced through
  * the visible chip beside it instead.
  *
- * The mention deliberately does *not* use the mirror: the picked name is
- * removed from the text rather than decorated in it, so there is nothing left
- * to highlight and no second mark to keep in register with the first.
+ * The mention deliberately does *not* use the mirror. The picked name is
+ * completed in place — `@dan` becomes `@Dana Reyes` — rather than marked up,
+ * so there is no second highlight to keep in register with the date's.
  */
 export function NlDateField({
   value,
@@ -148,10 +148,10 @@ export function NlDateField({
   const rowCount = suggestions.length + (canCreate ? 1 : 0);
   const pickerOpen = mention !== null && rowCount > 0;
 
-  /** Links the contact and splices the `@name` back out of the title. */
-  const link = (contactId: string): void => {
+  /** Links the contact and completes the typed fragment to their full name. */
+  const link = (contactId: string, name: string): void => {
     if (mention === null || onMention === undefined) return;
-    const next = removeMention(value, mention);
+    const next = completeMention(value, mention, name);
     pendingCaret.current = next.caret;
     onChange(next.text);
     onMention(contactId);
@@ -161,10 +161,12 @@ export function NlDateField({
 
   const commitRow = (index: number): void => {
     const contact = suggestions[index];
-    if (contact !== undefined) link(contact.id);
+    if (contact !== undefined) link(contact.id, contactName(contact));
     else if (canCreate) {
+      // A brand-new person's display name is exactly what was typed, which is
+      // also what splitTypedName just carved into first/last.
       const id = newContact({ ...splitTypedName(typed) });
-      if (id !== null) link(id);
+      if (id !== null) link(id, typed);
     }
   };
 
@@ -256,7 +258,7 @@ export function NlDateField({
               className={`contact-suggestion ${i === highlighted ? 'active' : ''}`}
               onMouseDown={(e) => {
                 e.preventDefault();
-                link(c.id);
+                link(c.id, contactName(c));
               }}
             >
               <ContactAvatar contact={c} size={20} />

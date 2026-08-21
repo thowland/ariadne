@@ -3235,6 +3235,19 @@ input.inp.full {
   background: transparent;
   color: var(--text);
 }
+/* Opened from a card header, where it stands alone rather than sitting at the
+   end of a chip row: it needs to look like the field it is. */
+.contact-picker.standalone .contact-picker-input {
+  width: 180px;
+  padding: 4px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.contact-picker.standalone .contact-suggestions {
+  left: auto;
+  right: 0;
+}
 .contact-suggestions {
   position: absolute;
   top: calc(100% + 4px);

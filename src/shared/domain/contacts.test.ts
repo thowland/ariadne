@@ -14,7 +14,7 @@ import {
   mentionCandidates,
   projectContacts,
   projectsOfContact,
-  removeMention,
+  completeMention,
   searchContacts,
   sortContacts,
   suggestContacts,
@@ -262,26 +262,39 @@ describe('findMention', () => {
   });
 });
 
-describe('removeMention', () => {
-  const at = (text: string, caret: number) => {
+describe('completeMention', () => {
+  const at = (text: string, caret: number, name: string) => {
     const m = findMention(text, caret);
     if (m === null) throw new Error('no mention');
-    return removeMention(text, m);
+    return completeMention(text, m, name);
   };
 
-  it('splices the token out and collapses the space it leaves behind', () => {
-    expect(at('Ask @dana about the budget', 9)).toEqual({
-      text: 'Ask about the budget',
-      caret: 3,
+  it('completes the typed fragment to the full name, in place', () => {
+    // The name stays in the title — the chip is the link, the text is how the
+    // task reads to a human.
+    expect(at('Ask @dana about the budget', 9, 'Dana Reyes')).toEqual({
+      text: 'Ask @Dana Reyes about the budget',
+      caret: 15,
     });
   });
 
-  it('leaves no trailing space when the mention ends the text', () => {
-    expect(at('Ask @dana', 9)).toEqual({ text: 'Ask', caret: 3 });
+  it('leaves the caret after the name, ready to keep typing', () => {
+    const r = at('Ask @dana', 9, 'Dana Reyes');
+    expect(r.text).toBe('Ask @Dana Reyes');
+    expect(r.text.slice(r.caret)).toBe('');
   });
 
-  it('keeps surrounding text intact when there is no space to collapse', () => {
-    expect(at('@dana ships it', 5)).toEqual({ text: ' ships it', caret: 0 });
+  it('completes a bare @ without disturbing what follows it', () => {
+    expect(at('@ ships it', 1, 'Marcus Bell')).toEqual({
+      text: '@Marcus Bell ships it',
+      caret: 12,
+    });
+  });
+
+  it('replaces only the mention, never the surrounding text', () => {
+    expect(at('Email @dan re: Q3 and @x', 10, 'Daniel Ash').text).toBe(
+      'Email @Daniel Ash re: Q3 and @x',
+    );
   });
 });
 

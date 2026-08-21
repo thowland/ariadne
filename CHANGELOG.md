@@ -11,11 +11,11 @@ exactly as it did; there is simply a new half to the app.
   someone can be captured in three seconds and filled in later.
 - **Link people to work by typing `@`.** In a task title — in the quick-add box
   or the task editor — type `@` and a few letters of a name. Pick from the list
-  and the person is attached to the task; the `@name` you typed comes back out
-  of the title, because the link is the point, not the prose. If they are not in
-  the book yet, the last row of the list adds them on the spot without taking
-  you anywhere. Every task also has a **People** field for the same thing the
-  long way round.
+  and the person is attached to the task, while what you typed completes to
+  their full name and stays in the title — "Ask @Dana Reyes about the budget"
+  still reads as a sentence. If they are not in the book yet, the last row of
+  the list adds them on the spot without taking you anywhere. Every task also
+  has a **People** field for the same thing the long way round.
 - **A Contacts card on every project.** It lists the people attached to the
   project itself _and_ everyone linked to one of its tasks, so adding someone to
   a task puts them there with no second step. Each row opens a twisty with their

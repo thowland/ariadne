@@ -113,7 +113,8 @@ export function ContactsCard({ projectId }: { projectId: string }): React.JSX.El
       headRight={
         <ContactPicker
           exclude={rows.map((r) => r.contact.id)}
-          placeholder="+ add person"
+          trigger="+ Add person"
+          placeholder="Search or add a person…"
           ariaLabel="Add a contact to this project"
           onPick={(contactId) => {
             const result = apply((ws) => addContactToProject(ws, projectId, contactId));

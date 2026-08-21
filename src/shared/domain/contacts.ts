@@ -333,23 +333,25 @@ export function findMention(text: string, caret: number): MentionQuery | null {
 }
 
 /**
- * Removes a mention token from the text once its contact has been picked
- * (the link lives on the task, not in the prose), tidying the whitespace it
- * leaves behind. Returns the new text and where the caret should land.
+ * Completes a mention in place: the typed fragment becomes the contact's full
+ * name, `@` and all. Returns the new text and where the caret should land.
+ *
+ * The name **stays in the title**, for the same reason a D29 date phrase does:
+ * "Ask @Dana Reyes about the budget" reads as a sentence, and a title that
+ * silently loses the word you just typed is disorienting. The chip below the
+ * field is the durable link; the text is how the task reads to a human.
  */
-export function removeMention(
+export function completeMention(
   text: string,
   mention: MentionQuery,
+  name: string,
 ): { text: string; caret: number } {
+  const inserted = `@${name}`;
   const before = text.slice(0, mention.start);
-  const after = text.slice(mention.end);
-  // "Ask @dana about X" → "Ask about X", not "Ask  about X"; and a mention at
-  // the end leaves no trailing space behind.
-  if (before.endsWith(' ') && (after === '' || after.startsWith(' '))) {
-    const trimmed = before.slice(0, -1);
-    return { text: trimmed + after, caret: trimmed.length };
-  }
-  return { text: before + after, caret: before.length };
+  return {
+    text: before + inserted + text.slice(mention.end),
+    caret: before.length + inserted.length,
+  };
 }
 
 // ---------- Search ----------

@@ -968,10 +968,21 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
   const quickAdd = win.getByLabel('Add a task');
   await quickAdd.fill('Ask @tom');
   await win.getByRole('option', { name: /Tom Whitaker/ }).click();
+  // The typed fragment completes to the full name and stays in the title.
+  await expect(quickAdd).toHaveValue('Ask @Tom Whitaker');
   await expect(win.getByTestId('quick-add-people')).toContainText('Tom Whitaker');
-  await quickAdd.fill('Ask about the second coat');
+  await quickAdd.fill('Ask @Tom Whitaker about the second coat');
   await quickAdd.press('Enter');
-  await expect(win.getByText('Ask about the second coat')).toBeVisible();
+  await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
+
+  // The card's "+ Add person" opens a real field listing everyone unlinked,
+  // rather than focusing an invisible box that looks like a dead link.
+  await win.getByRole('button', { name: '+ Add person' }).click();
+  const picker = win.getByLabel('Add a contact to this project');
+  await expect(picker).toBeFocused();
+  await expect(win.getByRole('listbox', { name: 'Contact suggestions' })).toBeVisible();
+  await picker.press('Escape');
+  await expect(picker).toHaveCount(0);
 
   // He is on the project's Contacts card, sourced from the tasks.
   const card = win.getByTestId('project-contacts');
@@ -988,7 +999,7 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
   await expect(win.getByTestId('search-summary')).toContainText('1 contact');
   await win.getByText('Tom Whitaker').first().click();
   await expect(win.getByTestId('contact-headline')).toHaveText('Tom Whitaker');
-  await expect(win.getByText('Ask about the second coat')).toBeVisible();
+  await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
 
   // Edit a field on the detail page; it must come back after a restart.
   await win.getByLabel('Role').fill('Owner, Harborline Marine');

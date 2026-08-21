@@ -88,7 +88,8 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
 - **Contacts** (decision D31) — the people behind the work. A contact carries a
   name, company, role, email, phone, notes, and tags; a task can be linked to
   any number of them by typing `@` and a few letters of a name, which completes
-  in place and creates the person on the spot if they are new. Every project
+  to their full name in place — the name stays in the title, the way a D29 date
+  phrase does — and creates the person on the spot if they are new. Every project
   grows a **Contacts** card listing the people attached to the project itself
   _plus_ everyone on one of its tasks, each expandable to click-to-copy details.
   A **Contacts** screen sorts the whole address book by open load, company, or

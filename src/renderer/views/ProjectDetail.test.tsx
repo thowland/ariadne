@@ -354,7 +354,7 @@ describe('ProjectDetail — hide completed tasks (D30)', () => {
     await userEvent.type(input, '{Enter}');
 
     const created = ws().tasks[ws().tasks.length - 1];
-    expect(created?.title).toBe('Ask about coat timing');
+    expect(created?.title).toBe('Ask @Tom Whitaker about coat timing');
     expect(created?.contactIds).toEqual(['c5']);
     // The pending chips are cleared for the next task.
     expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
