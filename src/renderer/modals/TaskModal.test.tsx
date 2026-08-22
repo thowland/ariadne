@@ -328,4 +328,36 @@ describe('TaskModal — natural-language dates in the title (D29)', () => {
     expect(useStore.getState().view).toBe('contact');
     expect(useStore.getState().activeContactId).toBe('c1');
   });
+
+  it('records an effort estimate in days and hours (D36)', async () => {
+    openModal('t4'); // "Migrate billing service", seeded at 16h
+    const field = screen.getByLabelText('Estimate');
+    expect(field).toHaveValue('2d');
+
+    await userEvent.clear(field);
+    await userEvent.type(field, '1d 4h');
+    await userEvent.tab();
+    expect(task('t4').estimateHours).toBe(12);
+    // Committed and reformatted the way it will be shown from now on.
+    expect(screen.getByLabelText('Estimate')).toHaveValue('1d 4h');
+  });
+
+  it('clearing the field means no estimate, not zero effort', async () => {
+    openModal('t4');
+    await userEvent.clear(screen.getByLabelText('Estimate'));
+    await userEvent.tab();
+    expect(task('t4').estimateHours).toBeUndefined();
+  });
+
+  it('puts back what is recorded when the text cannot be read', async () => {
+    openModal('t4');
+    const field = screen.getByLabelText('Estimate');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'a while');
+    await userEvent.tab();
+    // The estimate survives the typo, and the user is told why.
+    expect(task('t4').estimateHours).toBe(16);
+    expect(screen.getByLabelText('Estimate')).toHaveValue('2d');
+    expect(useStore.getState().toast).toContain('2d 4h');
+  });
 });

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.3.0 — 2026-08-22
+
+- **Dark mode.** Ariadne follows your operating system's light or dark setting
+  out of the box, switching when it does; **Settings → Appearance** pins it to
+  one or the other if you would rather it stayed put. Native menus and dialogs
+  follow along. Printed and exported reports stay black-on-white whichever you
+  are using — paper does not have a dark mode.
+- **A date you type is taken out of the title.** "Call the vendor tomorrow"
+  becomes the task "Call the vendor", due tomorrow. The words used to stay,
+  which read nicely right up until you rescheduled the task and the title
+  insisted on a day the due date disagreed with. The phrase stays visible and
+  highlighted while you type; it goes when the task is added, or when you
+  leave the title field in the editor. Waving the date off with the chip
+  leaves your text exactly as written.
+- **Effort estimates on tasks**, in days and hours — "2d 4h", "3h", "1.5d". It
+  is effort, not calendar time: two days means two days of _work_, whenever
+  they happen, and a day is eight hours. A project's header now shows how much
+  work is left in it, with a note when some open tasks carry no estimate, and
+  the portfolio roll-up gains a sortable **Effort left** column that also
+  exports to CSV in raw hours so a spreadsheet can total it.
+- **Draw dependencies on the map.** Drag one task's box on top of another and
+  the dragged task now waits on the one you dropped it on, landing directly
+  underneath it with the arrow drawn in. Right-click any line to remove that
+  dependency. Ariadne refuses a link that would leave two tasks waiting on
+  each other, and says so. The "Blocked by" checkboxes in the task editor do
+  the same two things the long way, as before.
+- **Fewer distracting placeholders on a contact.** The greyed-out example text
+  in an empty Company or Email box now appears only while you are filling in
+  somebody new. On a contact you already have, an empty box just looks empty,
+  which is the point.
+
 ## 2.2.0 — 2026-08-22
 
 - **An organization map on a contact's page.** Their manager sits above them,

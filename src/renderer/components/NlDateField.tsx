@@ -49,6 +49,7 @@ export function NlDateField({
   onKeyDown,
   mentionContacts,
   mentionExclude = [],
+  onCommitDate,
   onMention,
   onCreateContact,
 }: {
@@ -71,6 +72,13 @@ export function NlDateField({
   mentionContacts?: readonly Contact[];
   /** Contacts already linked, so the picker never offers a duplicate. */
   mentionExclude?: readonly string[];
+  /**
+   * Fired when the field loses focus, with the date phrase still standing in
+   * the text (null if there is none or it was waved off). The caller decides
+   * whether to strip it — only it knows whether the date was actually
+   * applied (D35).
+   */
+  onCommitDate?: (match: NlDateMatch | null) => void;
   /** Fired with the picked contact's id once the name is completed in place. */
   onMention?: (contactId: string) => void;
   /**
@@ -220,6 +228,7 @@ export function NlDateField({
           setTimeout(() => {
             setMention(null);
           }, 0);
+          onCommitDate?.(match);
         }}
         onKeyDown={(e) => {
           // While the people picker is open it owns the arrows, Enter and
@@ -317,6 +326,12 @@ export function NlDateField({
           className="nl-chip"
           data-testid="nl-date-chip"
           title={`Due ${match.date} — click to ignore this date`}
+          // Keep the focus in the field: blurring commits the date and takes
+          // the phrase out of the title (D35), which would unmount this chip
+          // before the click that is trying to wave the date off landed.
+          onMouseDown={(e) => {
+            e.preventDefault();
+          }}
           onClick={onDismiss}
         >
           {relativeDueLabel(match.date, today).text}

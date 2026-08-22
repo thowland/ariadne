@@ -17,7 +17,10 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['src/{shared,main,preload}/**/*.test.ts'],
+          // `*.node.test.ts` lets a renderer-adjacent test that needs the
+          // filesystem — the theme contract reads the stylesheets as text —
+          // live beside what it checks without giving the renderer node types.
+          include: ['src/{shared,main,preload}/**/*.test.ts', 'src/renderer/**/*.node.test.ts'],
           setupFiles: ['vitest.setup.node.ts'],
         },
       },
@@ -28,6 +31,8 @@ export default defineConfig({
           name: 'web',
           environment: 'jsdom',
           include: ['src/renderer/**/*.test.{ts,tsx}'],
+          // …and out of the jsdom project, or it runs in both.
+          exclude: ['src/renderer/**/*.node.test.ts'],
           setupFiles: ['src/renderer/test-setup.ts'],
         },
       },

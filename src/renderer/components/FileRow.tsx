@@ -5,19 +5,19 @@ import { useStore } from '../app/store';
 
 /** File-type badge colors (design/README.md §File-type badge colors). */
 const BADGE_COLORS: Record<string, string> = {
-  md: '#4f5bd5',
-  txt: '#8a8a82',
-  pdf: '#c23b2b',
-  csv: '#2f8552',
-  xlsx: '#2f8552',
-  docx: '#2f62d8',
-  rtf: '#8a8a82',
-  pptx: '#c46a1c',
-  png: '#7c4dd6',
-  jpg: '#7c4dd6',
-  jpeg: '#7c4dd6',
-  gif: '#7c4dd6',
-  webp: '#7c4dd6',
+  md: 'var(--accent)',
+  txt: 'var(--faint)',
+  pdf: 'var(--danger-text)',
+  csv: 'var(--ok-text)',
+  xlsx: 'var(--ok-text)',
+  docx: 'var(--status-doing-c)',
+  rtf: 'var(--faint)',
+  pptx: 'var(--warn-text)',
+  png: 'var(--file-md)',
+  jpg: 'var(--file-md)',
+  jpeg: 'var(--file-md)',
+  gif: 'var(--file-md)',
+  webp: 'var(--file-md)',
 };
 
 export function humanSize(bytes: number): string {
@@ -29,7 +29,7 @@ export function humanSize(bytes: number): string {
 
 export function FileTypeBadge({ file }: { file: FileEntry }): React.JSX.Element {
   const ext = (file.kind === 'markdown' ? 'md' : file.ext).toLowerCase();
-  const color = BADGE_COLORS[ext] ?? '#8a8a82';
+  const color = BADGE_COLORS[ext] ?? 'var(--faint)';
   const label = file.kind === 'ref' && ext === '' ? 'REF' : (ext || '?').toUpperCase().slice(0, 4);
   return (
     <span className="file-badge" style={{ background: `${color}1c`, color }}>

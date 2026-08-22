@@ -96,7 +96,7 @@ export function layoutDepGraph(
       const from = pos.get(d);
       const to = pos.get(t.id);
       if (from !== undefined && to !== undefined) {
-        edges.push(anchorEdge(from, to, NODE_W, NODE_H));
+        edges.push(anchorEdge(from, to, NODE_W, NODE_H, { from: d, to: t.id }));
       }
     }
   }
@@ -107,4 +107,38 @@ export function layoutDepGraph(
   });
 
   return { nodes, edges, ...mapBounds(nodes, NODE_W, NODE_H, PAD_L) };
+}
+
+/**
+ * Would `taskId` depending on `dependsOnId` close a loop? True when the
+ * proposed predecessor already waits, directly or through a chain, on the
+ * task that would come after it.
+ *
+ * The map and `isBlocked` both tolerate a cycle (D-spec §3.1), so this is not
+ * needed to keep them safe — it is here so the drag gesture cannot build one
+ * by accident, the same way the org map hides a person's own subtree.
+ */
+export function wouldCycle(tasks: readonly Task[], taskId: string, dependsOnId: string): boolean {
+  if (taskId === dependsOnId) return true;
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const seen = new Set<string>();
+  const stack = [dependsOnId];
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (id === undefined || seen.has(id)) continue;
+    seen.add(id);
+    if (id === taskId) return true;
+    for (const d of byId.get(id)?.dependsOn ?? []) stack.push(d);
+  }
+  return false;
+}
+
+/**
+ * Where a newly linked dependent belongs: directly under its predecessor,
+ * one layout row down. Dropping a box onto another pins it at the pointer,
+ * which is on top of the box it was dropped on; this is where it goes
+ * instead so the new arrow is visible immediately (D37).
+ */
+export function belowNode(predecessor: { x: number; y: number }): { x: number; y: number } {
+  return { x: predecessor.x, y: predecessor.y + NODE_H + ROW_GAP };
 }

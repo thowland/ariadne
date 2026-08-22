@@ -86,10 +86,16 @@ export function layoutOrgChart(
     // Manager → person, then person → each report: the direction the chart
     // is read in, which is also the direction the arrowheads point.
     const above = manager === undefined ? undefined : at(manager.id);
-    if (above !== undefined) edges.push(anchorEdge(above, self, ORG_NODE_W, ORG_NODE_H));
+    if (above !== undefined && manager !== undefined) {
+      edges.push(
+        anchorEdge(above, self, ORG_NODE_W, ORG_NODE_H, { from: manager.id, to: contact.id }),
+      );
+    }
     for (const r of reports) {
       const below = at(r.id);
-      if (below !== undefined) edges.push(anchorEdge(self, below, ORG_NODE_W, ORG_NODE_H));
+      if (below !== undefined) {
+        edges.push(anchorEdge(self, below, ORG_NODE_W, ORG_NODE_H, { from: contact.id, to: r.id }));
+      }
     }
   }
 

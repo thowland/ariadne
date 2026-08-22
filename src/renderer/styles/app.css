@@ -53,13 +53,13 @@ p {
   height: 10px;
 }
 .scr::-webkit-scrollbar-thumb {
-  background: rgba(20, 20, 15, 0.16);
+  background: var(--ink-16);
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 .scr::-webkit-scrollbar-thumb:hover {
-  background: rgba(20, 20, 15, 0.28);
+  background: var(--ink-28);
   border: 3px solid transparent;
   background-clip: padding-box;
 }
@@ -121,7 +121,7 @@ p {
   width: 250px;
   flex: none;
   background: var(--surface2);
-  border-right: 1px solid rgba(20, 20, 15, 0.08);
+  border-right: 1px solid var(--ink-08);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -168,12 +168,12 @@ p {
   text-align: left;
 }
 .navitem:hover {
-  background: rgba(20, 20, 15, 0.055);
+  background: var(--ink-06);
 }
 .navitem.active {
   font-weight: 600;
   color: var(--text);
-  background: rgba(20, 20, 15, 0.06);
+  background: var(--ink-06);
 }
 .navitem .nav-label {
   flex: 1;
@@ -227,11 +227,11 @@ p {
 }
 .sidebar-section .label-btn:hover {
   color: var(--muted);
-  background: rgba(20, 20, 15, 0.055);
+  background: var(--ink-06);
 }
 .sidebar-section .label-btn.active {
   color: var(--text);
-  background: rgba(20, 20, 15, 0.075);
+  background: var(--ink-08);
 }
 
 .sidebar-section .add-btn {
@@ -243,7 +243,7 @@ p {
   transition: background 0.12s;
 }
 .sidebar-section .add-btn:hover {
-  background: rgba(20, 20, 15, 0.055);
+  background: var(--ink-06);
 }
 
 /* ============ Top bar ============ */
@@ -253,8 +253,8 @@ p {
   align-items: center;
   gap: 14px;
   padding: 13px 22px;
-  border-bottom: 1px solid rgba(20, 20, 15, 0.08);
-  background: rgba(246, 246, 244, 0.88);
+  border-bottom: 1px solid var(--ink-08);
+  background: var(--topbar-bg);
   backdrop-filter: blur(8px);
   flex: none;
   z-index: 5;
@@ -310,7 +310,7 @@ p {
   min-width: 96px;
   flex: 0 1 230px;
   padding: 8px 12px;
-  border: 1px solid rgba(20, 20, 15, 0.12);
+  border: 1px solid var(--ink-12);
   border-radius: 9px;
   font-size: 13px;
   background: var(--surface);
@@ -347,7 +347,7 @@ p {
 }
 .btn.primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn.primary:hover {
   filter: brightness(1.07);
@@ -358,21 +358,21 @@ p {
   border: 1px solid var(--border);
 }
 .btn.ghost:hover {
-  background: #f1f1ee;
+  background: var(--sunken);
 }
 .btn.subtle {
   background: transparent;
   color: var(--muted);
 }
 .btn.subtle:hover {
-  background: rgba(20, 20, 15, 0.06);
+  background: var(--ink-06);
 }
 .btn.danger {
   background: var(--danger-bg);
   color: var(--danger-text);
 }
 .btn.danger:hover {
-  background: #f7ddd7;
+  background: var(--danger-border);
 }
 
 /* ============ Cards ============ */
@@ -391,7 +391,7 @@ p {
 }
 .card.clk:hover {
   box-shadow: var(--shadow-card-hover);
-  border-color: rgba(20, 20, 15, 0.18);
+  border-color: var(--ink-16);
   transform: translateY(-1px);
 }
 
@@ -454,7 +454,7 @@ p {
   transition: background 0.1s;
 }
 .trow:hover {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 
 .status-toggle {
@@ -639,8 +639,8 @@ p {
   display: flex;
   align-items: center;
   gap: 11px;
-  background: #fdf1ee;
-  border: 1px solid #f3d3cb;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   border-radius: 11px;
   padding: 11px 15px;
   margin-bottom: 16px;
@@ -648,11 +648,11 @@ p {
 .ambient-banner .banner-text {
   font-size: 13px;
   font-weight: 600;
-  color: #a2372a;
+  color: var(--danger-hover);
 }
 .ambient-banner .banner-hint {
   font-size: 12.5px;
-  color: #b06a5e;
+  color: var(--danger-text);
 }
 
 .home-grid {
@@ -740,7 +740,7 @@ p {
 }
 .progress-track {
   height: 6px;
-  background: #efefec;
+  background: var(--sunken);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 9px;
@@ -769,7 +769,7 @@ p {
 
 .seg {
   display: inline-flex;
-  background: #eaeae6;
+  background: var(--border-strong);
   border-radius: 9px;
   padding: 3px;
   gap: 2px;
@@ -784,8 +784,8 @@ p {
 }
 .seg button.active {
   color: var(--text);
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.09);
+  background: var(--surface);
+  box-shadow: 0 1px 2px var(--ink-08);
 }
 
 /* ============ Search results ============ */
@@ -827,7 +827,7 @@ p {
 
 .save-error-banner {
   background: var(--danger-text);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -863,8 +863,8 @@ p {
   bottom: 26px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1b1b18;
-  color: #fff;
+  background: var(--text);
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 600;
   padding: 10px 18px;
@@ -934,6 +934,19 @@ p {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.project-effort {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.project-effort-gap,
+.effort-gap {
+  font-size: 11px;
+  color: var(--faint);
 }
 .project-done-count {
   font-size: 12.5px;
@@ -1042,7 +1055,7 @@ input.inp.full {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--muted);
-  background: #f0f0ee;
+  background: var(--sunken);
   border-radius: 6px;
   padding: 3px 4px 3px 8px;
 }
@@ -1131,7 +1144,7 @@ input.inp.full {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 20, 15, 0.42);
+  background: var(--ink-42);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -1225,7 +1238,7 @@ input.inp.full {
   border: 2px solid var(--border);
   background: transparent;
   flex: none;
-  color: #fff;
+  color: var(--on-accent);
   font-size: 10px;
   line-height: 1;
   padding: 0;
@@ -1276,7 +1289,7 @@ input.inp.full {
   cursor: pointer;
 }
 .dep-row.on {
-  background: #f5f6fe;
+  background: var(--accent-soft2);
 }
 .dep-title {
   flex: 1;
@@ -1381,10 +1394,10 @@ input.inp.full {
   border-right: none;
 }
 .cal-cell.pad {
-  background: #fafaf8;
+  background: var(--surface2);
 }
 .cal-cell.today {
-  background: #f5f6fe;
+  background: var(--accent-soft2);
 }
 .cal-daynum {
   font-size: 11.5px;
@@ -1416,7 +1429,7 @@ input.inp.full {
   overflow: hidden;
 }
 .cal-chip.done {
-  background: #f0f0ee;
+  background: var(--sunken);
   color: var(--faint);
   text-decoration: line-through;
 }
@@ -1446,11 +1459,20 @@ input.inp.full {
   user-select: none;
   touch-action: none;
 }
+/* The box a dragged node is hovering over, about to be linked to (D37). */
+.node-map-node.drop-target rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  fill: var(--accent-soft);
+}
+.node-map-edge-hit {
+  cursor: context-menu;
+}
 .node-map-node.dragging {
   cursor: grabbing;
 }
 .node-map-node.dragging rect {
-  filter: drop-shadow(0 3px 8px rgba(20, 20, 15, 0.22));
+  filter: drop-shadow(0 3px 8px var(--ink-16));
 }
 .dep-head {
   align-items: center;
@@ -1470,7 +1492,7 @@ input.inp.full {
 }
 .node-map-resize:hover,
 .node-map-resize:focus-visible {
-  background: rgba(20, 20, 15, 0.05);
+  background: var(--ink-04);
 }
 .node-map-grip {
   width: 34px;
@@ -1530,7 +1552,7 @@ input.inp.full {
   transition: background 0.12s;
 }
 .lib-btn:hover {
-  background: rgba(20, 20, 15, 0.06);
+  background: var(--ink-06);
 }
 
 .attachment-list {
@@ -1647,21 +1669,21 @@ input.inp.full {
   margin: 3px 0;
 }
 .md-preview blockquote {
-  border-left: 3px solid #d4d4cc;
+  border-left: 3px solid var(--border-strong);
   padding: 2px 0 2px 12px;
   margin: 10px 0;
-  color: #57574f;
+  color: var(--muted);
 }
 .md-preview code {
-  background: #f0f0ee;
+  background: var(--sunken);
   border-radius: 4px;
   padding: 1px 5px;
   font-family: var(--font-mono);
   font-size: 0.9em;
 }
 .md-preview pre {
-  background: #f4f4f1;
-  border: 1px solid rgba(20, 20, 15, 0.08);
+  background: var(--sunken);
+  border: 1px solid var(--ink-08);
   border-radius: 8px;
   padding: 12px;
   overflow: auto;
@@ -1674,7 +1696,7 @@ input.inp.full {
 }
 .md-preview hr {
   border: none;
-  border-top: 1px solid rgba(20, 20, 15, 0.1);
+  border-top: 1px solid var(--ink-08);
   margin: 16px 0;
 }
 .md-empty {
@@ -1735,8 +1757,8 @@ input.inp.full {
 }
 .pdf-canvas-wrap canvas {
   align-self: flex-start;
-  box-shadow: 0 1px 6px rgba(20, 20, 15, 0.16);
-  background: #fff;
+  box-shadow: 0 1px 6px var(--ink-16);
+  background: var(--surface);
 }
 
 .csv-wrap {
@@ -1933,7 +1955,7 @@ input.inp.full {
     color 0.12s;
 }
 .sort-header:hover {
-  background: rgba(20, 20, 15, 0.06);
+  background: var(--ink-06);
   color: var(--muted);
 }
 .sort-header.active {
@@ -2126,7 +2148,7 @@ input.inp.full {
   transition: background 0.12s;
 }
 .cal-daynum.clickable:hover {
-  background: rgba(20, 20, 15, 0.08);
+  background: var(--ink-08);
 }
 .cal-more {
   text-align: left;
@@ -2193,7 +2215,7 @@ input.inp.full {
   color: var(--faint);
 }
 .ai-import-error {
-  color: #c23b2b;
+  color: var(--danger-text);
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -2242,7 +2264,7 @@ input.inp.full {
   transition: background 0.1s;
 }
 .portfolio-row:hover td {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 
 /* ============ Tag autocomplete & chip search ============ */
@@ -2310,7 +2332,7 @@ input.inp.full {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
-  background: #f0f0ee;
+  background: var(--sunken);
   border-radius: 6px;
   padding: 3px 9px;
 }
@@ -2454,7 +2476,7 @@ input.inp.full {
   border-right: none;
 }
 .cal-week-col.today {
-  background: #f5f6fe;
+  background: var(--accent-soft2);
 }
 /* The whole column opens the day dialog, so it has to read as a target. The
    tint is lighter than .cal-daynum.clickable:hover so the day number still
@@ -2464,10 +2486,10 @@ input.inp.full {
   transition: background 0.12s;
 }
 .cal-week-col.clickable:hover {
-  background: rgba(20, 20, 15, 0.04);
+  background: var(--ink-04);
 }
 .cal-week-col.clickable.today:hover {
-  background: #eceefc;
+  background: var(--accent-soft);
 }
 .cal-week-head {
   display: flex;
@@ -2490,7 +2512,7 @@ input.inp.full {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--muted);
-  background: #f0f0ee;
+  background: var(--sunken);
   border-radius: 20px;
   padding: 3px 9px;
   white-space: nowrap;
@@ -2535,13 +2557,13 @@ input.inp.full {
 .retro-chart-bar {
   width: 100%;
   max-width: 24px;
-  background: #2f8552;
+  background: var(--ok-text);
   border-radius: 4px 4px 0 0;
   min-height: 3px;
 }
 .retro-chart-bar.zero {
   height: 3px !important;
-  background: #2f855226;
+  background: var(--ok-bg);
   border-radius: 0;
 }
 .retro-chart-peak {
@@ -2624,13 +2646,13 @@ input.inp.full {
 }
 .pc-spark-bar {
   width: 100%;
-  background: #d5d5cf;
+  background: var(--border-strong);
   border-radius: 2px 2px 0 0;
   min-height: 2px;
 }
 .pc-spark-bar.zero {
   height: 2px !important;
-  background: #e8e8e4;
+  background: var(--border-strong);
   border-radius: 0;
 }
 .pc-spark-bar.current {
@@ -2849,7 +2871,7 @@ input.inp.full {
 }
 .nl-chip:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .nl-chip-x {
   font-size: 13px;
@@ -3026,7 +3048,7 @@ input.inp.full {
   cursor: pointer;
 }
 .help-nav-item:hover {
-  background: rgba(20, 20, 15, 0.045);
+  background: var(--ink-04);
   color: var(--text);
 }
 .help-nav-item.on {
@@ -3067,7 +3089,7 @@ input.inp.full {
 .help-body code {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: rgba(20, 20, 15, 0.05);
+  background: var(--ink-04);
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -3176,7 +3198,7 @@ input.inp.full {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
   letter-spacing: 0.02em;
   flex: none;
@@ -3332,7 +3354,7 @@ input.inp.full {
   font-size: 12px;
   font-weight: 600;
   color: var(--text);
-  background: #f0f0ee;
+  background: var(--sunken);
   border-radius: 20px;
   padding: 2px 4px 2px 3px;
 }
@@ -3410,7 +3432,7 @@ input.inp.full {
   cursor: pointer;
 }
 .contact-acc-head:hover {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 .contact-acc-twisty {
   font-size: 10px;
@@ -3579,7 +3601,7 @@ input.inp.full {
   cursor: pointer;
 }
 .contact-org-person:hover {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 .contact-org-name {
   font-size: 13px;
@@ -3615,7 +3637,7 @@ input.inp.full {
   border-radius: 8px;
 }
 .contact-project-line:hover {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 
 /* Contact activity report */
@@ -3688,7 +3710,7 @@ input.inp.full {
   border-radius: 8px;
 }
 .search-contact-row:hover {
-  background: #faf9f6;
+  background: var(--surface3);
 }
 .search-contact-open {
   display: flex;

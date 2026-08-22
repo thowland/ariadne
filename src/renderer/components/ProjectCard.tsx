@@ -19,15 +19,15 @@ import { CategoryPill, Dot } from './primitives';
  * is a lighter step of the blocked amber (related states, ordered by
  * severity); the 2px gaps do the separating. */
 const STRIP_SEGMENTS = [
-  ['done', '#3a9a5f'],
-  ['doing', '#2f62d8'],
-  ['blocked', '#d69220'],
-  ['waiting', '#e8c88a'],
-  ['todo', '#dcdcd4'],
+  ['done', 'var(--ok-dot)'],
+  ['doing', 'var(--status-doing-c)'],
+  ['blocked', 'var(--warn-dot)'],
+  ['waiting', 'var(--spark-warn)'],
+  ['todo', 'var(--border-strong)'],
 ] as const;
 
 /** Due-load cell shades: 0, 1, 2, 3+ due — one accent hue, light → dark. */
-const DUE_LEVELS = ['#efefec', '#c9cef4', '#8f99e8', '#4f5bd5'];
+const DUE_LEVELS = ['var(--sunken)', 'var(--spark-soft)', 'var(--spark-accent)', 'var(--accent)'];
 
 /** Portfolio project card (prototype _projectCard). */
 export function ProjectCard({ project }: { project: Project }): React.JSX.Element {
@@ -75,7 +75,7 @@ export function ProjectCard({ project }: { project: Project }): React.JSX.Elemen
             />
           ))
         ) : (
-          <div className="status-strip-seg" style={{ flexGrow: 1, background: '#efefec' }} />
+          <div className="status-strip-seg" style={{ flexGrow: 1, background: 'var(--sunken)' }} />
         )}
       </div>
       <div className="pc-meta">

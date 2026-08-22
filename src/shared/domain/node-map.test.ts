@@ -1,31 +1,61 @@
 import { describe, expect, it } from 'vitest';
 
-import { anchorEdge, mapBounds, pinnedPosition } from './node-map';
+import { anchorEdge, mapBounds, nodeAt, pinnedPosition } from './node-map';
 
 const W = 100;
 const H = 40;
 
 describe('anchorEdge', () => {
   it('leaves the bottom and enters the top when the target is below', () => {
-    const e = anchorEdge({ x: 0, y: 0 }, { x: 0, y: 200 }, W, H);
-    expect(e).toEqual({ x1: 50, y1: 40, x2: 50, y2: 200, axis: 'v' });
+    const e = anchorEdge({ x: 0, y: 0 }, { x: 0, y: 200 }, W, H, { from: 'a', to: 'b' });
+    expect(e).toEqual({ x1: 50, y1: 40, x2: 50, y2: 200, axis: 'v', from: 'a', to: 'b' });
   });
 
   it('leaves the top and enters the bottom when the target is above', () => {
-    const e = anchorEdge({ x: 0, y: 200 }, { x: 0, y: 0 }, W, H);
-    expect(e).toEqual({ x1: 50, y1: 200, x2: 50, y2: 40, axis: 'v' });
+    const e = anchorEdge({ x: 0, y: 200 }, { x: 0, y: 0 }, W, H, { from: 'a', to: 'b' });
+    expect(e).toEqual({ x1: 50, y1: 200, x2: 50, y2: 40, axis: 'v', from: 'a', to: 'b' });
   });
 
   it('goes side to side when the boxes overlap vertically', () => {
     // Only reachable once a node has been hand-placed beside another.
-    const right = anchorEdge({ x: 0, y: 0 }, { x: 300, y: 10 }, W, H);
-    expect(right).toEqual({ x1: 100, y1: 20, x2: 300, y2: 30, axis: 'h' });
-    const left = anchorEdge({ x: 300, y: 0 }, { x: 0, y: 10 }, W, H);
-    expect(left).toEqual({ x1: 300, y1: 20, x2: 100, y2: 30, axis: 'h' });
+    const ids = { from: 'a', to: 'b' };
+    const right = anchorEdge({ x: 0, y: 0 }, { x: 300, y: 10 }, W, H, ids);
+    expect(right).toEqual({ x1: 100, y1: 20, x2: 300, y2: 30, axis: 'h', ...ids });
+    const left = anchorEdge({ x: 300, y: 0 }, { x: 0, y: 10 }, W, H, ids);
+    expect(left).toEqual({ x1: 300, y1: 20, x2: 100, y2: 30, axis: 'h', ...ids });
   });
 
   it('treats exactly touching boxes as vertical, not overlapping', () => {
     expect(anchorEdge({ x: 0, y: 0 }, { x: 0, y: H }, W, H).axis).toBe('v');
+  });
+});
+
+describe('nodeAt', () => {
+  const nodes = [
+    { id: 'a', x: 0, y: 0, pinned: false },
+    { id: 'b', x: 200, y: 0, pinned: false },
+  ];
+
+  it('finds the box a point falls inside', () => {
+    expect(nodeAt(nodes, 250, 20, W, H, 'a')?.id).toBe('b');
+    expect(nodeAt(nodes, 200, 0, W, H, 'a')?.id).toBe('b');
+    expect(nodeAt(nodes, 300, 40, W, H, 'a')?.id).toBe('b');
+  });
+
+  it('is null in the gaps', () => {
+    expect(nodeAt(nodes, 150, 20, W, H, 'a')).toBeNull();
+    expect(nodeAt(nodes, 250, 90, W, H, 'a')).toBeNull();
+  });
+
+  it('never reports the node being dragged', () => {
+    // Otherwise a box would always be hovering over itself.
+    expect(nodeAt(nodes, 20, 20, W, H, 'a')).toBeNull();
+    expect(nodeAt(nodes, 20, 20, W, H, 'b')?.id).toBe('a');
+  });
+
+  it('picks the last box drawn when two overlap', () => {
+    const stacked = [...nodes, { id: 'c', x: 190, y: 0, pinned: true }];
+    expect(nodeAt(stacked, 250, 20, W, H, 'a')?.id).toBe('c');
   });
 });
 

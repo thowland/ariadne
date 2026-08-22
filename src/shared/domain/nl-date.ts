@@ -175,3 +175,28 @@ export function findNlDate(text: string, today: IsoDate): NlDateMatch | null {
   }
   return best;
 }
+
+/**
+ * Removes an accepted date phrase from the title (D35), tidying the space it
+ * leaves behind and any punctuation left dangling in front of it.
+ *
+ * The phrase used to stay, on the reasoning that "Ship the deck friday" reads
+ * naturally. In use it does not survive contact with rescheduling: move the
+ * task to Tuesday and the title still insists on Friday, so the text and the
+ * due date disagree and the text is the one people believe. The date field is
+ * the single copy; the words were a way of typing it, not part of the name.
+ *
+ * Deliberately the opposite of an @-mention (D31), which keeps its text — a
+ * name is who the task is about, where a date is only when it is due, and the
+ * row already shows that.
+ */
+export function stripNlDate(text: string, match: NlDateMatch): string {
+  const before = text.slice(0, match.start);
+  const after = text.slice(match.end);
+  // "Review the deck, friday" → "Review the deck", not "Review the deck,".
+  const head =
+    /[,;:\s]+$/.test(before) && after.trim() === '' ? before.replace(/[,;:\s]+$/, '') : before;
+  const joined = `${head}${after}`;
+  // Collapse the double space a mid-sentence removal leaves.
+  return joined.replace(/[ \t]{2,}/g, ' ').trim();
+}

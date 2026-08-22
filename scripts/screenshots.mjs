@@ -163,6 +163,16 @@ const SHOTS = [
     },
   },
   {
+    // Dark mode (D38), on the busiest screen in the app.
+    name: 'dark-mode',
+    async go(win) {
+      await win.getByRole('button', { name: 'Settings' }).click();
+      await win.getByLabel('Theme').selectOption('dark');
+      await win.getByRole('button', { name: 'Command Center' }).click();
+      await win.getByTestId('home-headline').waitFor();
+    },
+  },
+  {
     name: 'settings',
     async go(win) {
       await win.getByRole('button', { name: 'Settings' }).click();

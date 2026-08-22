@@ -180,6 +180,8 @@ describe('portfolioCsvRows', () => {
       'Open',
       'Done',
       'Overdue',
+      'Effort left (h)',
+      'Effort total (h)',
       'Next due',
     ]);
     expect(rows).toHaveLength(portfolioRollup(ws, 'all', TODAY).length + 1);
@@ -188,7 +190,7 @@ describe('portfolioCsvRows', () => {
   it('writes the raw ISO next-due date, not a relative label', () => {
     const rows = portfolioCsvRows(portfolioRollup(ws, 'all', TODAY));
     const p1 = rows.find((r) => r[0] === 'Q3 Platform Migration');
-    expect(p1?.[6]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(p1?.[8]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(p1?.[2]).toBe('17'); // 1 done of 6
   });
 
@@ -199,9 +201,9 @@ describe('portfolioCsvRows', () => {
     };
     const rows = portfolioCsvRows(portfolioRollup(stripped, 'all', TODAY));
     const p6 = rows.find((r) => r[0] === 'Home network upgrade');
-    expect(p6?.[6]).toBe('');
+    expect(p6?.[8]).toBe('');
     // Other projects still carry theirs — the blank is specific, not global.
-    expect(rows.find((r) => r[0] === 'Q3 Platform Migration')?.[6]).not.toBe('');
+    expect(rows.find((r) => r[0] === 'Q3 Platform Migration')?.[8]).not.toBe('');
   });
 });
 

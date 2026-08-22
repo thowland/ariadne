@@ -57,7 +57,7 @@ export function TopBar(): React.JSX.Element {
             go('home');
           }}
         >
-          <span className="dot" style={{ width: 6, height: 6, background: '#d94c3a' }} />
+          <span className="dot" style={{ width: 6, height: 6, background: 'var(--danger-dot)' }} />
           {overdue} overdue
         </button>
       )}

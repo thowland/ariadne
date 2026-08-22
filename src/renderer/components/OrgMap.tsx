@@ -11,9 +11,9 @@ import { NodeMap, truncate } from './NodeMap';
 
 /** How each row is labelled and tinted, so the three levels read at a glance. */
 const RELATION: Record<OrgRelation, { label: string; stroke: string; text: string }> = {
-  manager: { label: 'MANAGER', stroke: '#c8c8c0', text: '#73736c' },
-  self: { label: 'THIS CONTACT', stroke: '#4f5bd5', text: '#4f5bd5' },
-  report: { label: 'REPORTS TO THEM', stroke: '#c8c8c0', text: '#73736c' },
+  manager: { label: 'MANAGER', stroke: 'var(--map-arrow)', text: 'var(--muted)' },
+  self: { label: 'THIS CONTACT', stroke: 'var(--accent)', text: 'var(--accent)' },
+  report: { label: 'REPORTS TO THEM', stroke: 'var(--map-arrow)', text: 'var(--muted)' },
 };
 
 export interface OrgMapProps {
@@ -51,6 +51,8 @@ export function OrgMap({
           map appears.
         </div>
       }
+      nodeW={ORG_NODE_W}
+      nodeH={ORG_NODE_H}
       positions={positions}
       onMove={onMove}
       height={height}
@@ -76,7 +78,7 @@ export function OrgMap({
               width={ORG_NODE_W}
               height={ORG_NODE_H}
               rx={9}
-              fill="#fff"
+              fill="var(--map-node-fill)"
               stroke={style.stroke}
               strokeWidth={self ? 2 : 1.5}
             />
@@ -88,7 +90,7 @@ export function OrgMap({
               y={y + 34}
               fontSize={9.5}
               fontWeight={700}
-              fill="#fff"
+              fill="var(--map-node-fill)"
               textAnchor="middle"
             >
               {contactInitials(c)}
@@ -96,10 +98,10 @@ export function OrgMap({
             <text x={x + 40} y={y + 20} fontSize={8.5} fontWeight={700} fill={style.text}>
               {style.label}
             </text>
-            <text x={x + 40} y={y + 34} fontSize={12} fontWeight={600} fill="#1b1b18">
+            <text x={x + 40} y={y + 34} fontSize={12} fontWeight={600} fill="var(--text)">
               {truncate(contactName(c), 18)}
             </text>
-            <text x={x + 40} y={y + 48} fontSize={10.5} fill="#73736c">
+            <text x={x + 40} y={y + 48} fontSize={10.5} fill="var(--muted)">
               {truncate([c.role, c.department].filter((v) => v.trim() !== '').join(' · '), 22)}
             </text>
           </>

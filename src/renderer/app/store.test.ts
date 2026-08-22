@@ -60,6 +60,7 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
     revealLogFile: vi.fn().mockResolvedValue({ ok: true }),
     getLogInfo: vi.fn().mockResolvedValue({ defaultDir: '/tmp/userData/logs' }),
     setBadge: vi.fn().mockResolvedValue(undefined),
+    setNativeTheme: vi.fn().mockResolvedValue(undefined),
     fakeToday: TODAY,
     insetTitlebar: false,
     ...overrides,

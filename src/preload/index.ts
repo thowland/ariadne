@@ -35,6 +35,7 @@ const api: AriadneApi = {
   importArchive: () => ipcRenderer.invoke(IPC.archiveImport),
   importFromFile: () => ipcRenderer.invoke(IPC.importFromFile),
   pickCsvFile: () => ipcRenderer.invoke(IPC.csvPick),
+  setNativeTheme: (choice) => ipcRenderer.invoke(IPC.nativeTheme, choice),
   importFromText: (text: string) => ipcRenderer.invoke(IPC.importFromText, text),
   chooseDataDir: () => ipcRenderer.invoke(IPC.dataDirChoose),
   onSaveStatus: (cb: (status: import('@shared/ipc-contract').SaveStatusEvent) => void) => {

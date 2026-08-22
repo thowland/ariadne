@@ -23,17 +23,27 @@ import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
 
-/** One labelled text input on the contact form. */
+/**
+ * One labelled text input on the contact form.
+ *
+ * `placeholder` is shown only while the contact is still blank. On somebody
+ * you already know, a greyed-out "Northwind Systems" in an empty Company box
+ * reads like a recorded value until you look twice — the hint is worth having
+ * when creating a person and only noise afterwards.
+ */
 function Field({
   label,
   value,
   placeholder,
+  guide,
   onChange,
   type = 'text',
 }: {
   label: string;
   value: string;
   placeholder?: string;
+  /** False on an established contact, which suppresses the placeholder. */
+  guide: boolean;
   onChange: (value: string) => void;
   type?: string;
 }): React.JSX.Element {
@@ -44,7 +54,7 @@ function Field({
         className="inp full"
         type={type}
         value={value}
-        placeholder={placeholder}
+        placeholder={guide ? placeholder : undefined}
         aria-label={label}
         onChange={(e) => {
           onChange(e.target.value);
@@ -73,6 +83,9 @@ export function ContactDetail(): React.JSX.Element {
   const tasks = tasksOfContact(workspace, contact.id);
   const projects = projectsOfContact(workspace, contact.id);
   const openCount = tasks.filter(isOpen).length;
+  // A contact with no name yet is one you are still filling in, so the
+  // placeholders stay to show what each box wants.
+  const guide = contact.firstName.trim() === '' && contact.lastName.trim() === '';
   const manager = managerOf(workspace, contact);
   const reports = directReports(workspace, contact.id);
   // Everyone the picker must not offer: themself and their whole subtree, so
@@ -266,6 +279,7 @@ export function ContactDetail(): React.JSX.Element {
                   label="First name"
                   value={contact.firstName}
                   placeholder="Dana"
+                  guide={guide}
                   onChange={(firstName) => {
                     patch({ firstName });
                   }}
@@ -274,6 +288,7 @@ export function ContactDetail(): React.JSX.Element {
                   label="Last name"
                   value={contact.lastName}
                   placeholder="Reyes"
+                  guide={guide}
                   onChange={(lastName) => {
                     patch({ lastName });
                   }}
@@ -282,6 +297,7 @@ export function ContactDetail(): React.JSX.Element {
                   label="Company"
                   value={contact.company}
                   placeholder="Northwind Systems"
+                  guide={guide}
                   onChange={(company) => {
                     patch({ company });
                   }}
@@ -290,6 +306,7 @@ export function ContactDetail(): React.JSX.Element {
                   label="Department"
                   value={contact.department}
                   placeholder="Platform Engineering"
+                  guide={guide}
                   onChange={(department) => {
                     patch({ department });
                   }}
@@ -298,6 +315,7 @@ export function ContactDetail(): React.JSX.Element {
                   label="Role"
                   value={contact.role}
                   placeholder="Platform Lead"
+                  guide={guide}
                   onChange={(role) => {
                     patch({ role });
                   }}
@@ -313,6 +331,7 @@ export function ContactDetail(): React.JSX.Element {
                   type="email"
                   value={contact.email}
                   placeholder="dana@example.com"
+                  guide={guide}
                   onChange={(email) => {
                     patch({ email });
                   }}
@@ -325,6 +344,7 @@ export function ContactDetail(): React.JSX.Element {
                   type="tel"
                   value={contact.phone}
                   placeholder="(555) 010-0000"
+                  guide={guide}
                   onChange={(phone) => {
                     patch({ phone });
                   }}

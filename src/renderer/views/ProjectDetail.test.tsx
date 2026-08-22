@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useStore } from '../app/store';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ContextMenu } from '../components/ContextMenu';
 import { loadTestWorkspace, setupTestApp } from '../test-utils';
 
 import { ProjectDetail } from './ProjectDetail';
@@ -210,19 +211,42 @@ describe('ProjectDetail', () => {
 });
 
 describe('ProjectDetail — natural-language dates in quick add (D29)', () => {
-  it('sets the due date from a phrase in the title, keeping the text', async () => {
+  it('sets the due date and takes the phrase out of the title (D35)', async () => {
     render(<ProjectDetail />);
     const field = screen.getByLabelText('Add a task');
     await userEvent.type(field, 'call the accountant tomorrow');
+    // The phrase stays visible, highlighted, while it is being typed.
     expect(screen.getByTestId('nl-date-chip')).toHaveTextContent('Tomorrow');
+    expect(field).toHaveValue('call the accountant tomorrow');
 
     await userEvent.keyboard('{Enter}');
-    const created = useStore
-      .getState()
-      .workspace!.tasks.find((t) => t.title === 'call the accountant tomorrow');
-    expect(created).toBeDefined();
-    // Title keeps the phrase as typed; the due date comes along with it.
+    // Creating the task is the moment it is accepted: the date moves to the
+    // due date and stops being able to contradict it after a reschedule.
+    const created = ws().tasks[ws().tasks.length - 1];
+    expect(created?.title).toBe('call the accountant');
     expect(created?.dueDate).toBe('2026-07-09');
+  });
+
+  it('a linked name is never mistaken for a date on the way in (D29 × D31 × D35)', async () => {
+    render(<ProjectDetail />);
+    const input = screen.getByLabelText('Add a task');
+    await userEvent.type(input, 'Ask @tom');
+    await userEvent.click(screen.getByRole('option', { name: /Tom Whitaker/ }));
+    await userEvent.type(input, ' about the coat{Enter}');
+
+    // "Tom" abbreviates tomorrow; behind an @ it is a person, so the strip
+    // must not eat his name and no due date is set.
+    const created = ws().tasks[ws().tasks.length - 1];
+    expect(created?.title).toBe('Ask @Tom Whitaker about the coat');
+    expect(created?.dueDate).toBeNull();
+  });
+
+  it('a title that is only a date adds nothing at all', async () => {
+    render(<ProjectDetail />);
+    const before = ws().tasks.length;
+    await userEvent.type(screen.getByLabelText('Add a task'), 'tomorrow{Enter}');
+    // Stripping it leaves an empty title, and a task with no name is not a task.
+    expect(ws().tasks).toHaveLength(before);
   });
 
   it('creates with no due date once the highlight is dismissed', async () => {
@@ -417,5 +441,93 @@ describe('ProjectDetail — hide completed tasks (D30)', () => {
     expect(task?.title).toBe('Ask @Tomm about the coat');
     expect(task?.contactIds).toBeUndefined();
     expect(screen.queryByTestId('quick-add-people')).not.toBeInTheDocument();
+  });
+
+  it('totals the effort still to do in the header (D36)', () => {
+    useStore.setState({ activeProjectId: 'p1' });
+    render(<ProjectDetail />);
+    const effort = screen.getByTestId('project-effort');
+    // 24 + 16 + 16 + 6 + 4 open hours; the finished audit is not "left".
+    expect(effort).toHaveTextContent('8d 2h left');
+  });
+
+  it('says how much of the open work carries no estimate', () => {
+    useStore.setState({ activeProjectId: 'p2' });
+    render(<ProjectDetail />);
+    // p2 has three unestimated open tasks alongside the wireframes.
+    expect(screen.getByTestId('project-effort')).toHaveTextContent('unestimated');
+  });
+
+  it('shows nothing at all for a project nobody has estimated', () => {
+    useStore.setState({ activeProjectId: 'p6' });
+    render(<ProjectDetail />);
+    expect(screen.queryByTestId('project-effort')).not.toBeInTheDocument();
+  });
+
+  it('drag-to-link records the dependency and parks the box below it (D37)', () => {
+    useStore.setState({ activeProjectId: 'p1' });
+    render(<ProjectDetail />);
+    const box = (id: string) => {
+      const rect = screen.getByTestId(`dep-node-${id}`).querySelector('rect');
+      if (rect === null) throw new Error(`no rect for ${id}`);
+      return { x: Number(rect.getAttribute('x')), y: Number(rect.getAttribute('y')) };
+    };
+    const from = box('t6');
+    const onto = box('t1');
+    const node = screen.getByTestId('dep-node-t6');
+    fireEvent(
+      node,
+      new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
+    );
+    const move = { clientX: onto.x - from.x, clientY: onto.y - from.y, bubbles: true };
+    fireEvent(window, new MouseEvent('pointermove', move));
+    fireEvent(window, new MouseEvent('pointerup', move));
+
+    expect(ws().tasks.find((t) => t.id === 't6')?.dependsOn).toEqual(['t1']);
+    expect(useStore.getState().toast).toBe(
+      '“Write migration runbook” now waits on “Audit legacy service dependencies”',
+    );
+    // Parked under its predecessor, not on top of the box it was dropped on.
+    const placed = ws().projects.find((p) => p.id === 'p1')?.depLayout?.t6;
+    expect(placed?.y).toBeGreaterThan(onto.y);
+    expect(placed?.x).toBe(onto.x);
+  });
+
+  it('refuses a link that would make two tasks wait on each other', () => {
+    useStore.setState({ activeProjectId: 'p1' });
+    render(<ProjectDetail />);
+    const box = (id: string) => {
+      const rect = screen.getByTestId(`dep-node-${id}`).querySelector('rect');
+      if (rect === null) throw new Error(`no rect for ${id}`);
+      return { x: Number(rect.getAttribute('x')), y: Number(rect.getAttribute('y')) };
+    };
+    // t2 already waits on t1; dropping t1 onto t2 would close the ring.
+    const from = box('t1');
+    const onto = box('t2');
+    const node = screen.getByTestId('dep-node-t1');
+    fireEvent(
+      node,
+      new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
+    );
+    const move = { clientX: onto.x - from.x, clientY: onto.y - from.y, bubbles: true };
+    fireEvent(window, new MouseEvent('pointermove', move));
+    fireEvent(window, new MouseEvent('pointerup', move));
+
+    expect(ws().tasks.find((t) => t.id === 't1')?.dependsOn).toEqual([]);
+    expect(useStore.getState().toast).toBe('That would make the two tasks wait on each other');
+  });
+
+  it('removes a dependency from the line’s menu', async () => {
+    useStore.setState({ activeProjectId: 'p1' });
+    render(
+      <>
+        <ProjectDetail />
+        <ContextMenu />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByTestId('edge-t1-t2'), { clientX: 30, clientY: 30 });
+    await userEvent.click(within(screen.getByRole('menu')).getByText('Remove this dependency'));
+    expect(ws().tasks.find((t) => t.id === 't2')?.dependsOn).toEqual([]);
+    expect(useStore.getState().toast).toBe('Dependency removed');
   });
 });

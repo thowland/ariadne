@@ -75,9 +75,9 @@ describe('Reports', () => {
     // Real table semantics: 7 column headers, and one cell per column in
     // every row so values line up under their headers (regression: a flex
     // display on <tr> once collapsed the cells into the name).
-    expect(within(table).getAllByRole('columnheader')).toHaveLength(7);
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(8);
     const row = within(table).getByText('Q3 Platform Migration').closest('tr');
-    expect(within(row as HTMLElement).getAllByRole('cell')).toHaveLength(7);
+    expect(within(row as HTMLElement).getAllByRole('cell')).toHaveLength(8);
     expect(row).not.toHaveClass('trow');
     expect(row).toHaveTextContent('Work');
     expect(row).toHaveTextContent('5');
@@ -418,9 +418,11 @@ describe('Reports — exports', () => {
 
     const call = vi.mocked(getApi().downloadFile).mock.calls[0]?.[0];
     expect(call?.suggestedName).toBe('ariadne-portfolio-roll-up-2026-07-08.csv');
-    expect(call?.content?.startsWith('Project,Type,Progress %,Open,Done,Overdue,Next due')).toBe(
-      true,
-    );
+    expect(
+      call?.content?.startsWith(
+        'Project,Type,Progress %,Open,Done,Overdue,Effort left (h),Effort total (h),Next due',
+      ),
+    ).toBe(true);
     expect(call?.content).toContain('Q3 Platform Migration');
   });
 

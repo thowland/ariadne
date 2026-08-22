@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { isValidIsoDate } from '../domain/dates';
 import type { Contact, FileEntry, Project, Settings, Task, Workspace } from '../types';
-import { BADGE_CHOICES, TASK_PRIORITIES, TASK_STATUSES } from '../types';
+import { BADGE_CHOICES, TASK_PRIORITIES, TASK_STATUSES, THEME_CHOICES } from '../types';
 
 /**
  * Validation for everything read from disk or imported. Lenient where safe
@@ -76,6 +76,7 @@ export const taskSchema = z.object({
     .optional()
     .catch(undefined),
   contactIds: z.array(z.string()).optional().catch(undefined),
+  estimateHours: z.number().finite().nonnegative().optional().catch(undefined),
 });
 
 /**
@@ -140,6 +141,7 @@ export const settingsSchema = z.object({
   debugLogging: z.boolean().catch(false),
   debugLogDir: z.string().min(1).nullable().catch(null),
   badgeMode: z.enum(BADGE_CHOICES).catch('none'),
+  theme: z.enum(THEME_CHOICES).catch('system'),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

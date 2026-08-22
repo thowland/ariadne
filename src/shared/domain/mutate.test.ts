@@ -8,6 +8,7 @@ import type { MutationCtx } from './mutate';
 import {
   addContactToProject,
   addContactToTask,
+  addDependency,
   applyContactImport,
   clearAll,
   createContact,
@@ -23,6 +24,7 @@ import {
   moveTasksToProject,
   registerUploadedFile,
   removeContactFromProject,
+  removeDependency,
   rescheduleTasks,
   replaceWorkspace,
   setContactManager,
@@ -500,6 +502,66 @@ describe('contacts (D31)', () => {
     // Their task links survive — they are still on the card, via the task.
     expect(off.workspace.tasks[0]?.contactIds).toEqual(['c1', 'c2']);
     expect(removeContactFromProject(off.workspace, 'p1', 'c1').changed).toEqual([]);
+  });
+});
+
+describe('dependencies from the map (D37)', () => {
+  const chain = (): Workspace =>
+    ws({
+      tasks: [task({ id: 't1' }), task({ id: 't2', dependsOn: ['t1'] }), task({ id: 't3' })],
+    });
+
+  it('links a task to the one it was dropped on', () => {
+    const r = addDependency(chain(), 't3', 't1');
+    expect(r.linked).toBe(true);
+    expect(r.changed).toEqual(['tasks']);
+    expect(r.workspace.tasks.find((t) => t.id === 't3')?.dependsOn).toEqual(['t1']);
+  });
+
+  it('pins the dependent under its predecessor in the same edit', () => {
+    const r = addDependency(chain(), 't3', 't1', { x: 40, y: 210 });
+    // One user action, one save: the link and the placement travel together.
+    expect(r.changed).toEqual(['projects', 'tasks']);
+    expect(r.workspace.projects[0]?.depLayout).toEqual({ t3: { x: 40, y: 210 } });
+  });
+
+  it('rounds the pinned position, like a hand drag does', () => {
+    const r = addDependency(chain(), 't3', 't1', { x: 40.6, y: 209.2 });
+    expect(r.workspace.projects[0]?.depLayout?.t3).toEqual({ x: 41, y: 209 });
+  });
+
+  it('refuses a duplicate, a self-link, and a link that would close a loop', () => {
+    expect(addDependency(chain(), 't2', 't1')).toMatchObject({ linked: false, reason: 'exists' });
+    expect(addDependency(chain(), 't1', 't1')).toMatchObject({ linked: false, reason: 'cycle' });
+    // t2 already waits on t1, so t1 waiting on t2 closes the ring.
+    expect(addDependency(chain(), 't1', 't2')).toMatchObject({ linked: false, reason: 'cycle' });
+  });
+
+  it('refuses a task that is gone or in another project', () => {
+    const w = ws({
+      projects: [project(), project({ id: 'p2' })],
+      tasks: [task({ id: 't1' }), task({ id: 'x', projectId: 'p2' })],
+    });
+    expect(addDependency(w, 't1', 'ghost')).toMatchObject({ linked: false, reason: 'invalid' });
+    // Dependencies are same-project everywhere else in the app.
+    expect(addDependency(w, 't1', 'x')).toMatchObject({ linked: false, reason: 'invalid' });
+  });
+
+  it('a refusal changes nothing at all', () => {
+    const w = chain();
+    const r = addDependency(w, 't1', 't2', { x: 10, y: 10 });
+    expect(r.workspace).toBe(w);
+    expect(r.changed).toEqual([]);
+  });
+
+  it('removeDependency drops one link and leaves the rest', () => {
+    const w = addDependency(chain(), 't2', 't3').workspace;
+    const r = removeDependency(w, 't2', 't1');
+    expect(r.changed).toEqual(['tasks']);
+    expect(r.workspace.tasks.find((t) => t.id === 't2')?.dependsOn).toEqual(['t3']);
+    // A link that is not there is a no-op, not an error.
+    expect(removeDependency(r.workspace, 't2', 't1').changed).toEqual([]);
+    expect(removeDependency(r.workspace, 'ghost', 't1').changed).toEqual([]);
   });
 });
 

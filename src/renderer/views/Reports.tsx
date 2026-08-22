@@ -3,6 +3,7 @@ import { toCsv } from '@shared/domain/csv';
 import { isoAdd } from '@shared/domain/dates';
 import { fmtLong, fmtShort } from '@shared/domain/dates';
 import { allProjectTags, relativeDueLabel, taskDueLabel } from '@shared/domain/derive';
+import { formatEstimate } from '@shared/domain/estimate';
 import { buildReportDocument, reportFileName } from '@shared/domain/report-print';
 import type {
   ContactActivityResult,
@@ -52,7 +53,13 @@ type ReportType = 'weekly' | 'portfolio' | 'retro' | 'risk' | 'deferred' | 'cont
 const RANGED: ReadonlySet<ReportType> = new Set<ReportType>(['retro', 'contacts']);
 
 /** Columns whose first click should sort high-to-low. */
-const NUMERIC_COLUMNS = new Set<PortfolioSortKey>(['progress', 'open', 'done', 'overdue']);
+const NUMERIC_COLUMNS = new Set<PortfolioSortKey>([
+  'progress',
+  'open',
+  'done',
+  'overdue',
+  'effort',
+]);
 
 const TYPE_OPTIONS = [
   ['weekly', 'Weekly status'],
@@ -127,14 +134,14 @@ function WeeklyReport({ blocks }: { blocks: WeeklyBlock[] }): React.JSX.Element 
             <span className="report-project-name">{b.project.name}</span>
             <CategoryPill category={b.project.category} />
             <div className="spacer" />
-            <CountPill count={b.done.length} label="done" color="#2f8552" />
-            <CountPill count={b.planned.length} label="planned" color="#4f5bd5" />
-            <CountPill count={b.atRisk.length} label="at risk" color="#c23b2b" />
+            <CountPill count={b.done.length} label="done" color="var(--ok-text)" />
+            <CountPill count={b.planned.length} label="planned" color="var(--accent)" />
+            <CountPill count={b.atRisk.length} label="at risk" color="var(--danger-text)" />
           </div>
           <div className="weekly-cols">
-            {col('DONE THIS WEEK', b.done, '#2f8552', '—')}
-            {col('PLANNED NEXT', b.planned, '#4f5bd5', '—')}
-            {col('AT RISK', b.atRisk, '#c23b2b', 'None')}
+            {col('DONE THIS WEEK', b.done, 'var(--ok-text)', '—')}
+            {col('PLANNED NEXT', b.planned, 'var(--accent)', '—')}
+            {col('AT RISK', b.atRisk, 'var(--danger-text)', 'None')}
           </div>
         </div>
       ))}
@@ -242,6 +249,17 @@ function PortfolioReport({
               <td className="num">
                 {r.overdue > 0 ? <b className="overdue-count">{r.overdue}</b> : '0'}
               </td>
+              <td
+                className="num muted"
+                title={
+                  r.effort.unestimated > 0
+                    ? `${String(r.effort.unestimated)} open task(s) carry no estimate`
+                    : undefined
+                }
+              >
+                {formatEstimate(r.effort.open) || '—'}
+                {r.effort.unestimated > 0 && <span className="effort-gap">*</span>}
+              </td>
               <td>
                 {r.next !== null ? (
                   <span
@@ -277,7 +295,7 @@ function RetroChart({ buckets }: { buckets: RetroBucket[] }): React.JSX.Element 
   const last = buckets[buckets.length - 1];
   return (
     <div className="report-block retro-chart-block" data-testid="retro-chart">
-      <div className="weekly-col-label" style={{ color: '#2f8552' }}>
+      <div className="weekly-col-label" style={{ color: 'var(--ok-text)' }}>
         COMPLETIONS OVER TIME
       </div>
       <div className="retro-chart" role="img" aria-label="Completed tasks per period">
@@ -401,9 +419,9 @@ function DeferredReport({
         <Stat
           value={a.chronicOverdue}
           label="still open & overdue"
-          tone={a.chronicOverdue > 0 ? '#c23b2b' : undefined}
+          tone={a.chronicOverdue > 0 ? 'var(--danger-text)' : undefined}
         />
-        <Stat value={a.completedAnyway} label="eventually done" tone="#2f8552" />
+        <Stat value={a.completedAnyway} label="eventually done" tone="var(--ok-text)" />
       </div>
 
       {result.rows.length === 0 ? (
@@ -433,7 +451,7 @@ function DeferredReport({
                     className="defer-bar-fill"
                     style={{
                       width: `${String((r.count / worst) * 100)}%`,
-                      background: r.overdueNow ? '#c23b2b' : r.project.color,
+                      background: r.overdueNow ? 'var(--danger-text)' : r.project.color,
                     }}
                   />
                 </div>
@@ -458,7 +476,7 @@ function DeferredReport({
                 // three reschedules is the good outcome this report celebrates,
                 // and colouring its "Completed" in overdue red read as an alarm.
                 style={{
-                  color: r.overdueNow ? '#c23b2b' : taskDueLabel(r.task, today).color,
+                  color: r.overdueNow ? 'var(--danger-text)' : taskDueLabel(r.task, today).color,
                 }}
               >
                 {r.task.status === 'Done'
@@ -541,7 +559,7 @@ function ContactActivityReport({ result }: { result: ContactActivityResult }): R
         <Stat
           value={a.overdueWithPeople}
           label="overdue with people"
-          tone={a.overdueWithPeople > 0 ? '#c23b2b' : undefined}
+          tone={a.overdueWithPeople > 0 ? 'var(--danger-text)' : undefined}
         />
       </div>
 
@@ -555,7 +573,7 @@ function ContactActivityReport({ result }: { result: ContactActivityResult }): R
                   className="defer-bar-fill"
                   style={{
                     width: `${String((r.total / Math.max(1, busiest)) * 100)}%`,
-                    background: r.overdue > 0 ? '#c23b2b' : '#4f5bd5',
+                    background: r.overdue > 0 ? 'var(--danger-text)' : 'var(--accent)',
                   }}
                 />
               </div>
@@ -594,7 +612,7 @@ function ContactActivityReport({ result }: { result: ContactActivityResult }): R
           {a.byCompany.length > 0 ? (
             a.byCompany.map((c) => (
               <div key={c.company} className="report-line">
-                <Dot color="#4f5bd5" size={7} />
+                <Dot color="var(--accent)" size={7} />
                 <span className="report-line-title">{c.company}</span>
                 <span className="report-line-due muted">
                   {c.tasks} task{c.tasks === 1 ? '' : 's'} · {c.people}{' '}
@@ -759,7 +777,7 @@ export function Reports(): React.JSX.Element {
               </div>
               {g.tasks.map((t) => (
                 <div key={t.id} className="report-line retro-line">
-                  <Dot color="#3a9a5f" size={7} />
+                  <Dot color="var(--ok-dot)" size={7} />
                   <span className="report-line-title">{t.title}</span>
                   <span className="retro-date">{fmtShort(t.completedAt)}</span>
                 </div>

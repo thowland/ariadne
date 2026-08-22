@@ -12,6 +12,7 @@ import { COLLECTION_NAMES, PROJECT_PALETTE, STATUS_CYCLE } from '../types';
 
 import type { ContactImportPlan, ContactImportRow } from './contact-csv';
 import { contactName } from './contacts';
+import { wouldCycle } from './dep-graph';
 
 /**
  * The complete mutation command surface (spec §5.2). Every function is pure:
@@ -328,6 +329,95 @@ export function cycleTaskStatus(ws: Workspace, id: string, ctx: MutationCtx): Mu
   const i = STATUS_CYCLE.indexOf(t.status);
   const next = i < 0 ? 'Todo' : (STATUS_CYCLE[(i + 1) % STATUS_CYCLE.length] ?? 'Todo');
   return updateTask(ws, id, { status: next }, ctx);
+}
+
+/**
+ * Why a drag-to-link on the dependency map did nothing (D37).
+ * `exists` and `cycle` are ordinary outcomes the UI reports; `invalid` covers
+ * a task that vanished or one from another project.
+ */
+export type LinkRefusal = 'exists' | 'cycle' | 'invalid';
+
+export interface LinkResult extends MutationResult {
+  linked: boolean;
+  reason?: LinkRefusal;
+}
+
+/**
+ * Makes `taskId` wait on `dependsOnId` (D37) — the drag-to-link gesture, and
+ * the same edit as ticking the box in the task editor's "Blocked by" list.
+ *
+ * `placeAt` pins the now-dependent task in the project's map layout, so the
+ * box lands under its predecessor rather than on top of whatever it was
+ * dropped on. Both halves travel in one mutation because they are one user
+ * action and should be one save.
+ */
+export function addDependency(
+  ws: Workspace,
+  taskId: string,
+  dependsOnId: string,
+  placeAt?: { x: number; y: number },
+): LinkResult {
+  const task = ws.tasks.find((t) => t.id === taskId);
+  const on = ws.tasks.find((t) => t.id === dependsOnId);
+  if (task === undefined || on === undefined) {
+    return { ...unchanged(ws), linked: false, reason: 'invalid' };
+  }
+  // Dependencies are same-project by construction, everywhere else in the app.
+  if (task.projectId !== on.projectId) {
+    return { ...unchanged(ws), linked: false, reason: 'invalid' };
+  }
+  if (task.dependsOn.includes(dependsOnId)) {
+    return { ...unchanged(ws), linked: false, reason: 'exists' };
+  }
+  if (wouldCycle(ws.tasks, taskId, dependsOnId)) {
+    return { ...unchanged(ws), linked: false, reason: 'cycle' };
+  }
+
+  const changed: CollectionName[] = ['tasks'];
+  let projects = ws.projects;
+  if (placeAt !== undefined) {
+    const project = ws.projects.find((p) => p.id === task.projectId);
+    if (project !== undefined) {
+      const depLayout = {
+        ...(project.depLayout ?? {}),
+        [taskId]: { x: Math.round(placeAt.x), y: Math.round(placeAt.y) },
+      };
+      projects = ws.projects.map((p) => (p.id === project.id ? { ...p, depLayout } : p));
+      changed.unshift('projects');
+    }
+  }
+
+  return {
+    workspace: {
+      ...ws,
+      projects,
+      tasks: ws.tasks.map((t) =>
+        t.id === taskId ? { ...t, dependsOn: [...t.dependsOn, dependsOnId] } : t,
+      ),
+    },
+    changed,
+    linked: true,
+  };
+}
+
+/** Drops one "blocked by" link; the same edit as unticking its box. */
+export function removeDependency(
+  ws: Workspace,
+  taskId: string,
+  dependsOnId: string,
+): MutationResult {
+  const task = ws.tasks.find((t) => t.id === taskId);
+  if (!task?.dependsOn.includes(dependsOnId)) return unchanged(ws);
+  return {
+    workspace: {
+      ...ws,
+      tasks: ws.tasks.map((t) =>
+        t.id === taskId ? { ...t, dependsOn: t.dependsOn.filter((d) => d !== dependsOnId) } : t,
+      ),
+    },
+    changed: ['tasks'],
+  };
 }
 
 // ---------- files ----------

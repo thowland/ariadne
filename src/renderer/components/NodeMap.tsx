@@ -1,4 +1,5 @@
-import type { MapPositions, NodeMapLayout, PositionedNode } from '@shared/domain/node-map';
+import type { MapEdge, MapPositions, NodeMapLayout, PositionedNode } from '@shared/domain/node-map';
+import { nodeAt } from '@shared/domain/node-map';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -35,10 +36,22 @@ export interface NodeMapProps<N extends PositionedNode> {
   compute: (positions: MapPositions) => NodeMapLayout<N> | null;
   /** Shown when `compute` returns null. */
   empty: React.ReactNode;
+  /** Box size, for hit-testing a drop onto another node. */
+  nodeW: number;
+  nodeH: number;
   /** Hand-placed node positions; anything absent uses the computed layout. */
   positions?: MapPositions;
   /** Committed on pointer-up, once per drag. Omit to make nodes static. */
   onMove?: (id: string, x: number, y: number) => void;
+  /**
+   * A node dropped on top of another (D37). When set, a drop that lands on a
+   * box calls this *instead of* `onMove` — the position is the caller's to
+   * decide, since it usually wants the node somewhere meaningful rather than
+   * under the pointer.
+   */
+  onLink?: (draggedId: string, targetId: string) => void;
+  /** Right-click on an edge; coordinates are viewport, for the menu. */
+  onEdgeMenu?: (edge: MapEdge, x: number, y: number) => void;
   /** Canvas height in px; undefined fits the layout. */
   height?: number;
   /** Committed when the resize handle is released. Omit to hide the handle. */
@@ -60,8 +73,12 @@ export interface NodeMapProps<N extends PositionedNode> {
 export function NodeMap<N extends PositionedNode>({
   compute,
   empty,
+  nodeW,
+  nodeH,
   positions = {},
   onMove,
+  onLink,
+  onEdgeMenu,
   height,
   onResize,
   minHeight,
@@ -83,8 +100,15 @@ export function NodeMap<N extends PositionedNode>({
   // Latest-callback refs: window listeners are bound once per gesture.
   const onMoveRef = useRef(onMove);
   const onResizeRef = useRef(onResize);
+  const onLinkRef = useRef(onLink);
   onMoveRef.current = onMove;
   onResizeRef.current = onResize;
+  onLinkRef.current = onLink;
+  /** Node the dragged box is currently hovering over, for the drop highlight. */
+  const hoverRef = useRef<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  /** Latest layout, so the pointer handlers can hit-test without re-binding. */
+  const layoutRef = useRef<NodeMapLayout<N> | null>(null);
 
   const clampHeight = (h: number): number =>
     Math.min(maxHeight, Math.max(minHeight, Math.round(h)));
@@ -102,13 +126,31 @@ export function NodeMap<N extends PositionedNode>({
       d.x = Math.max(0, d.nodeX + dx);
       d.y = Math.max(0, d.nodeY + dy);
       setDrag({ id: d.id, x: d.x, y: d.y });
+      // Hit-test from the box's own centre, not the pointer: dropping is
+      // about where the box ended up, and the pointer may have grabbed it
+      // by a corner.
+      const nodes = layoutRef.current?.nodes ?? [];
+      const target =
+        onLinkRef.current === undefined
+          ? null
+          : (nodeAt(nodes, d.x + nodeW / 2, d.y + nodeH / 2, nodeW, nodeH, d.id)?.id ?? null);
+      if (target !== hoverRef.current) {
+        hoverRef.current = target;
+        setHover(target);
+      }
     };
     const up = (): void => {
       const d = dragRef.current;
+      const target = hoverRef.current;
       dragRef.current = null;
+      hoverRef.current = null;
       suppressClick.current = d?.moved === true;
       setDrag(null);
-      if (d?.moved === true) onMoveRef.current?.(d.id, d.x, d.y);
+      setHover(null);
+      if (d?.moved !== true) return;
+      // A drop onto another box is a link, not a placement.
+      if (target !== null && onLinkRef.current !== undefined) onLinkRef.current(d.id, target);
+      else onMoveRef.current?.(d.id, d.x, d.y);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -118,7 +160,7 @@ export function NodeMap<N extends PositionedNode>({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
-  }, [dragId]);
+  }, [dragId, nodeW, nodeH]);
 
   const resizing = resizeH !== null;
   useEffect(() => {
@@ -152,6 +194,7 @@ export function NodeMap<N extends PositionedNode>({
   const live: MapPositions =
     drag === null ? positions : { ...positions, [drag.id]: { x: drag.x, y: drag.y } };
   const layout = compute(live);
+  layoutRef.current = layout;
 
   if (layout === null) return <>{empty}</>;
 
@@ -176,7 +219,7 @@ export function NodeMap<N extends PositionedNode>({
               orient="auto"
               markerUnits="userSpaceOnUse"
             >
-              <path d="M0,0 L9,4.5 L0,9 z" fill="#c8c8c0" />
+              <path d="M0,0 L9,4.5 L0,9 z" fill="var(--map-arrow)" />
             </marker>
           </defs>
           {layout.edges.map((e, i) => {
@@ -193,14 +236,32 @@ export function NodeMap<N extends PositionedNode>({
               d = `M${String(e.x1)},${String(e.y1)} C${String(midX)},${String(e.y1)} ${String(midX)},${String(e.y2)} ${String(endX)},${String(e.y2)}`;
             }
             return (
-              <path
-                key={i}
-                d={d}
-                stroke="#d6d6ce"
-                strokeWidth={1.5}
-                fill="none"
-                markerEnd={`url(#${arrowId})`}
-              />
+              <g key={i} className={onEdgeMenu === undefined ? undefined : 'node-map-edge'}>
+                <path
+                  d={d}
+                  stroke="var(--map-edge)"
+                  strokeWidth={1.5}
+                  fill="none"
+                  markerEnd={`url(#${arrowId})`}
+                />
+                {onEdgeMenu !== undefined && (
+                  // A 1.5px line is not a right-click target; this invisible
+                  // one is, and carries the menu.
+                  <path
+                    d={d}
+                    stroke="transparent"
+                    strokeWidth={14}
+                    fill="none"
+                    className="node-map-edge-hit"
+                    data-testid={`edge-${e.from}-${e.to}`}
+                    onContextMenu={(ev) => {
+                      ev.preventDefault();
+                      ev.stopPropagation();
+                      onEdgeMenu(e, ev.clientX, ev.clientY);
+                    }}
+                  />
+                )}
+              </g>
             );
           })}
           {layout.nodes.map((node) => {
@@ -210,7 +271,7 @@ export function NodeMap<N extends PositionedNode>({
                 key={node.id}
                 className={`node-map-node${draggable ? ' draggable' : ''}${
                   drag?.id === node.id ? ' dragging' : ''
-                }`}
+                }${hover === node.id ? ' drop-target' : ''}`}
                 onPointerDown={(e) => {
                   if (!draggable || e.button !== 0) return;
                   e.preventDefault();

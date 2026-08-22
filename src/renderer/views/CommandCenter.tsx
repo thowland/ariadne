@@ -101,11 +101,16 @@ export function CommandCenter(): React.JSX.Element {
   };
 
   const sections = [
-    { key: 'overdue', title: 'Overdue', tasks: overdue, accent: '#d94c3a' },
-    { key: 'today', title: 'Due today', tasks: dueToday, accent: '#c23b2b' },
-    { key: 'week', title: 'Due this week', tasks: soon, accent: '#4f5bd5' },
-    { key: 'later', title: 'High priority · later', tasks: urgentLater, accent: '#a8710f' },
-    { key: 'blocked', title: 'Blocked', tasks: blocked, accent: '#d69220' },
+    { key: 'overdue', title: 'Overdue', tasks: overdue, accent: 'var(--danger-dot)' },
+    { key: 'today', title: 'Due today', tasks: dueToday, accent: 'var(--danger-text)' },
+    { key: 'week', title: 'Due this week', tasks: soon, accent: 'var(--accent)' },
+    {
+      key: 'later',
+      title: 'High priority · later',
+      tasks: urgentLater,
+      accent: 'var(--warn-text)',
+    },
+    { key: 'blocked', title: 'Blocked', tasks: blocked, accent: 'var(--warn-dot)' },
   ].filter((s) => s.tasks.length > 0);
 
   return (
@@ -124,18 +129,18 @@ export function CommandCenter(): React.JSX.Element {
 
       <div className="stat-row">
         <StatCard label="Open tasks" value={open.length} />
-        <StatCard label="Due this week" value={dueWeekCount} color="#4f5bd5" />
+        <StatCard label="Due this week" value={dueWeekCount} color="var(--accent)" />
         <StatCard
           label="Overdue"
           value={overdue.length}
-          color={overdue.length > 0 ? '#d94c3a' : undefined}
+          color={overdue.length > 0 ? 'var(--danger-dot)' : undefined}
         />
         <StatCard label="Active projects" value={scopedProjects.length} />
       </div>
 
       {showBanner && (
         <div className="ambient-banner" data-testid="ambient-banner">
-          <span className="dot" style={{ width: 8, height: 8, background: '#d94c3a' }} />
+          <span className="dot" style={{ width: 8, height: 8, background: 'var(--danger-dot)' }} />
           <span className="banner-text">
             {overdue.length > 0 && `${overdue.length} task${overdue.length > 1 ? 's' : ''} overdue`}
             {overdue.length > 0 && dueToday.length > 0 && ' · '}

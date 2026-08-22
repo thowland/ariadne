@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v2.2.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v2.3.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -53,8 +53,10 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   be archived, either by the checkbox on the project screen or by dragging the
   project onto the sidebar's archive zone, at which point they leave every active
   surface but stay intact under the sidebar's ARCHIVED section.
-- **Dependency map** — a layered SVG graph of each project's task chains. The
-  automatic layering is a starting point: drag any node where you want it and
+- **Dependency map** — a layered SVG graph of each project's task chains. Drop
+  one box onto another to declare that the dragged task waits on it (decision
+  D37), and right-click a line to remove a dependency. The automatic layering
+  is a starting point: drag any node where you want it and
   the edges rubber-band along, re-anchoring to whichever sides of the boxes face
   each other, so a graph whose lines cross can be pulled into something readable.
   The arrangement is saved per project, the strip under the canvas resizes the
@@ -65,6 +67,14 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   preview, file uploads (PDFs, CSVs, and images preview inline), task
   attachments, and a cross-project **Files** view that lists everything in one
   place.
+- **Appearance** (decision D38) — light, dark, or whatever the operating system
+  is doing, which is the default. Every colour in the app is a design token
+  with both values, so the whole thing re-themes at once; exported report PDFs
+  stay black-on-white regardless.
+- **Effort estimates** (decision D36) — an optional estimate per task in days
+  and hours, counted as _effort_ rather than calendar time. A project's header
+  shows what is left, and the portfolio roll-up totals it in a sortable column
+  that exports to CSV.
 - **Reports** — weekly status with done/planned/at-risk count pills, a portfolio
   roll-up with progress bars, a date-ranged retrospective with range presets and
   a completions-over-time chart, and an at-risk report. All of them filter by
@@ -476,7 +486,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D34. Record any deliberate behavior change as a new row
+  decision table D1–D38. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
