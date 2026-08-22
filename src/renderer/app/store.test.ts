@@ -40,6 +40,9 @@ function installApiMock(overrides: Partial<AriadneApi> = {}): AriadneApi {
       .fn()
       .mockResolvedValue({ ok: false, error: 'Import cancelled', cancelled: true }),
     importFromText: vi.fn().mockResolvedValue({ ok: false, error: 'Invalid JSON — import failed' }),
+    pickCsvFile: vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: 'Import cancelled', cancelled: true }),
     chooseDataDir: vi
       .fn()
       .mockResolvedValue({ mode: 'unchanged', path: '/tmp/data', relaunching: false }),

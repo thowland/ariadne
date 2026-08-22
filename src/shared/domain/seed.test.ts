@@ -30,7 +30,7 @@ describe('seedWorkspace', () => {
     expect(ws.projects).toHaveLength(6);
     expect(ws.tasks).toHaveLength(30);
     expect(ws.files).toHaveLength(5);
-    expect(ws.contacts).toHaveLength(7);
+    expect(ws.contacts).toHaveLength(8);
     expect(ws.settings.todoistToken).toBe('');
   });
 

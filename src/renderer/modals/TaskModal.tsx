@@ -23,6 +23,7 @@ import { STATUS_COLORS } from '../styles/colors';
 
 import { AboutModal } from './AboutModal';
 import { AiImportWizard } from './AiImportWizard';
+import { ContactImportModal } from './ContactImportModal';
 import { DayModal } from './DayModal';
 import { FileViewerModal } from './FileViewerModal';
 import { HelpModal } from './HelpModal';
@@ -444,6 +445,9 @@ export function ModalHost(): React.JSX.Element | null {
   if (modal.type === 'file') return <FileViewerModal fileId={modal.id} />;
   if (modal.type === 'day') return <DayModal iso={modal.iso} />;
   if (modal.type === 'aiImport') return <AiImportWizard />;
+  if (modal.type === 'contactImport') {
+    return <ContactImportModal fileName={modal.fileName} plan={modal.plan} />;
+  }
   if (modal.type === 'moveTasks') return <MoveTasksModal state={modal} />;
   if (modal.type === 'about') return <AboutModal />;
   if (modal.type === 'help') return <HelpModal section={modal.section} />;

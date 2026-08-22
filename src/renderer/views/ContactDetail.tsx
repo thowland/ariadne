@@ -1,11 +1,23 @@
-import { contactName, projectsOfContact, tasksOfContact } from '@shared/domain/contacts';
+import {
+  contactName,
+  directReports,
+  managerCandidates,
+  managerOf,
+  projectsOfContact,
+  tasksOfContact,
+} from '@shared/domain/contacts';
 import { isOpen } from '@shared/domain/derive';
-import { deleteContact, updateContact } from '@shared/domain/mutate';
+import { deleteContact, setContactManager, updateContact } from '@shared/domain/mutate';
 import { byProjectListOrder } from '@shared/domain/sort';
 import type { Contact } from '@shared/types';
 
 import { useStore } from '../app/store';
-import { ContactAvatar, CopyValue } from '../components/ContactBits';
+import {
+  ContactActionLink,
+  ContactAvatar,
+  ContactPicker,
+  CopyValue,
+} from '../components/ContactBits';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
@@ -48,7 +60,8 @@ function Field({
  * is the question that actually sends you looking for them.
  */
 export function ContactDetail(): React.JSX.Element {
-  const { workspace, activeContactId, apply, go, openProject, askConfirm, showToast } = useStore();
+  const { workspace, activeContactId, apply, go, openContact, openProject, askConfirm, showToast } =
+    useStore();
 
   const contact = workspace?.contacts.find((c) => c.id === activeContactId);
   if (contact === undefined || workspace === null) {
@@ -59,6 +72,12 @@ export function ContactDetail(): React.JSX.Element {
   const tasks = tasksOfContact(workspace, contact.id);
   const projects = projectsOfContact(workspace, contact.id);
   const openCount = tasks.filter(isOpen).length;
+  const manager = managerOf(workspace, contact);
+  const reports = directReports(workspace, contact.id);
+  // Everyone the picker must not offer: themself and their whole subtree, so
+  // a reporting loop cannot be built through the UI at all.
+  const allowed = new Set(managerCandidates(workspace, contact.id).map((c) => c.id));
+  const forbidden = workspace.contacts.filter((c) => !allowed.has(c.id)).map((c) => c.id);
 
   const patch = (fields: Partial<Omit<Contact, 'id'>>): void => {
     apply((ws) => updateContact(ws, contact.id, fields));
@@ -103,8 +122,9 @@ export function ContactDetail(): React.JSX.Element {
             {name}
           </h1>
           <div className="contact-hero-meta">
-            {[contact.role, contact.company].filter((x) => x.trim() !== '').join(' · ') ||
-              'No role or company recorded'}
+            {[contact.role, contact.department, contact.company]
+              .filter((x) => x.trim() !== '')
+              .join(' · ') || 'No role or company recorded'}
             {openCount > 0 && (
               <span className="contact-hero-count">
                 {openCount} open task{openCount === 1 ? '' : 's'}
@@ -227,6 +247,14 @@ export function ContactDetail(): React.JSX.Element {
                   }}
                 />
                 <Field
+                  label="Department"
+                  value={contact.department}
+                  placeholder="Platform Engineering"
+                  onChange={(department) => {
+                    patch({ department });
+                  }}
+                />
+                <Field
                   label="Role"
                   value={contact.role}
                   placeholder="Platform Lead"
@@ -235,27 +263,34 @@ export function ContactDetail(): React.JSX.Element {
                   }}
                 />
               </div>
-              {/* No copy buttons beside these two: the header already carries
-                  them, and a second pair here squeezed the fields down to
-                  nothing on a narrow side column. */}
-              <Field
-                label="Email"
-                type="email"
-                value={contact.email}
-                placeholder="dana@example.com"
-                onChange={(email) => {
-                  patch({ email });
-                }}
-              />
-              <Field
-                label="Phone"
-                type="tel"
-                value={contact.phone}
-                placeholder="(555) 010-0000"
-                onChange={(phone) => {
-                  patch({ phone });
-                }}
-              />
+              {/* No copy buttons beside these two — the header already carries
+                  them, and a second pair squeezed the fields to nothing. The
+                  action icons are narrow enough to sit here, and they do
+                  something copying cannot: hand the address to the OS. */}
+              <div className="contact-form-row">
+                <Field
+                  label="Email"
+                  type="email"
+                  value={contact.email}
+                  placeholder="dana@example.com"
+                  onChange={(email) => {
+                    patch({ email });
+                  }}
+                />
+                <ContactActionLink kind="email" value={contact.email} who={name} />
+              </div>
+              <div className="contact-form-row">
+                <Field
+                  label="Phone"
+                  type="tel"
+                  value={contact.phone}
+                  placeholder="(555) 010-0000"
+                  onChange={(phone) => {
+                    patch({ phone });
+                  }}
+                />
+                <ContactActionLink kind="phone" value={contact.phone} who={name} />
+              </div>
               <div>
                 <div className="field-label">TAGS</div>
                 <TagEditor
@@ -264,6 +299,75 @@ export function ContactDetail(): React.JSX.Element {
                     patch({ tags });
                   }}
                 />
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Organization">
+            <div className="card-pad contact-org" data-testid="contact-org">
+              <div>
+                <div className="field-label">REPORTS TO</div>
+                {manager !== undefined ? (
+                  <div className="contact-org-row">
+                    <button
+                      className="contact-org-person"
+                      onClick={() => {
+                        openContact(manager.id);
+                      }}
+                    >
+                      <ContactAvatar contact={manager} size={22} />
+                      <span className="contact-org-name">{contactName(manager)}</span>
+                      <span className="contact-org-meta">{manager.role}</span>
+                    </button>
+                    <div className="spacer" />
+                    <button
+                      className="lib-btn"
+                      aria-label="Clear manager"
+                      onClick={() => {
+                        apply((ws) => setContactManager(ws, contact.id, null));
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <ContactPicker
+                    trigger="+ Set manager"
+                    placeholder="Who do they report to?"
+                    ariaLabel="Set manager"
+                    // Themself and everyone beneath them are not options.
+                    exclude={forbidden}
+                    onPick={(managerId) => {
+                      apply((ws) => setContactManager(ws, contact.id, managerId));
+                    }}
+                  />
+                )}
+              </div>
+              <div>
+                <div className="field-label">
+                  DIRECT REPORTS{reports.length > 0 ? ` · ${String(reports.length)}` : ''}
+                </div>
+                {reports.length > 0 ? (
+                  <div className="contact-org-list">
+                    {reports.map((r) => (
+                      <button
+                        key={r.id}
+                        className="contact-org-person"
+                        onClick={() => {
+                          openContact(r.id);
+                        }}
+                      >
+                        <ContactAvatar contact={r} size={22} />
+                        <span className="contact-org-name">{contactName(r)}</span>
+                        <span className="contact-org-meta">
+                          {[r.role, r.department].filter((x) => x.trim() !== '').join(' · ')}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="card-empty">Nobody reports to them here.</div>
+                )}
               </div>
             </div>
           </Card>

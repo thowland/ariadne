@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.1.0 — 2026-08-22
+
+Fit and finish on Contacts, aimed at the way an organization's address book
+actually arrives and gets used.
+
+- **Import contacts from a CSV**, from the Contacts screen. You get a review
+  first — how many are new, who would be updated, which rows could not be used
+  — and nothing is written until you press Import, so pointing it at the wrong
+  file costs a click. Somebody already in your book is **updated rather than
+  duplicated** when their first name, last name and company match, whatever
+  the file's capitalisation. A blank cell never clears something you already
+  have, because an HR export full of empty columns should not wipe the phone
+  number you took down by hand. Column headers are matched loosely — "first
+  name", "First_Name" and "FIRSTNAME" are the same column, and common
+  alternatives like "Full Name", "Organisation", "Job Title" and "Reports To"
+  are understood — so another system's export usually just works.
+- **Export contacts to a CSV.** The contact record only, not their tasks, so
+  the file you get out is the file you can edit and put back. Notes that run
+  to several lines and phone numbers starting with "+" both survive the round
+  trip, which they did not before.
+- **An envelope and a handset** beside a contact's email and phone, on their
+  own page and on a project's Contacts card. The envelope opens a new message
+  in your mail client; the handset dials. The copy buttons are still there for
+  when you want the text instead.
+- **Reporting lines.** A contact can be given a manager, and their page then
+  shows both who they report to and who reports to them — each name a link to
+  that person. Only one side is stored, so the two can never disagree, and the
+  picker will not offer anyone who already sits beneath them, which makes a
+  circular org chart impossible rather than merely discouraged. A CSV can
+  carry a **Manager** column of full names; a name matching nobody is
+  reported, never invented as a new person.
+- **A Department field**, beside Company on the contact's page. It is searched
+  and filtered along with everything else, and it travels in the CSV.
+- The sample workspace gains a small reporting line — a Director of
+  Engineering with two reports — so the org card has something in it on first
+  run.
+
 ## 2.0.0 — 2026-08-21
 
 The version number moves to 2.0 because Ariadne now tracks **people**, not just

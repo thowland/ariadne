@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { useStore } from '../app/store';
 
-import { ContactAvatar, ContactPicker, CopyValue } from './ContactBits';
+import { ContactActionLink, ContactAvatar, ContactPicker, CopyValue } from './ContactBits';
 import { Card } from './primitives';
 
 /**
@@ -62,8 +62,16 @@ function ContactAccordionRow({ row }: { row: ProjectContact }): React.JSX.Elemen
       </button>
       {open && (
         <div className="contact-acc-detail">
-          <CopyValue value={c.email} what="email" className="contact-field" />
-          <CopyValue value={c.phone} what="phone number" className="contact-field" />
+          {/* Copy the value, or hand it to the OS — the two things you ever
+              want from an address sitting next to the work. */}
+          <div className="contact-acc-reach">
+            <CopyValue value={c.email} what="email" className="contact-field" />
+            <ContactActionLink kind="email" value={c.email} who={name} />
+          </div>
+          <div className="contact-acc-reach">
+            <CopyValue value={c.phone} what="phone number" className="contact-field" />
+            <ContactActionLink kind="phone" value={c.phone} who={name} />
+          </div>
           {c.email.trim() === '' && c.phone.trim() === '' && (
             <div className="card-empty">No email or phone recorded yet.</div>
           )}

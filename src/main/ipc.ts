@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { copyFile } from 'node:fs/promises';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 
 import { todayIso } from '@shared/domain/clock';
 import { seedWorkspace } from '@shared/domain/seed';
-import { DEBUG_LOG_CATEGORIES, IPC } from '@shared/ipc-contract';
+import { DEBUG_LOG_CATEGORIES, IPC, isOpenableExternally } from '@shared/ipc-contract';
 import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
 import type { ReportPdfRequest, ReportPdfResponse } from '@shared/ipc-contract';
@@ -122,9 +122,7 @@ export function registerIpc(
   }));
 
   ipcMain.handle(IPC.openExternal, (_event, url: unknown) => {
-    if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-      void shell.openExternal(url);
-    }
+    if (isOpenableExternally(url)) void shell.openExternal(url);
   });
 
   ipcMain.handle(
@@ -208,6 +206,26 @@ export function registerIpc(
         : `import from ${path} FAILED: ${result.error}`,
     );
     return result;
+  });
+
+  ipcMain.handle(IPC.csvPick, async () => {
+    const picked = await dialog.showOpenDialog({
+      filters: [{ name: 'CSV', extensions: ['csv', 'txt'] }],
+      properties: ['openFile'],
+    });
+    const path = picked.filePaths[0];
+    if (picked.canceled || path === undefined) {
+      return { ok: false, error: 'Import cancelled', cancelled: true };
+    }
+    try {
+      const text = await readFile(path, 'utf8');
+      debugLog.log('import', `read CSV ${path} (${String(text.length)} chars)`);
+      return { ok: true, name: basename(path), text };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Could not read that file';
+      debugLog.log('import', `read CSV ${path} FAILED: ${error}`);
+      return { ok: false, error };
+    }
   });
 
   ipcMain.handle(IPC.importFromText, async (_event, text: string) => {

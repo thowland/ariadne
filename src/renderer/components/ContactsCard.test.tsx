@@ -146,4 +146,18 @@ describe('ContactsCard', () => {
     renderCard('p6');
     expect(screen.getByText(/Nobody linked yet/)).toBeInTheDocument();
   });
+
+  it('offers the mail and dial actions beside the copy buttons (D32)', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'project', activeProjectId: 'p1' });
+    renderCard();
+    await userEvent.click(screen.getByLabelText('Dana Reyes — show contact details'));
+    const row = screen.getByTestId('project-contact-c1');
+
+    await userEvent.click(within(row).getByRole('button', { name: 'Email Dana Reyes' }));
+    expect(api.openExternal).toHaveBeenLastCalledWith('mailto:dana.reyes@northwind.example');
+    await userEvent.click(within(row).getByRole('button', { name: 'Call Dana Reyes' }));
+    expect(api.openExternal).toHaveBeenLastCalledWith('tel:5552148890');
+  });
 });

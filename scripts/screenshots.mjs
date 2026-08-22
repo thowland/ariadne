@@ -8,7 +8,7 @@
  * calendar grid, and retrospective range never drift. On the headless Linux VM
  * this needs `xvfb-run -a` like every other app run.
  */
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,19 @@ const SIZE = { width: 1440, height: 900 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'docs', 'screenshots');
+
+/**
+ * A CSV to import for the review-dialog shot. Written to a temp file and fed
+ * to a stubbed open-dialog, so the picture comes from the real import path.
+ */
+const IMPORT_CSV = [
+  'First Name,Last Name,Company,Department,Role,Email,Phone,Manager,Tags,Notes',
+  'Dana,Reyes,Northwind Systems,Platform Engineering,Principal Engineer,dana.reyes@northwind.example,(555) 214-8890,Aidan Cross,vendor,Promoted this quarter.',
+  'Ines,Barros,Northwind Systems,Platform Engineering,SRE,ines.barros@northwind.example,(555) 214-8899,Dana Reyes,vendor,Runs the on-call rota.',
+  'Kwame,Mensah,Northwind Systems,Support,Support Lead,kwame@northwind.example,(555) 214-8877,Dana Reyes,vendor,',
+  'Otto,Lindqvist,Northwind Systems,Security,CISO,otto@northwind.example,(555) 214-8866,,vendor,',
+  ',,Northwind Systems,,,unnamed@northwind.example,,,,',
+].join('\r\n');
 
 /** Each shot: a file name, and the clicks that get the app into that state. */
 const SHOTS = [
@@ -112,6 +125,29 @@ const SHOTS = [
     },
   },
   {
+    name: 'contact-import',
+    async go(win, app) {
+      const path = join(mkdtempSync(join(tmpdir(), 'ariadne-csv-')), 'northwind-team.csv');
+      writeFileSync(path, IMPORT_CSV, 'utf8');
+      await app.evaluate(({ dialog }, target) => {
+        dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [target] });
+      }, path);
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByRole('button', { name: 'Import CSV…' }).click();
+      await win.getByTestId('import-summary').waitFor();
+    },
+  },
+  {
+    // The org card and the reach icons only exist on somebody who has both a
+    // manager and reports, so shoot the middle of the little seeded chart.
+    name: 'contact-detail-org',
+    async go(win) {
+      await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+      await win.getByTestId('contact-row-c8').click();
+      await win.getByTestId('contact-org').waitFor();
+    },
+  },
+  {
     name: 'contact-activity',
     async go(win) {
       await win.getByRole('button', { name: 'Reports' }).click();
@@ -153,7 +189,7 @@ for (const shot of SHOTS) {
   await browserWindow.evaluate((w, size) => w.setContentSize(size.width, size.height), SIZE);
   await win.getByTestId('home-headline').waitFor();
 
-  await shot.go(win);
+  await shot.go(win, app);
   // Clicking a tab can scroll it under the sticky header; start every shot at
   // the top of whatever pane ended up scrolled.
   await win.evaluate(() => {

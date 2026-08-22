@@ -135,6 +135,61 @@ export function projectsOfContact(ws: Workspace, contactId: string): Project[] {
   return ws.projects.filter((p) => ids.has(p.id));
 }
 
+// ---------- Reporting lines (D32) ----------
+
+/** Who this person reports to, if anyone. */
+export function managerOf(ws: Workspace, contact: Contact): Contact | undefined {
+  if (contact.managerId === undefined) return undefined;
+  return ws.contacts.find((c) => c.id === contact.managerId);
+}
+
+/** Everyone who reports to them, by name. The inverse is always derived. */
+export function directReports(ws: Workspace, contactId: string): Contact[] {
+  return ws.contacts
+    .filter((c) => c.managerId === contactId)
+    .sort((a, b) => contactSortName(a).localeCompare(contactSortName(b)));
+}
+
+/**
+ * The chain upwards, nearest manager first, stopping at the top. Visited-set
+ * guarded like every other graph walk here: `setContactManager` refuses to
+ * create a loop, but a hand-edited contacts.json is not bound by that.
+ */
+export function managerChain(ws: Workspace, contactId: string): Contact[] {
+  const chain: Contact[] = [];
+  const seen = new Set<string>([contactId]);
+  let cursor = ws.contacts.find((c) => c.id === contactId)?.managerId;
+  while (cursor !== undefined && !seen.has(cursor)) {
+    seen.add(cursor);
+    const next = ws.contacts.find((c) => c.id === cursor);
+    if (next === undefined) break;
+    chain.push(next);
+    cursor = next.managerId;
+  }
+  return chain;
+}
+
+/**
+ * Who may be picked as this person's manager: everyone except themself and
+ * anyone already beneath them. Excluding the subtree is what makes a cycle
+ * unreachable through the UI rather than merely rejected by the mutation.
+ */
+export function managerCandidates(ws: Workspace, contactId: string): Contact[] {
+  const beneath = new Set<string>([contactId]);
+  // Repeat until stable: reports of reports are beneath them too.
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const c of ws.contacts) {
+      if (c.managerId !== undefined && beneath.has(c.managerId) && !beneath.has(c.id)) {
+        beneath.add(c.id);
+        grew = true;
+      }
+    }
+  }
+  return ws.contacts.filter((c) => !beneath.has(c.id));
+}
+
 // ---------- The contacts inventory screen ----------
 
 export interface ContactRow {
@@ -377,8 +432,8 @@ export function maskMentions(text: string): string {
 // ---------- Search ----------
 
 /**
- * Top-bar search over contacts: name, company, role, email, phone, tags and
- * notes. Phone matching ignores punctuation, so "5551234" finds
+ * Top-bar search over contacts: name, company, department, role, email,
+ * phone, tags and notes. Phone matching ignores punctuation, so "5551234" finds
  * "(555) 123-4567" — the way anyone actually remembers a number.
  */
 export function searchContacts(contacts: readonly Contact[], query: string): Contact[] {
@@ -386,7 +441,16 @@ export function searchContacts(contacts: readonly Contact[], query: string): Con
   if (q === '') return [];
   const digits = q.replace(/\D/g, '');
   return contacts.filter((c) => {
-    const haystack = [contactName(c), c.company, c.role, c.email, c.phone, c.notes, ...c.tags]
+    const haystack = [
+      contactName(c),
+      c.company,
+      c.department,
+      c.role,
+      c.email,
+      c.phone,
+      c.notes,
+      ...c.tags,
+    ]
       .join(' ')
       .toLowerCase();
     if (haystack.includes(q)) return true;

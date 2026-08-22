@@ -21,6 +21,7 @@ export const IPC = {
   archiveImport: 'archive:import',
   menuCommand: 'app:menuCommand',
   importFromFile: 'import:fromFile',
+  csvPick: 'csv:pick',
   importFromText: 'import:fromText',
   dataDirChoose: 'dataDir:choose',
   saveStatus: 'storage:saveStatus',
@@ -88,6 +89,28 @@ export const EXTERNAL_LINKS = {
   author: 'https://timhowland.com',
 } as const;
 
+/**
+ * Schemes the app will hand to the OS. An explicit allowlist, never a
+ * passthrough: `shell.openExternal` will happily launch `file:` or any
+ * registered custom scheme, and the renderer's URLs come from user data.
+ * `mailto:` and `tel:` are here so a contact's email and phone can be acted
+ * on (D32).
+ */
+export const OPENABLE_SCHEMES = ['http:', 'https:', 'mailto:', 'tel:'] as const;
+
+/** True when `url` is one of the handful of things we will open externally. */
+export function isOpenableExternally(url: unknown): url is string {
+  if (typeof url !== 'string') return false;
+  // Parsed rather than prefix-matched: "https:/\evil" and whitespace tricks
+  // do not survive the URL parser, and a scheme match is then exact.
+  try {
+    const scheme = new URL(url).protocol;
+    return (OPENABLE_SCHEMES as readonly string[]).includes(scheme);
+  } catch {
+    return false;
+  }
+}
+
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
 export const BLOB_PROTOCOL = 'ariadne-blob';
 
@@ -126,6 +149,14 @@ export interface SaveStatusEvent {
   name?: CollectionName;
   message?: string;
 }
+
+/**
+ * A text file the user picked (D33). Main owns the dialog and the disk; the
+ * parsing stays in `shared/domain`, so the importer is testable without a
+ * filesystem and a second importer can reuse this channel unchanged.
+ */
+export type CsvPickResponse =
+  { ok: true; name: string; text: string } | { ok: false; error: string; cancelled?: boolean };
 
 export interface DataDirResponse {
   path: string;
@@ -237,6 +268,8 @@ export interface AriadneApi {
   /** Open-dialog + restore from a zip archive; replaces the workspace (D22). */
   importArchive(): Promise<ArchiveImportResponse>;
   importFromFile(): Promise<ImportResponse>;
+  /** Open-dialog + read a .csv as text; nothing is parsed in the main process. */
+  pickCsvFile(): Promise<CsvPickResponse>;
   importFromText(text: string): Promise<ImportResponse>;
   chooseDataDir(): Promise<DataDirChooseResponse>;
   todoistCompleted(token: string, since: string, until: string): Promise<TodoistCompletedResponse>;

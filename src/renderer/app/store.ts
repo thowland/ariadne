@@ -1,4 +1,5 @@
 import { todayIso } from '@shared/domain/clock';
+import type { ContactImportPlan } from '@shared/domain/contact-csv';
 import type { Scope } from '@shared/domain/derive';
 import { newId } from '@shared/domain/id';
 import type { MutationCtx, MutationResult } from '@shared/domain/mutate';
@@ -52,6 +53,12 @@ export interface FileModalState {
 export interface AiImportModalState {
   type: 'aiImport';
 }
+/** Review step of a contacts CSV import (D33); the plan is already computed. */
+export interface ContactImportModalState {
+  type: 'contactImport';
+  fileName: string;
+  plan: ContactImportPlan;
+}
 /** Bulk "move tasks to project…" picker (D21), from either context menu. */
 export interface MoveTasksModalState {
   type: 'moveTasks';
@@ -93,6 +100,7 @@ export type ModalState =
   | FileModalState
   | DayModalState
   | AiImportModalState
+  | ContactImportModalState
   | MoveTasksModalState
   | AboutModalState
   | HelpModalState
@@ -168,6 +176,8 @@ export interface AriadneStore {
   openDay: (iso: IsoDate) => void;
   /** Opens the AI task import wizard. */
   openAiImport: () => void;
+  /** Opens the contacts CSV review dialog (D33). */
+  openContactImport: (state: Omit<ContactImportModalState, 'type'>) => void;
   /** Opens the bulk move-to-project picker (D21). */
   openMoveTasks: (state: Omit<MoveTasksModalState, 'type'>) => void;
   /** Opens the About box (Help/app menu). */
@@ -371,6 +381,10 @@ export const useStore = create<AriadneStore>((set, get) => ({
 
   openAiImport: () => {
     set({ modal: { type: 'aiImport' } });
+  },
+
+  openContactImport: (state) => {
+    set({ modal: { type: 'contactImport', ...state } });
   },
 
   openMoveTasks: (state) => {

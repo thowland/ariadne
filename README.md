@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v2.0.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v2.1.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -32,6 +32,8 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
 | **Retrospective** — what actually got finished over a date range, with completions over time; archived projects still count.                | **Files library** — every attachment across every project in one place.                                                             |
 | [![The contacts list](docs/screenshots/contacts.png)](docs/screenshots/contacts.png)                                                        | [![A contact's detail page](docs/screenshots/contact-detail.png)](docs/screenshots/contact-detail.png)                              |
 | **Contacts** — everyone you work with, sortable by load, company, or last activity, with one-click copy for a name, email, or number.       | **Contact detail** — their details, plus every task and project they touch, each one a click from the work itself.                  |
+| [![Reporting lines on a contact](docs/screenshots/contact-detail-org.png)](docs/screenshots/contact-detail-org.png)                         | [![Reviewing a CSV import](docs/screenshots/contact-import.png)](docs/screenshots/contact-import.png)                               |
+| **Org links** — who they report to and who reports to them, plus an envelope and handset that hand the address to your mail app or dialer.  | **CSV import** — reviewed before anything is written: what is new, who gets updated, and which rows could not be used.              |
 | [![Linking a person to a task with @](docs/screenshots/task-mentions.png)](docs/screenshots/task-mentions.png)                              | [![The contact activity report](docs/screenshots/contact-activity.png)](docs/screenshots/contact-activity.png)                      |
 | **@-mentions** — type `@` and a few letters in a task title; the name completes in place, and somebody new is held until the task is added. | **Contact activity** — who you have actually been working with over a date range, ranked, with the organizations behind them.       |
 | [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                    | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
@@ -474,7 +476,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D31. Record any deliberate behavior change as a new row
+  decision table D1–D33. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.

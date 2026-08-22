@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCsv, toCsv } from './csv';
+import { parseCsv, toCsv, unguardCsvCell } from './csv';
 
 describe('parseCsv', () => {
   it('parses plain rows', () => {
@@ -67,5 +67,51 @@ describe('toCsv', () => {
 
   it('ends with a newline so the last row is terminated', () => {
     expect(toCsv([['a']]).endsWith('\r\n')).toBe(true);
+  });
+});
+
+describe('parseCsv — RFC-4180 edges', () => {
+  it('round-trips its own output, newlines in a cell included', () => {
+    const rows = [
+      ['Name', 'Notes'],
+      ['Dana Reyes', 'Prefers a call.\nSecond line, with a comma.'],
+      ['Tom "Woody" Whitaker', 'Quoted "nickname" inside'],
+    ];
+    expect(parseCsv(toCsv(rows))).toEqual(rows);
+  });
+
+  it('accepts CRLF, LF, and a missing final newline alike', () => {
+    expect(parseCsv('a,b\r\nc,d\r\n')).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    expect(parseCsv('a,b\nc,d')).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+  });
+
+  it('keeps a row of empty cells but drops a blank line', () => {
+    expect(parseCsv('a,b\n\n,\n')).toEqual([
+      ['a', 'b'],
+      ['', ''],
+    ]);
+    expect(parseCsv('')).toEqual([]);
+  });
+});
+
+describe('unguardCsvCell', () => {
+  it('strips the formula guard toCsv added', () => {
+    // A phone number is the case that bites: every international number
+    // starts with the "+" that the guard escapes.
+    expect(unguardCsvCell("'+1 555 010 0000")).toBe('+1 555 010 0000');
+    expect(unguardCsvCell("'=SUM(A1)")).toBe('=SUM(A1)');
+    expect(toCsv([['+1 555 010 0000']]).trim()).toBe("'+1 555 010 0000");
+  });
+
+  it('leaves an apostrophe that is part of the value alone', () => {
+    expect(unguardCsvCell("O'Brien")).toBe("O'Brien");
+    expect(unguardCsvCell("'quoted'")).toBe("'quoted'");
+    expect(unguardCsvCell('')).toBe('');
   });
 });

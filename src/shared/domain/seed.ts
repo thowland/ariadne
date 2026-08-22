@@ -164,7 +164,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p1', {
     title: 'Cutover & DNS switch',
-    contactIds: ['c2'],
+    contactIds: ['c2', 'c8'],
     status: 'Waiting',
     priority: 'Critical',
     dueDate: d(16),
@@ -373,10 +373,11 @@ export function seedWorkspace(today: IsoDate): Workspace {
   /**
    * The sample address book (D31). Deliberately mixed: two people at the same
    * outside vendor, three colleagues with no company, two one-off
-   * home-project contacts, and one stakeholder attached to a project but to
-   * none of its tasks — so the Contacts card, the contacts screen's grouping,
-   * and the Contact Activity report all render their interesting branches
-   * from the seed rather than only from a workspace someone built by hand.
+   * home-project contacts, one stakeholder attached to a project but to none
+   * of its tasks, and a two-level reporting line (D32) — so the Contacts
+   * card, the contacts screen's grouping, the org links, and the Contact
+   * Activity report all render their interesting branches from the seed
+   * rather than only from a workspace someone built by hand.
    */
   const contacts: Contact[] = [
     {
@@ -384,6 +385,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Dana',
       lastName: 'Reyes',
       company: 'Northwind Systems',
+      department: 'Platform Engineering',
       role: 'Platform Lead',
       email: 'dana.reyes@northwind.example',
       phone: '(555) 214-8890',
@@ -396,6 +398,8 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Marcus',
       lastName: 'Bell',
       company: '',
+      department: 'Infrastructure',
+      managerId: 'c8',
       role: 'SRE, on-call rotation',
       email: 'marcus.bell@example.com',
       phone: '(555) 771-3042',
@@ -408,6 +412,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Priya',
       lastName: 'Nair',
       company: '',
+      department: 'Design',
       role: 'Product Designer',
       email: 'priya.nair@example.com',
       phone: '(555) 662-1177',
@@ -420,6 +425,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Elena',
       lastName: 'Vasquez',
       company: 'Vasquez & Co CPA',
+      department: '',
       role: 'Accountant',
       email: 'elena@vasquezcpa.example',
       phone: '(555) 903-4410',
@@ -432,6 +438,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Tom',
       lastName: 'Whitaker',
       company: 'Harborline Marine',
+      department: '',
       role: 'Shop Owner',
       email: 'tom@harborline.example',
       phone: '(555) 448-2201',
@@ -444,6 +451,8 @@ export function seedWorkspace(today: IsoDate): Workspace {
       firstName: 'Sofia',
       lastName: 'Grant',
       company: '',
+      department: 'Talent',
+      managerId: 'c8',
       role: 'Recruiter',
       email: 'sofia.grant@example.com',
       phone: '(555) 330-9915',
@@ -452,10 +461,24 @@ export function seedWorkspace(today: IsoDate): Workspace {
       createdAt: d(-45),
     },
     {
+      id: 'c8',
+      firstName: 'Rachel',
+      lastName: 'Okonjo',
+      company: '',
+      department: 'Engineering',
+      role: 'Director of Engineering',
+      email: 'rachel.okonjo@example.com',
+      phone: '(555) 118-7742',
+      notes: 'Runs the platform and infrastructure teams. Approves the cutover window.',
+      tags: ['team'],
+      createdAt: d(-50),
+    },
+    {
       id: 'c7',
       firstName: 'Aidan',
       lastName: 'Cross',
       company: 'Northwind Systems',
+      department: 'Commercial',
       role: 'Account Manager',
       email: 'aidan.cross@northwind.example',
       phone: '(555) 214-8801',

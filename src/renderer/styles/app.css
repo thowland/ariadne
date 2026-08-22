@@ -3222,6 +3222,26 @@ input.inp.full {
   flex: none;
 }
 
+/* mailto: / tel: buttons */
+.contact-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.contact-action:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* Picker — same shape as the tag editor's, because it is the same gesture. */
 .contact-picker {
   position: relative;
@@ -3431,6 +3451,15 @@ input.inp.full {
   gap: 2px;
   padding: 0 10px 10px 28px;
 }
+.contact-acc-reach {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.contact-acc-reach .copy-value {
+  min-width: 0;
+}
 .contact-acc-notes {
   font-size: 12px;
   color: var(--muted);
@@ -3509,6 +3538,63 @@ input.inp.full {
   flex-direction: column;
   gap: 12px;
 }
+.contact-form-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.contact-form-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.contact-form-row .contact-action {
+  margin-bottom: 3px;
+}
+
+/* Organization card */
+.contact-org {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.contact-org-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.contact-org-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.contact-org-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 8px;
+  margin-left: -8px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.contact-org-person:hover {
+  background: #faf9f6;
+}
+.contact-org-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.contact-org-meta {
+  font-size: 11.5px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .contact-task-group {
   margin-bottom: 10px;
 }
@@ -3550,6 +3636,47 @@ input.inp.full {
   display: flex;
   gap: 4px;
   flex: none;
+}
+
+/* CSV import review (D33) */
+.import-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border2);
+}
+.import-file {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+.import-group {
+  margin-bottom: 12px;
+}
+.import-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+.import-name {
+  font-size: 12.5px;
+  color: var(--text);
+}
+.import-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+[data-testid='import-unresolved'] {
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 /* Search results */

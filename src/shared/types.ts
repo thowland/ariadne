@@ -148,6 +148,8 @@ export interface Contact {
   lastName: string;
   /** Employer or org; free-form, and the grouping key on the contacts screen. */
   company: string;
+  /** Team or division within the company; free-form, often blank. */
+  department: string;
   /** Job title or how they relate to you ("VP Eng", "Acme account rep"). */
   role: string;
   email: string;
@@ -155,6 +157,12 @@ export interface Contact {
   notes: string;
   /** Free-form, shared with the project/task tag vocabulary. */
   tags: string[];
+  /**
+   * Who this person reports to, by contact id (D32). Optional-additive, and
+   * one-directional: "manages" is derived by looking for everyone whose
+   * managerId points here, so an org chart can never disagree with itself.
+   */
+  managerId?: string;
   createdAt: IsoDate;
 }
 
