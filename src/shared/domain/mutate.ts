@@ -10,6 +10,9 @@ import type {
 } from '../types';
 import { COLLECTION_NAMES, PROJECT_PALETTE, STATUS_CYCLE } from '../types';
 
+import type { ContactImportPlan, ContactImportRow } from './contact-csv';
+import { contactName } from './contacts';
+
 /**
  * The complete mutation command surface (spec §5.2). Every function is pure:
  * `(workspace, args, ctx) → { workspace, changed, … }` with structural
@@ -429,6 +432,7 @@ export function createContact(
     firstName: '',
     lastName: '',
     company: '',
+    department: '',
     role: '',
     email: '',
     phone: '',
@@ -462,7 +466,9 @@ export function updateContact(
 /**
  * Removes the contact and every link to it. Unlike a project delete this
  * cascades to references only — no task or project is destroyed because the
- * person filed against it left.
+ * person filed against it left. Anyone who reported to them is left without a
+ * manager rather than pointing at a ghost (D32); `normalizeWorkspace` would
+ * eventually clear it on load, but not before the org card rendered a gap.
  */
 export function deleteContact(ws: Workspace, id: string): MutationResult {
   if (!ws.contacts.some((c) => c.id === id)) return unchanged(ws);
@@ -485,7 +491,14 @@ export function deleteContact(ws: Workspace, id: string): MutationResult {
   return {
     workspace: {
       ...ws,
-      contacts: ws.contacts.filter((c) => c.id !== id),
+      contacts: ws.contacts
+        .filter((c) => c.id !== id)
+        .map((c) => {
+          if (c.managerId !== id) return c;
+          const next = { ...c };
+          delete next.managerId;
+          return next;
+        }),
       tasks,
       projects,
     },
@@ -574,6 +587,160 @@ export function removeContactFromProject(
     },
     changed: ['projects'],
   };
+}
+
+/**
+ * Point a contact at their manager, or clear it with `null` (D32).
+ * Refuses a self-link and any link that would close a reporting loop — an org
+ * chart with a cycle is not a chart, and every traversal downstream would
+ * have to defend against it.
+ */
+export function setContactManager(
+  ws: Workspace,
+  contactId: string,
+  managerId: string | null,
+): MutationResult {
+  const contact = ws.contacts.find((c) => c.id === contactId);
+  if (contact === undefined) return unchanged(ws);
+  if (managerId !== null) {
+    if (managerId === contactId) return unchanged(ws);
+    if (!ws.contacts.some((c) => c.id === managerId)) return unchanged(ws);
+    // Walk up from the proposed manager: meeting this contact means the link
+    // would close a loop. Visited-set guarded in case the data already has one.
+    const seen = new Set<string>();
+    let cursor: string | undefined = managerId;
+    while (cursor !== undefined && !seen.has(cursor)) {
+      if (cursor === contactId) return unchanged(ws);
+      seen.add(cursor);
+      cursor = ws.contacts.find((c) => c.id === cursor)?.managerId;
+    }
+  }
+  if ((contact.managerId ?? null) === managerId) return unchanged(ws);
+  return {
+    workspace: {
+      ...ws,
+      contacts: ws.contacts.map((c) => {
+        if (c.id !== contactId) return c;
+        const next = { ...c };
+        if (managerId === null) delete next.managerId;
+        else next.managerId = managerId;
+        return next;
+      }),
+    },
+    changed: ['contacts'],
+  };
+}
+
+export interface ContactImportResultCounts extends MutationResult {
+  created: number;
+  updated: number;
+  /** Manager links actually established. */
+  linked: number;
+}
+
+/**
+ * Carries out a reviewed CSV import (D33). Creates come first so that a
+ * manager named further down the file can still be resolved, and manager
+ * links are matched against the roster *after* every row has landed.
+ */
+export function applyContactImport(
+  ws: Workspace,
+  ctx: MutationCtx,
+  plan: ContactImportPlan,
+): ContactImportResultCounts {
+  const merge = (base: Contact, row: ContactImportRow): Contact => ({
+    ...base,
+    ...row.fields,
+    ...(row.tags === undefined ? {} : { tags: row.tags }),
+  });
+
+  let contacts = [...ws.contacts];
+  let created = 0;
+  for (const row of plan.creates) {
+    contacts.push(
+      merge(
+        {
+          id: ctx.newId(),
+          firstName: '',
+          lastName: '',
+          company: '',
+          department: '',
+          role: '',
+          email: '',
+          phone: '',
+          notes: '',
+          tags: [],
+          createdAt: ctx.today,
+        },
+        row,
+      ),
+    );
+    created += 1;
+  }
+
+  let updated = 0;
+  const patches = new Map(plan.updates.map((u) => [u.existing.id, u.row]));
+  contacts = contacts.map((c) => {
+    const row = patches.get(c.id);
+    if (row === undefined) return c;
+    updated += 1;
+    return merge(c, row);
+  });
+
+  // Manager names resolve against the finished roster, first match wins so a
+  // duplicated name cannot make the result depend on iteration order.
+  const byName = new Map<string, string>();
+  for (const c of contacts) {
+    const key = contactName(c).toLowerCase();
+    if (!byName.has(key)) byName.set(key, c.id);
+  }
+  const wanted = new Map<string, string>();
+  for (const row of [...plan.creates, ...plan.updates.map((u) => u.row)]) {
+    const name = row.managerName.trim().toLowerCase();
+    if (name === '') continue;
+    const self = contacts.find((c) => contactName(c).toLowerCase() === row.name.toLowerCase());
+    const managerId = byName.get(name);
+    if (self === undefined || managerId === undefined || managerId === self.id) continue;
+    wanted.set(self.id, managerId);
+  }
+
+  // Apply the links one at a time against the state built so far, exactly as
+  // `setContactManager` does. Deciding them all at once and then looking for
+  // loops drops *both* halves of a mutual pair; this keeps the first and
+  // refuses only the link that actually closes the ring.
+  const finalManager = new Map<string, string | undefined>(
+    contacts.map((c) => [c.id, c.managerId]),
+  );
+  let linked = 0;
+  for (const [id, managerId] of wanted) {
+    const seen = new Set<string>([id]);
+    let cursor: string | undefined = managerId;
+    let closesLoop = false;
+    while (cursor !== undefined) {
+      if (seen.has(cursor)) {
+        closesLoop = true;
+        break;
+      }
+      seen.add(cursor);
+      cursor = finalManager.get(cursor);
+    }
+    if (closesLoop) continue;
+    finalManager.set(id, managerId);
+    linked += 1;
+  }
+  if (linked > 0) {
+    contacts = contacts.map((c) => {
+      const managerId = finalManager.get(c.id);
+      if (managerId === c.managerId) return c;
+      const next = { ...c };
+      if (managerId === undefined) delete next.managerId;
+      else next.managerId = managerId;
+      return next;
+    });
+  }
+
+  if (created === 0 && updated === 0) return { ...unchanged(ws), created, updated, linked };
+  return { workspace: { ...ws, contacts }, changed: ['contacts'], created, updated, linked };
 }
 
 // ---------- settings / whole-workspace ----------

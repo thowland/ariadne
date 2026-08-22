@@ -1,5 +1,8 @@
 import type { Task } from '../types';
 
+import type { MapEdge, MapPositions, NodeMapLayout, PositionedNode } from './node-map';
+import { anchorEdge, mapBounds, pinnedPosition } from './node-map';
+
 /**
  * Dependency-map layout (prototype _depGraph), as pure geometry. Tasks are
  * layered by dependency depth (longest path from roots, cycle-safe via a
@@ -7,8 +10,8 @@ import type { Task } from '../types';
  * top → bottom so long chains grow downward.
  *
  * Hand-placed positions (D20) override the computed row for any task id they
- * name; everything else keeps its auto slot. Edge anchors are then picked from
- * the actual box geometry so the lines follow the nodes around.
+ * name; everything else keeps its auto slot. Edge anchors and the canvas
+ * bounding box come from `node-map.ts`, shared with the org map (D34).
  */
 
 export const NODE_W = 172;
@@ -19,52 +22,14 @@ const PAD_L = 8;
 const PAD_T = 8;
 
 /** Hand-placed node positions, keyed by task id. */
-export type DepPositions = Readonly<Record<string, { x: number; y: number }>>;
+export type DepPositions = MapPositions;
 
-export interface GraphNode {
+export interface GraphNode extends PositionedNode {
   task: Task;
-  x: number;
-  y: number;
-  /** True when this node sits where the user put it, not where layout put it. */
-  pinned: boolean;
 }
 
-export interface GraphEdge {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  /** Which axis the line leaves and enters on — drives the curve's bend. */
-  axis: 'v' | 'h';
-}
-
-export interface DepGraphLayout {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  width: number;
-  height: number;
-}
-
-/**
- * Anchor points for an edge between two node boxes: bottom → top when the
- * target is below, top → bottom when it is above, side → side when they
- * overlap vertically (which only happens once nodes are hand-placed).
- */
-function anchorEdge(from: { x: number; y: number }, to: { x: number; y: number }): GraphEdge {
-  const cxFrom = from.x + NODE_W / 2;
-  const cxTo = to.x + NODE_W / 2;
-  const cyFrom = from.y + NODE_H / 2;
-  const cyTo = to.y + NODE_H / 2;
-  if (to.y >= from.y + NODE_H) {
-    return { x1: cxFrom, y1: from.y + NODE_H, x2: cxTo, y2: to.y, axis: 'v' };
-  }
-  if (from.y >= to.y + NODE_H) {
-    return { x1: cxFrom, y1: from.y, x2: cxTo, y2: to.y + NODE_H, axis: 'v' };
-  }
-  return to.x >= from.x
-    ? { x1: from.x + NODE_W, y1: cyFrom, x2: to.x, y2: cyTo, axis: 'h' }
-    : { x1: from.x, y1: cyFrom, x2: to.x + NODE_W, y2: cyTo, axis: 'h' };
-}
+export type GraphEdge = MapEdge;
+export type DepGraphLayout = NodeMapLayout<GraphNode>;
 
 /**
  * Null when there is nothing worth drawing: fewer than two live tasks, or no
@@ -115,9 +80,9 @@ export function layoutDepGraph(
   for (const [layer, list] of layers) {
     const startX = PAD_L + (rowW - (list.length * (NODE_W + COL_GAP) - COL_GAP)) / 2;
     list.forEach((t, i) => {
-      const placed = positions[t.id];
-      if (placed !== undefined && Number.isFinite(placed.x) && Number.isFinite(placed.y)) {
-        pos.set(t.id, { x: Math.max(0, placed.x), y: Math.max(0, placed.y) });
+      const placed = pinnedPosition(positions, t.id);
+      if (placed !== null) {
+        pos.set(t.id, placed);
         pinned.add(t.id);
         return;
       }
@@ -130,23 +95,16 @@ export function layoutDepGraph(
     for (const d of t.dependsOn) {
       const from = pos.get(d);
       const to = pos.get(t.id);
-      if (from !== undefined && to !== undefined) edges.push(anchorEdge(from, to));
+      if (from !== undefined && to !== undefined) {
+        edges.push(anchorEdge(from, to, NODE_W, NODE_H));
+      }
     }
   }
 
-  const nodes = tasks.map((t) => {
+  const nodes: GraphNode[] = tasks.map((t) => {
     const p = pos.get(t.id) ?? { x: PAD_L, y: PAD_T };
-    return { task: t, x: p.x, y: p.y, pinned: pinned.has(t.id) };
+    return { id: t.id, task: t, x: p.x, y: p.y, pinned: pinned.has(t.id) };
   });
 
-  // Bounding box, so hand-placed nodes extend the scrollable canvas. With no
-  // overrides this reproduces the old row-based width/height exactly.
-  let right = 0;
-  let bottom = 0;
-  for (const n of nodes) {
-    right = Math.max(right, n.x + NODE_W);
-    bottom = Math.max(bottom, n.y + NODE_H);
-  }
-
-  return { nodes, edges, width: right + PAD_L, height: bottom + PAD_T };
+  return { nodes, edges, ...mapBounds(nodes, NODE_W, NODE_H, PAD_L) };
 }

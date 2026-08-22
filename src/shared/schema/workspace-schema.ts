@@ -88,11 +88,20 @@ export const contactSchema = z.object({
   firstName: z.string().catch(''),
   lastName: z.string().catch(''),
   company: z.string().catch(''),
+  // Added in 2.1; `.catch` covers the key being absent entirely, so a 2.0
+  // contacts.json loads without a migration.
+  department: z.string().catch(''),
   role: z.string().catch(''),
   email: z.string().catch(''),
   phone: z.string().catch(''),
   notes: z.string().catch(''),
   tags: z.array(z.string()).catch([]),
+  managerId: z.string().optional().catch(undefined),
+  orgLayout: z
+    .record(z.string(), z.object({ x: z.number().finite(), y: z.number().finite() }))
+    .optional()
+    .catch(undefined),
+  orgMapHeight: z.number().finite().optional().catch(undefined),
   createdAt: isoDate,
 });
 
@@ -190,6 +199,20 @@ export function normalizeWorkspace(
   for (const t of keptTasks) if (scrubContacts(t)) scrubbed += 1;
   if (scrubbed > 0) {
     warnings.push(`Removed contact reference(s) from ${String(scrubbed)} item(s)`);
+  }
+
+  // A manager who was deleted, or somebody made their own manager by a hand
+  // edit, would otherwise render as a broken link or a one-node loop (D32).
+  let orphanedManagers = 0;
+  for (const c of contacts) {
+    if (c.managerId === undefined) continue;
+    if (c.managerId === c.id || !contactIds.has(c.managerId)) {
+      delete c.managerId;
+      orphanedManagers += 1;
+    }
+  }
+  if (orphanedManagers > 0) {
+    warnings.push(`Cleared ${String(orphanedManagers)} unusable manager link(s)`);
   }
 
   const keptFiles = files.filter((f) => projectIds.has(f.projectId));

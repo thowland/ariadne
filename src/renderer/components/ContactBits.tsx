@@ -8,6 +8,7 @@ import type { Contact } from '@shared/types';
 import { PROJECT_PALETTE } from '@shared/types';
 import { useRef, useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 
 /**
@@ -101,6 +102,63 @@ export function ContactAvatar({
     >
       {contactInitials(contact)}
     </span>
+  );
+}
+
+/**
+ * Reach a contact through the OS: an envelope that opens a mail composer, a
+ * handset that dials (D32). Both go out through `shell.openExternal`, whose
+ * scheme allowlist in `main/ipc.ts` had to learn `mailto:` and `tel:` —
+ * without that the click is silently swallowed.
+ *
+ * A button rather than an `<a href>`: a real anchor would navigate the app
+ * window, which is how an Electron renderer loses its React tree.
+ */
+export function ContactActionLink({
+  kind,
+  value,
+  who,
+}: {
+  kind: 'email' | 'phone';
+  value: string;
+  /** Names the target in the tooltip, e.g. "Dana Reyes". */
+  who: string;
+}): React.JSX.Element | null {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const email = kind === 'email';
+  // tel: chokes on spaces and punctuation; keep digits, + and extension chars.
+  const href = email ? `mailto:${trimmed}` : `tel:${trimmed.replace(/[^\d+;,*#]/g, '')}`;
+  const label = email ? `Email ${who}` : `Call ${who}`;
+
+  return (
+    <button
+      type="button"
+      className="contact-action"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        void getApi().openExternal(href);
+      }}
+    >
+      {email ? (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" fill="none" stroke="currentColor" />
+          <path d="M2 4.5 8 9l6-4.5" fill="none" stroke="currentColor" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          {/* A handset: two ear/mouth pads joined by a diagonal body. */}
+          <path
+            d="M5.6 2.4 3.2 4.8a1.2 1.2 0 0 0 0 1.7l6.3 6.3a1.2 1.2 0 0 0 1.7 0l2.4-2.4a1 1 0 0 0-.2-1.6l-1.8-.9a1 1 0 0 0-1.1.2l-.7.7-3-3 .7-.7a1 1 0 0 0 .2-1.1l-.9-1.8a1 1 0 0 0-1.6-.2Z"
+            fill="none"
+            stroke="currentColor"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
   );
 }
 

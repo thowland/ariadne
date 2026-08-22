@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,7 +33,9 @@ describe('ContactDetail', () => {
   it('shows the person, their role, and their open load', () => {
     renderDetail();
     expect(screen.getByTestId('contact-headline')).toHaveTextContent('Dana Reyes');
-    expect(screen.getByText(/Platform Lead · Northwind Systems/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Platform Lead · Platform Engineering · Northwind Systems/),
+    ).toBeInTheDocument();
     expect(screen.getByText('2 open tasks')).toBeInTheDocument();
   });
 
@@ -111,5 +113,140 @@ describe('ContactDetail', () => {
     useStore.setState({ activeContactId: 'ghost' });
     renderDetail();
     expect(screen.getByText('Contact not found.')).toBeInTheDocument();
+  });
+
+  it('edits the department (D32)', async () => {
+    renderDetail();
+    const field = screen.getByLabelText('Department');
+    expect(field).toHaveValue('Platform Engineering');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Core Platform');
+    expect(ws().contacts.find((c) => c.id === 'c1')?.department).toBe('Core Platform');
+  });
+
+  it('hands the email to the OS mail client, and the number to the dialer', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'contact', activeContactId: 'c1' });
+    renderDetail();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Email Dana Reyes' }));
+    expect(api.openExternal).toHaveBeenLastCalledWith('mailto:dana.reyes@northwind.example');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Call Dana Reyes' }));
+    // Punctuation a dialer cannot use is stripped; the digits are not.
+    expect(api.openExternal).toHaveBeenLastCalledWith('tel:5552148890');
+  });
+
+  it('offers no action link for a field nobody filled in', () => {
+    useStore.setState({ activeContactId: 'c7' });
+    const w = ws();
+    loadTestWorkspace({
+      ...w,
+      contacts: w.contacts.map((c) => (c.id === 'c7' ? { ...c, phone: '' } : c)),
+    });
+    renderDetail();
+    expect(screen.getByRole('button', { name: 'Email Aidan Cross' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Call Aidan Cross' })).not.toBeInTheDocument();
+  });
+
+  it('shows the reporting line in both directions, each a link', async () => {
+    useStore.setState({ activeContactId: 'c2' }); // Marcus Bell → Rachel Okonjo
+    renderDetail();
+    const org = screen.getByTestId('contact-org');
+    expect(within(org).getByText('Rachel Okonjo')).toBeInTheDocument();
+    await userEvent.click(within(org).getByText('Rachel Okonjo'));
+    expect(useStore.getState().activeContactId).toBe('c8');
+  });
+
+  it('lists direct reports, derived from the other end of the same link', () => {
+    useStore.setState({ activeContactId: 'c8' });
+    renderDetail();
+    const org = screen.getByTestId('contact-org');
+    expect(org).toHaveTextContent('DIRECT REPORTS · 2');
+    expect(within(org).getByText('Marcus Bell')).toBeInTheDocument();
+    expect(within(org).getByText('Sofia Grant')).toBeInTheDocument();
+  });
+
+  it('sets and clears a manager', async () => {
+    renderDetail(); // Dana Reyes, no manager
+    await userEvent.click(screen.getByRole('button', { name: '+ Set manager' }));
+    await userEvent.type(screen.getByLabelText('Set manager'), 'aidan');
+    await userEvent.click(screen.getByRole('option', { name: /Aidan Cross/ }));
+    expect(ws().contacts.find((c) => c.id === 'c1')?.managerId).toBe('c7');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear manager' }));
+    expect(ws().contacts.find((c) => c.id === 'c1')?.managerId).toBeUndefined();
+  });
+
+  it('never offers the person or their reports as their own manager', async () => {
+    useStore.setState({ activeContactId: 'c8' }); // manages Marcus and Sofia
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: '+ Set manager' }));
+    const picker = screen.getByLabelText('Set manager');
+    await userEvent.type(picker, 'a');
+    // A cycle is unreachable through the UI, not merely rejected afterwards.
+    expect(screen.queryByRole('option', { name: /Rachel Okonjo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Marcus Bell/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Sofia Grant/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Dana Reyes/ })).toBeInTheDocument();
+  });
+
+  it('deleting a manager leaves their reports without one, not pointing at a ghost', async () => {
+    useStore.setState({ activeContactId: 'c8' });
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Confirm' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(ws().contacts.some((c) => c.id === 'c8')).toBe(false);
+    });
+    expect(ws().contacts.find((c) => c.id === 'c2')?.managerId).toBeUndefined();
+  });
+
+  it('carries the org map, and persists a hand-placed box on the contact (D34)', () => {
+    useStore.setState({ activeContactId: 'c2' }); // Marcus, managed by Rachel
+    renderDetail();
+    expect(screen.getByTestId('org-map')).toBeInTheDocument();
+    // No pinned nodes yet, so nothing to reset.
+    expect(screen.queryByRole('button', { name: 'Reset layout' })).not.toBeInTheDocument();
+
+    const node = screen.getByTestId('org-node-c8');
+    fireEvent(
+      node,
+      new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
+    );
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60 }));
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientX: 120, clientY: 60 }));
+
+    // Saved against the contact whose map it is, not globally.
+    const marcus = ws().contacts.find((c) => c.id === 'c2');
+    expect(marcus?.orgLayout?.c8).toEqual({ x: 128, y: 68 });
+    expect(ws().contacts.find((c) => c.id === 'c8')?.orgLayout).toBeUndefined();
+  });
+
+  it('resets a hand-placed layout back to the computed rows', async () => {
+    const w = ws();
+    loadTestWorkspace({
+      ...w,
+      contacts: w.contacts.map((c) =>
+        c.id === 'c2' ? { ...c, orgLayout: { c8: { x: 400, y: 30 } } } : c,
+      ),
+    });
+    useStore.setState({ activeContactId: 'c2' });
+    renderDetail();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+    expect(ws().contacts.find((c) => c.id === 'c2')?.orgLayout).toEqual({});
+  });
+
+  it('remembers the map height on the contact', () => {
+    useStore.setState({ activeContactId: 'c2' });
+    renderDetail();
+    const handle = screen.getByTestId('org-map-resize');
+    fireEvent(handle, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientY: 100 }));
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientY: 260 }));
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientY: 260 }));
+    expect(ws().contacts.find((c) => c.id === 'c2')?.orgMapHeight).toBeGreaterThan(140);
   });
 });

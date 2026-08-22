@@ -148,6 +148,8 @@ export interface Contact {
   lastName: string;
   /** Employer or org; free-form, and the grouping key on the contacts screen. */
   company: string;
+  /** Team or division within the company; free-form, often blank. */
+  department: string;
   /** Job title or how they relate to you ("VP Eng", "Acme account rep"). */
   role: string;
   email: string;
@@ -155,8 +157,26 @@ export interface Contact {
   notes: string;
   /** Free-form, shared with the project/task tag vocabulary. */
   tags: string[];
+  /**
+   * Who this person reports to, by contact id (D32). Optional-additive, and
+   * one-directional: "manages" is derived by looking for everyone whose
+   * managerId points here, so an org chart can never disagree with itself.
+   */
+  managerId?: string;
+  /**
+   * Hand-placed org-map node positions in SVG units, keyed by contact id
+   * (D34) — the same shape and the same optional-additive rules as a
+   * project's `depLayout` (D20). Ids not listed keep their computed row.
+   */
+  orgLayout?: Record<string, { x: number; y: number }>;
+  /** Org-map canvas height in px; absent = fit the layout. */
+  orgMapHeight?: number;
   createdAt: IsoDate;
 }
+
+/** Bounds for the resizable org map; the dependency map's, one row shorter. */
+export const ORG_MAP_MIN_H = 140;
+export const ORG_MAP_MAX_H = 2000;
 
 export interface FileEntry {
   id: string;

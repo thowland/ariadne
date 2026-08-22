@@ -974,7 +974,7 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
   // Scoped to the task list: the dependency map draws the title too.
   await expect(win.locator('.trow-title', { hasText: 'Sand the rail @Tomm' })).toBeVisible();
   await win.getByRole('button', { name: 'Contacts', exact: true }).click();
-  await expect(win.getByTestId('contacts-headline')).toHaveText('7 contacts');
+  await expect(win.getByTestId('contacts-headline')).toHaveText('8 contacts');
   await win
     .getByRole('navigation', { name: 'Projects' })
     .getByRole('button', { name: /Refinish boat table/ })
@@ -1051,4 +1051,109 @@ test('contacts: the activity report ranks people and never leaks across scope', 
   await expect(rows.getByText('Dana Reyes')).toBeVisible();
 
   await app.close();
+});
+
+test('contacts: CSV export and import round trip, with an org chart (D32/D33)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const out = mkdtempSync(join(tmpdir(), 'ariadne-out-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await expect(win.getByTestId('contacts-headline')).toHaveText('8 contacts');
+
+  // Export the seeded book.
+  const csvPath = join(out, 'contacts.csv');
+  await app.evaluate(({ dialog }, target) => {
+    dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath: target });
+  }, csvPath);
+  await win.getByRole('button', { name: 'Export CSV' }).click();
+  await expect.poll(() => existsSync(csvPath)).toBe(true);
+  const exported = readFileSync(csvPath, 'utf8');
+  expect(exported.split('\r\n')[0]).toBe(
+    'First Name,Last Name,Company,Department,Role,Email,Phone,Manager,Tags,Notes',
+  );
+  // The reporting line travels as a name, not an id.
+  expect(exported).toContain('Rachel Okonjo');
+
+  // Feed it back with one row edited and one person added.
+  const edited = join(out, 'edited.csv');
+  writeFileSync(
+    edited,
+    exported.replace('Platform Lead', 'Principal Engineer').trimEnd() +
+      '\r\nOtto,Lindqvist,Northwind Systems,Security,CISO,otto@northwind.example,(555) 900-1234,Dana Reyes,vendor,Joined this week.\r\n',
+    'utf8',
+  );
+  await app.evaluate(({ dialog }, target) => {
+    dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [target] });
+  }, edited);
+  await win.getByRole('button', { name: 'Import CSV…' }).click();
+
+  // Review first: nothing has changed yet.
+  await expect(win.getByTestId('import-summary')).toContainText('1 new, 8 updated');
+  await expect(win.getByTestId('contacts-headline')).toHaveText('8 contacts');
+  await win.getByRole('button', { name: /^Import 9 contacts$/ }).click();
+
+  await expect(win.getByTestId('contacts-headline')).toHaveText('9 contacts');
+  const dana = win.getByTestId('contact-row-c1');
+  await expect(dana).toContainText('Principal Engineer');
+
+  // The imported manager link is real, and shows on both people.
+  await win.getByText('Otto Lindqvist').first().click();
+  await expect(win.getByTestId('contact-org')).toContainText('Dana Reyes');
+  await win.getByTestId('contact-org').getByText('Dana Reyes').click();
+  await expect(win.getByTestId('contact-headline')).toHaveText('Dana Reyes');
+  await expect(win.getByTestId('contact-org')).toContainText('Otto Lindqvist');
+
+  await app.close();
+});
+
+test('contacts: the org map is hand-placeable and remembers it across a restart (D34)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await win.getByTestId('contact-row-c2').click(); // Marcus Bell, managed by Rachel
+
+  const map = win.getByTestId('org-map');
+  await expect(map).toBeVisible();
+  // One hop each way: his manager, and not his manager's other report.
+  await expect(win.getByTestId('org-node-c8')).toContainText('Rachel Okonjo');
+  await expect(win.getByTestId('org-node-c6')).toHaveCount(0);
+
+  // Drag the manager box somewhere deliberate.
+  const box = win.getByTestId('org-node-c8');
+  const before = await box.locator('rect').first().getAttribute('x');
+  await box.hover();
+  await win.mouse.down();
+  await win.mouse.move(900, 320, { steps: 10 });
+  await win.mouse.up();
+  const after = await box.locator('rect').first().getAttribute('x');
+  expect(Number(after)).toBeGreaterThan(Number(before));
+
+  await first.close();
+
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await win.getByTestId('contact-row-c2').click();
+  await expect(win.getByTestId('org-map')).toBeVisible();
+  expect(await win.getByTestId('org-node-c8').locator('rect').first().getAttribute('x')).toBe(
+    after,
+  );
+
+  // Reset puts it back where the layout wanted it.
+  await win.getByRole('button', { name: 'Reset layout' }).click();
+  expect(await win.getByTestId('org-node-c8').locator('rect').first().getAttribute('x')).toBe(
+    before,
+  );
+
+  // Clicking a box opens that person.
+  await win.getByTestId('org-node-c8').click();
+  await expect(win.getByTestId('contact-headline')).toHaveText('Rachel Okonjo');
+
+  await second.close();
 });

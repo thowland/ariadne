@@ -24,7 +24,7 @@ describe('DependencyMap', () => {
     const map = screen.getByTestId('dependency-map');
     expect(map).toBeInTheDocument();
     // All six p1 tasks are live (none Dropped) → six nodes.
-    expect(map.querySelectorAll('g.dep-node')).toHaveLength(6);
+    expect(map.querySelectorAll('g.node-map-node')).toHaveLength(6);
     expect(screen.getByTestId('dep-node-t5')).toHaveTextContent('Waiting');
     expect(screen.getByTestId('dep-node-t5')).toHaveTextContent('Cutover & DNS switch');
     // 5 dependency edges in the seed graph for p1 (b←a, c←b, e←b, cutover←c,e).
@@ -143,7 +143,7 @@ describe('DependencyMap dragging', () => {
 describe('DependencyMap resizing', () => {
   it('shows no resize handle unless onResize is supplied', () => {
     render(<DependencyMap tasks={projectTasks('p1')} />);
-    expect(screen.queryByTestId('dep-map-resize')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dependency-map-resize')).not.toBeInTheDocument();
   });
 
   it('applies a saved height, clamped to the allowed range', () => {
@@ -156,7 +156,7 @@ describe('DependencyMap resizing', () => {
   it('drags the handle to a new height and commits on release', () => {
     const onResize = vi.fn();
     render(<DependencyMap tasks={projectTasks('p1')} height={300} onResize={onResize} />);
-    const handle = screen.getByTestId('dep-map-resize');
+    const handle = screen.getByTestId('dependency-map-resize');
     pointer(handle, 'pointerdown', { button: 0, clientY: 100 });
     pointer(window, 'pointermove', { clientY: 250 });
     expect(screen.getByTestId('dependency-map')).toHaveStyle({ height: '450px' });
@@ -167,7 +167,7 @@ describe('DependencyMap resizing', () => {
   it('resizes by keyboard from the handle', async () => {
     const onResize = vi.fn();
     render(<DependencyMap tasks={projectTasks('p1')} height={300} onResize={onResize} />);
-    screen.getByTestId('dep-map-resize').focus();
+    screen.getByTestId('dependency-map-resize').focus();
     await userEvent.keyboard('{ArrowDown}');
     expect(onResize).toHaveBeenCalledWith(340);
     await userEvent.keyboard('{ArrowUp}');

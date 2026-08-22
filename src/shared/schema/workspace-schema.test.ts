@@ -245,6 +245,7 @@ describe('contactSchema (D31)', () => {
       firstName: '',
       lastName: '',
       company: '',
+      department: '',
       role: '',
       email: '',
       phone: '',
@@ -257,6 +258,87 @@ describe('contactSchema (D31)', () => {
   it('still insists on an id and a real date', () => {
     expect(contactSchema.safeParse({ id: '', createdAt: '2026-07-08' }).success).toBe(false);
     expect(contactSchema.safeParse({ id: 'c1', createdAt: '2026-02-30' }).success).toBe(false);
+  });
+});
+
+describe('contact manager links (D32)', () => {
+  const ws = seedWorkspace(TODAY);
+
+  it('keeps a manager id through the schema, and defaults department', () => {
+    const parsed = contactSchema.safeParse({
+      id: 'c1',
+      createdAt: TODAY,
+      managerId: 'c8',
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.managerId).toBe('c8');
+    // A 2.0 contact has no department key at all; it must still load.
+    expect(parsed.data.department).toBe('');
+  });
+
+  it('round-trips a hand-placed org-map layout, and drops a broken one', () => {
+    const good = contactSchema.safeParse({
+      id: 'c1',
+      createdAt: TODAY,
+      orgLayout: { c8: { x: 480, y: 12 } },
+      orgMapHeight: 320,
+    });
+    expect(good.success).toBe(true);
+    if (!good.success) return;
+    expect(good.data.orgLayout).toEqual({ c8: { x: 480, y: 12 } });
+    expect(good.data.orgMapHeight).toBe(320);
+
+    // A non-finite coordinate would place a node nowhere at all.
+    const bad = contactSchema.safeParse({
+      id: 'c1',
+      createdAt: TODAY,
+      orgLayout: { c8: { x: 'over there', y: 12 } },
+      orgMapHeight: Infinity,
+    });
+    expect(bad.success).toBe(true);
+    if (!bad.success) return;
+    expect(bad.data.orgLayout).toBeUndefined();
+    expect(bad.data.orgMapHeight).toBeUndefined();
+  });
+
+  it('drops a manager id that is not a string rather than failing the contact', () => {
+    const parsed = contactSchema.safeParse({ id: 'c1', createdAt: TODAY, managerId: 7 });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.managerId).toBeUndefined();
+  });
+
+  it('clears a manager who was deleted, and anybody made their own manager', () => {
+    const contacts = structuredClone(ws.contacts);
+    const first = contacts[0];
+    const second = contacts[1];
+    if (first === undefined || second === undefined) throw new Error('fixture drift');
+    first.managerId = 'ghost';
+    second.managerId = second.id;
+
+    const { workspace, warnings } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      contacts,
+      { ...ws.settings },
+    );
+    expect(workspace.contacts[0]?.managerId).toBeUndefined();
+    expect(workspace.contacts[1]?.managerId).toBeUndefined();
+    expect(warnings.some((w) => w.includes('manager link'))).toBe(true);
+  });
+
+  it('leaves a good reporting line alone', () => {
+    const { workspace, warnings } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      { ...ws.settings },
+    );
+    expect(workspace.contacts.find((c) => c.id === 'c2')?.managerId).toBe('c8');
+    expect(warnings).toEqual([]);
   });
 });
 

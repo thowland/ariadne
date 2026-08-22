@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { FileEntry, Project, Task, Workspace } from '../types';
 import { DEFAULT_SETTINGS, PROJECT_PALETTE } from '../types';
 
+import { planContactImport } from './contact-csv';
 import type { MutationCtx } from './mutate';
 import {
   addContactToProject,
   addContactToTask,
+  applyContactImport,
   clearAll,
   createContact,
   createMarkdownFile,
@@ -23,6 +25,7 @@ import {
   removeContactFromProject,
   rescheduleTasks,
   replaceWorkspace,
+  setContactManager,
   setTaskContacts,
   updateContact,
   updateFile,
@@ -399,6 +402,7 @@ describe('contacts (D31)', () => {
           firstName: 'Dana',
           lastName: 'Reyes',
           company: 'Northwind',
+          department: '',
           role: 'Lead',
           email: 'dana@example.com',
           phone: '555',
@@ -411,6 +415,7 @@ describe('contacts (D31)', () => {
           firstName: 'Marcus',
           lastName: 'Bell',
           company: '',
+          department: '',
           role: '',
           email: '',
           phone: '',
@@ -429,6 +434,7 @@ describe('contacts (D31)', () => {
       firstName: 'Dana',
       lastName: '',
       company: '',
+      department: '',
       role: '',
       email: '',
       phone: '',
@@ -494,6 +500,137 @@ describe('contacts (D31)', () => {
     // Their task links survive — they are still on the card, via the task.
     expect(off.workspace.tasks[0]?.contactIds).toEqual(['c1', 'c2']);
     expect(removeContactFromProject(off.workspace, 'p1', 'c1').changed).toEqual([]);
+  });
+});
+
+describe('contacts — reporting lines and CSV import (D32/D33)', () => {
+  const people = (): Workspace =>
+    ws({
+      contacts: [
+        {
+          id: 'c1',
+          firstName: 'Dana',
+          lastName: 'Reyes',
+          company: 'Northwind',
+          department: '',
+          role: '',
+          email: '',
+          phone: '',
+          notes: '',
+          tags: [],
+          createdAt: TODAY,
+        },
+        {
+          id: 'c2',
+          firstName: 'Ines',
+          lastName: 'Barros',
+          company: 'Northwind',
+          department: '',
+          role: '',
+          email: '',
+          phone: '',
+          notes: '',
+          tags: [],
+          createdAt: TODAY,
+        },
+        {
+          id: 'c3',
+          firstName: 'Kwame',
+          lastName: 'Mensah',
+          company: 'Northwind',
+          department: '',
+          role: '',
+          email: '',
+          phone: '',
+          notes: '',
+          tags: [],
+          createdAt: TODAY,
+        },
+      ],
+    });
+
+  it('sets and clears a manager', () => {
+    const linked = setContactManager(people(), 'c2', 'c1');
+    expect(linked.changed).toEqual(['contacts']);
+    expect(linked.workspace.contacts[1]?.managerId).toBe('c1');
+    const cleared = setContactManager(linked.workspace, 'c2', null);
+    expect(cleared.workspace.contacts[1]).not.toHaveProperty('managerId');
+  });
+
+  it('refuses a self-link, an unknown id, and a no-op', () => {
+    const w = people();
+    expect(setContactManager(w, 'c1', 'c1').changed).toEqual([]);
+    expect(setContactManager(w, 'c1', 'ghost').changed).toEqual([]);
+    expect(setContactManager(w, 'ghost', 'c1').changed).toEqual([]);
+    expect(setContactManager(w, 'c1', null).changed).toEqual([]);
+  });
+
+  it('refuses a link that would close a reporting loop', () => {
+    // c3 → c2 → c1; making c1 report to c3 would close the ring.
+    let w = setContactManager(people(), 'c2', 'c1').workspace;
+    w = setContactManager(w, 'c3', 'c2').workspace;
+    expect(setContactManager(w, 'c1', 'c3').changed).toEqual([]);
+    expect(setContactManager(w, 'c1', 'c2').changed).toEqual([]);
+  });
+
+  it('applyContactImport creates, updates, and links managers by name', () => {
+    const plan = planContactImport(
+      [
+        'First Name,Last Name,Company,Department,Manager',
+        'Dana,Reyes,Northwind,Platform,',
+        'Otto,Lindqvist,Northwind,Security,Dana Reyes',
+      ].join('\n'),
+      people().contacts,
+    );
+    if (!plan.ok) throw new Error(plan.error);
+
+    const r = applyContactImport(people(), ctx(), plan.plan);
+    expect(r.changed).toEqual(['contacts']);
+    expect(r).toMatchObject({ created: 1, updated: 1, linked: 1 });
+    // The existing Dana was updated in place, keeping her id.
+    expect(r.workspace.contacts.find((c) => c.id === 'c1')?.department).toBe('Platform');
+    const otto = r.workspace.contacts.find((c) => c.lastName === 'Lindqvist');
+    expect(otto?.managerId).toBe('c1');
+    expect(otto?.createdAt).toBe(TODAY);
+  });
+
+  it('leaves an unresolvable manager unset rather than inventing a contact', () => {
+    const plan = planContactImport(
+      'First Name,Last Name,Manager\nOtto,Lindqvist,Someone Missing',
+      [],
+    );
+    if (!plan.ok) throw new Error(plan.error);
+    const r = applyContactImport(ws(), ctx(), plan.plan);
+    expect(r.created).toBe(1);
+    expect(r.linked).toBe(0);
+    expect(r.workspace.contacts).toHaveLength(1);
+    expect(r.workspace.contacts[0]?.managerId).toBeUndefined();
+  });
+
+  it('breaks a reporting loop that arrives in the file', () => {
+    // Two people who manage each other: importable rows, impossible chart.
+    const plan = planContactImport(
+      ['First Name,Last Name,Manager', 'Ada,One,Bob Two', 'Bob,Two,Ada One'].join('\n'),
+      [],
+    );
+    if (!plan.ok) throw new Error(plan.error);
+    const r = applyContactImport(ws(), ctx(), plan.plan);
+    expect(r.created).toBe(2);
+    // One link survives; the one that would close the ring is dropped.
+    expect(r.linked).toBe(1);
+    const withManager = r.workspace.contacts.filter((c) => c.managerId !== undefined);
+    expect(withManager).toHaveLength(1);
+  });
+
+  it('is a no-op for an empty plan', () => {
+    const r = applyContactImport(ws(), ctx(), {
+      creates: [],
+      updates: [],
+      skipped: [],
+      unresolvedManagers: [],
+      rowsRead: 0,
+    });
+    expect(r.changed).toEqual([]);
   });
 });
 

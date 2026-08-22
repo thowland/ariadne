@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.0.0**
+(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.2.0**
 (`package.json`/`CHANGELOG.md` are authoritative).
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D31**); record
+source of truth for domain semantics and the decision table (**D1–D34**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -73,6 +73,13 @@ The most common mistake on this codebase is writing a second implementation of
 something that already exists, which then drifts from the first. Before adding
 logic, check whether it is already there:
 
+- **Box-and-line maps** share `renderer/components/NodeMap.tsx` (drag, resize,
+  click-vs-drag) and `shared/domain/node-map.ts` (edge anchoring, pinned
+  positions, canvas bounds). A third map supplies a pure layout and a
+  `renderNode`; it does **not** copy the pointer handling, which is where the
+  drag slop, the click suppression after a real drag and the latest-callback
+  refs live. The org map (D34) is one hop each way on purpose — never grow it
+  into a whole company chart without a new decision row.
 - **Aggregations over the workspace** live in `shared/domain/reports.ts` and
   `derive.ts`. The Projects inventory screen is `portfolioRollup` + `sortPortfolio`
   with an extra column — not its own counting pass.
@@ -184,6 +191,16 @@ logic, check whether it is already there:
   workspace written before 2.0 has no `contacts.json` at all: that is a missing
   document, not corruption, and `normalizeWorkspace` scrubs the now-dangling ids
   rather than rendering people who do not exist.
+- **Contact org links and CSV** (D32/D33): `managerId` is one-directional and
+  "manages" is derived — never store both sides. Cycles are made _unreachable_
+  (the picker hides the subtree, the mutation refuses a closing link, the
+  importer decides links one at a time), but every walk stays visited-set
+  guarded because a hand-edited file obeys none of it. CSV import is two
+  phase: `planContactImport` is pure and produces a plan, `applyContactImport`
+  carries it out only after the review dialog is accepted — do not collapse
+  those into one step. A blank cell must never clear a stored value. `toCsv`
+  escapes a leading `+`, so anything reading a CSV back has to call
+  `unguardCsvCell` or every international phone number gains an apostrophe.
 - **Natural-language dates** (D29): `shared/domain/nl-date.ts` is pure and takes
   `today` as an argument. Every rule is `\b`-anchored — that is what keeps `sat`
   out of "satisfy" and `mar` out of "marching" — and bare numbers are never read
@@ -284,6 +301,12 @@ those, drive the real app under Playwright rather than asserting on intent:
   a `Number.isNaN` check.
 - npm's optional-deps bug can drop native modules on any `npm install`; prefer
   `npm ci`, which CI and the release matrix both use.
+- **Bump the version in `package-lock.json` with a line-bounded edit**, not a
+  global find/replace: `"version": "2.0.0"` also matches ten dependencies, and
+  clobbering those is a silent, install-breaking diff. Only the root
+  `.version` and `packages[""].version` — both in the first dozen lines —
+  belong to Ariadne. A correct bump is a **2-line** diff; check `git diff
+--stat` before committing.
 - **package-lock.json is tracked** as of 2026-08-06 — Dependabot can't raise
   security-fix PRs without it, and `npm ci` needs it. The user's global
   gitignore excludes it, so the repo `.gitignore` carries an explicit

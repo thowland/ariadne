@@ -566,7 +566,7 @@ describe('contactActivity (D31)', () => {
 
   it('summarizes people, organizations and how much work is shared', () => {
     const { analytics } = contactActivity(ws, 'all', FROM, TO, TODAY);
-    expect(analytics.people).toBe(7);
+    expect(analytics.people).toBe(8);
     // Northwind, Vasquez & Co, Harborline — colleagues have no company.
     expect(analytics.companies).toBe(3);
     expect(analytics.collaborativeTasks).toBeLessThan(analytics.windowTasks);

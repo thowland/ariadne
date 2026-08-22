@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { BLOB_PROTOCOL, IPC } from '@shared/ipc-contract';
+import { BLOB_PROTOCOL, IPC, isOpenableExternally } from '@shared/ipc-contract';
 import type { MenuCommand } from '@shared/ipc-contract';
 import { app, BrowserWindow, Menu, net, protocol, shell } from 'electron';
 
@@ -108,11 +108,10 @@ function createWindow(config: ConfigService): void {
     mainWindow = null;
   });
 
-  // The renderer never opens windows; external links go through the OS browser.
+  // The renderer never opens windows; external links go through the OS, and
+  // only the schemes on the shared allowlist do.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      void shell.openExternal(url);
-    }
+    if (isOpenableExternally(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
 

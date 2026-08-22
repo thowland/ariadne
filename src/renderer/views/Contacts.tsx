@@ -1,8 +1,11 @@
+import { contactCsvFileName, contactCsvRows, planContactImport } from '@shared/domain/contact-csv';
 import { CONTACT_COLUMNS, contactName, contactRollup, sortContacts } from '@shared/domain/contacts';
 import type { ContactSortKey, SortDirection } from '@shared/domain/contacts';
+import { toCsv } from '@shared/domain/csv';
 import { fmtShort } from '@shared/domain/dates';
 import { useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 import { ContactAvatar, CopyValue } from '../components/ContactBits';
 
@@ -16,7 +19,7 @@ const NUMERIC_COLUMNS = new Set<ContactSortKey>(['open', 'done', 'projects', 'la
  * the two screens answer the same shape of question about different nouns.
  */
 export function Contacts(): React.JSX.Element {
-  const { workspace, today, openContact, newContact, showToast } = useStore();
+  const { workspace, today, openContact, newContact, openContactImport, showToast } = useStore();
   const [sort, setSort] = useState<{ key: ContactSortKey; dir: SortDirection }>({
     key: 'name',
     dir: 'asc',
@@ -31,7 +34,13 @@ export function Contacts(): React.JSX.Element {
     needle === ''
       ? all
       : all.filter((r) =>
-          [contactName(r.contact), r.contact.company, r.contact.role, ...r.contact.tags]
+          [
+            contactName(r.contact),
+            r.contact.company,
+            r.contact.department,
+            r.contact.role,
+            ...r.contact.tags,
+          ]
             .join(' ')
             .toLowerCase()
             .includes(needle),
@@ -53,6 +62,40 @@ export function Contacts(): React.JSX.Element {
     showToast('Contact created');
   };
 
+  const exportCsv = (): void => {
+    void getApi()
+      .downloadFile({
+        content: toCsv(contactCsvRows(workspace.contacts)),
+        suggestedName: contactCsvFileName(today),
+      })
+      .then((res) => {
+        if (res.error !== undefined) showToast(`CSV export failed — ${res.error}`);
+        else if (res.savedPath !== null) showToast('Saved contacts CSV');
+      });
+  };
+
+  /**
+   * Read the file, plan the import, and hand the plan to the review dialog.
+   * The parse is pure and happens here rather than in the main process, so a
+   * malformed file is a message on screen, not a failed IPC call.
+   */
+  const importCsv = (): void => {
+    void getApi()
+      .pickCsvFile()
+      .then((picked) => {
+        if (!picked.ok) {
+          if (picked.cancelled !== true) showToast(picked.error);
+          return;
+        }
+        const planned = planContactImport(picked.text, workspace.contacts);
+        if (!planned.ok) {
+          showToast(`${picked.name}: ${planned.error}`);
+          return;
+        }
+        openContactImport({ fileName: picked.name, plan: planned.plan });
+      });
+  };
+
   return (
     <div className="view-wrap fadein" style={{ maxWidth: 1080 }}>
       <div className="home-header">
@@ -65,9 +108,22 @@ export function Contacts(): React.JSX.Element {
           </h1>
         </div>
         <div className="spacer" />
-        <button className="btn ghost" onClick={add}>
-          + New contact
-        </button>
+        <div className="report-actions">
+          <button className="btn ghost" onClick={importCsv}>
+            Import CSV…
+          </button>
+          <button
+            className="btn ghost"
+            disabled={all.length === 0}
+            aria-label="Export CSV"
+            onClick={exportCsv}
+          >
+            Export CSV
+          </button>
+          <button className="btn ghost" onClick={add}>
+            + New contact
+          </button>
+        </div>
       </div>
 
       {all.length > 0 ? (

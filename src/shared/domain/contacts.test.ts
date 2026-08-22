@@ -11,6 +11,10 @@ import {
   contactSortName,
   contactsOfTask,
   findMention,
+  directReports,
+  managerCandidates,
+  managerChain,
+  managerOf,
   maskMentions,
   mentionCandidates,
   projectContacts,
@@ -31,6 +35,7 @@ function contact(patch: Partial<Contact> = {}): Contact {
     firstName: 'Dana',
     lastName: 'Reyes',
     company: 'Northwind',
+    department: 'Platform',
     role: 'Platform Lead',
     email: 'dana@northwind.example',
     phone: '(555) 214-8890',
@@ -122,6 +127,63 @@ describe('the project ↔ contact join', () => {
     expect(projectsOfContact(ws, 'c7').map((p) => p.id)).toEqual(['p1']);
     // c4 is on p4 both directly and through two tasks — listed once.
     expect(projectsOfContact(ws, 'c4').map((p) => p.id)).toEqual(['p4']);
+  });
+});
+
+describe('reporting lines (D32)', () => {
+  const ws = seedWorkspace(TODAY);
+
+  it('reads the manager and the reports off the same one-directional link', () => {
+    const marcus = ws.contacts.find((c) => c.id === 'c2');
+    if (marcus === undefined) throw new Error('fixture drift');
+    expect(managerOf(ws, marcus)?.id).toBe('c8');
+    // The inverse is derived, never stored, so the two can never disagree.
+    expect(directReports(ws, 'c8').map((c) => c.id)).toEqual(['c2', 'c6']);
+    expect(directReports(ws, 'c1')).toEqual([]);
+  });
+
+  it('has no manager for somebody at the top, or with a dangling link', () => {
+    const rachel = ws.contacts.find((c) => c.id === 'c8');
+    if (rachel === undefined) throw new Error('fixture drift');
+    expect(managerOf(ws, rachel)).toBeUndefined();
+    expect(managerOf(ws, { ...rachel, managerId: 'ghost' })).toBeUndefined();
+  });
+
+  it('walks the chain upwards and stops at the top', () => {
+    expect(managerChain(ws, 'c2').map((c) => c.id)).toEqual(['c8']);
+    expect(managerChain(ws, 'c8')).toEqual([]);
+  });
+
+  it('survives a loop a hand-edited file could contain', () => {
+    // setContactManager refuses to build this; contacts.json is not bound by it.
+    const looped = {
+      ...ws,
+      contacts: ws.contacts.map((c) => (c.id === 'c8' ? { ...c, managerId: 'c2' } : c)),
+    };
+    expect(managerChain(looped, 'c2').map((c) => c.id)).toEqual(['c8']);
+    expect(managerChain(looped, 'c8').map((c) => c.id)).toEqual(['c2']);
+  });
+
+  it('offers everyone as a manager except the person and their subtree', () => {
+    // Rachel manages Marcus and Sofia, so neither may become her manager.
+    const ids = managerCandidates(ws, 'c8').map((c) => c.id);
+    expect(ids).not.toContain('c8');
+    expect(ids).not.toContain('c2');
+    expect(ids).not.toContain('c6');
+    expect(ids).toContain('c1');
+    // Somebody with no reports excludes only themself.
+    expect(managerCandidates(ws, 'c1')).toHaveLength(ws.contacts.length - 1);
+  });
+
+  it('excludes a whole branch, not just the direct reports', () => {
+    // c1 → c2 → c8: c8's subtree is c2 and c1, so neither can manage c8.
+    const deep = {
+      ...ws,
+      contacts: ws.contacts.map((c) => (c.id === 'c1' ? { ...c, managerId: 'c2' } : c)),
+    };
+    const ids = managerCandidates(deep, 'c8').map((c) => c.id);
+    expect(ids).not.toContain('c1');
+    expect(ids).not.toContain('c2');
   });
 });
 
@@ -332,6 +394,11 @@ describe('searchContacts', () => {
     contact({ id: 'a', notes: 'prefers a call', tags: ['vendor'] }),
     contact({ id: 'b', firstName: 'Elena', lastName: 'Vasquez', company: 'Vasquez & Co' }),
   ];
+
+  it('matches department, so a team name finds its people', () => {
+    const engineers = [contact({ id: 'a', department: 'Platform Engineering' })];
+    expect(searchContacts(engineers, 'platform eng').map((c) => c.id)).toEqual(['a']);
+  });
 
   it('matches name, company, role, email, notes and tags', () => {
     expect(searchContacts(people, 'reyes').map((c) => c.id)).toEqual(['a']);
