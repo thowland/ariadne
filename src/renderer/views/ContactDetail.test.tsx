@@ -249,4 +249,23 @@ describe('ContactDetail', () => {
     fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientY: 260 }));
     expect(ws().contacts.find((c) => c.id === 'c2')?.orgMapHeight).toBeGreaterThan(140);
   });
+
+  it('drops the placeholders once the contact is a real person', () => {
+    renderDetail(); // Dana Reyes
+    // A greyed "Northwind Systems" in an empty box reads like a real value.
+    expect(screen.getByLabelText('Company')).not.toHaveAttribute('placeholder');
+    expect(screen.getByLabelText('Email')).not.toHaveAttribute('placeholder');
+  });
+
+  it('keeps them while the contact is still blank, to say what each box wants', () => {
+    const id = useStore.getState().newContact();
+    if (id === null) throw new Error('no contact');
+    useStore.setState({ activeContactId: id });
+    renderDetail();
+    expect(screen.getByLabelText('Company')).toHaveAttribute('placeholder', 'Northwind Systems');
+
+    // They go as soon as it has a name.
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Nia' } });
+    expect(screen.getByLabelText('Company')).not.toHaveAttribute('placeholder');
+  });
 });

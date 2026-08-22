@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.2.0**
+(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.3.0**
 (`package.json`/`CHANGELOG.md` are authoritative).
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D34**); record
+source of truth for domain semantics and the decision table (**D1–D38**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -201,6 +201,16 @@ logic, check whether it is already there:
   those into one step. A blank cell must never clear a stored value. `toCsv`
   escapes a leading `+`, so anything reading a CSV back has to call
   `unguardCsvCell` or every international phone number gains an apostrophe.
+- **Colour is never a literal** (D38). Every colour lives in
+  `styles/tokens.css` with a light and a dark value; `styles/colors.ts` is
+  nothing but `var(--…)` strings, which work because every consumer passes
+  them to a `style` or an SVG `fill`. Two exceptions, both deliberate:
+  `PROJECT_PALETTE` (stored data, must mean the same in an export) and
+  `REPORT_PRINT_CSS`, which redeclares the light palette because the print
+  document never loads `tokens.css` — add a token, add it there too.
+  `tokens.node.test.ts` fails the build if any of that slips. It is a
+  `.node.test.ts` because it reads the stylesheets with `fs`: a `?raw` import
+  silently resolves to `''` once another test imports the same CSS normally.
 - **Natural-language dates** (D29): `shared/domain/nl-date.ts` is pure and takes
   `today` as an argument. Every rule is `\b`-anchored — that is what keeps `sat`
   out of "satisfy" and `mar` out of "marching" — and bare numbers are never read

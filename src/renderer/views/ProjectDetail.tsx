@@ -1,11 +1,16 @@
-import { contactName } from '@shared/domain/contacts';
+import { contactName, maskMentions } from '@shared/domain/contacts';
+import { belowNode, layoutDepGraph } from '@shared/domain/dep-graph';
+import { estimateTotals, formatEstimate } from '@shared/domain/estimate';
 import {
+  addDependency,
   createContact,
   createMarkdownFile,
   createTask,
   deleteProject,
+  removeDependency,
   updateProject,
 } from '@shared/domain/mutate';
+import { findNlDate, stripNlDate } from '@shared/domain/nl-date';
 import { byProjectListOrder, inPinnedOrder } from '@shared/domain/sort';
 import type { IsoDate } from '@shared/types';
 import { useRef, useState } from 'react';
@@ -80,6 +85,7 @@ export function ProjectDetail(): React.JSX.Element {
   }
   const sorted = inPinnedOrder(tasks, pinnedRef.current.ids);
   pinnedRef.current.ids = sorted.map((t) => t.id);
+  const effort = estimateTotals(tasks);
   const done = tasks.filter((t) => t.status === 'Done').length;
   const total = tasks.filter((t) => t.status !== 'Dropped').length;
 
@@ -101,8 +107,43 @@ export function ProjectDetail(): React.JSX.Element {
     apply((ws) => updateProject(ws, project.id, { depLayout: {} }));
   };
 
+  /**
+   * Dropped one box onto another (D37): the dragged task now waits on the
+   * stationary one, and lands directly beneath it so the new arrow is
+   * visible without hunting for it.
+   */
+  const linkDep = (draggedId: string, targetId: string): void => {
+    const laid = layoutDepGraph(tasks, depLayout);
+    const target = laid?.nodes.find((n) => n.id === targetId);
+    const result = apply((ws) =>
+      addDependency(ws, draggedId, targetId, target === undefined ? undefined : belowNode(target)),
+    );
+    if (result === null) return;
+    if (result.linked) {
+      showToast(`“${titleOf(draggedId)}” now waits on “${titleOf(targetId)}”`);
+      return;
+    }
+    if (result.reason === 'cycle') showToast('That would make the two tasks wait on each other');
+    else if (result.reason === 'exists') showToast('Those tasks are already linked');
+  };
+
+  // Explicit rather than `||`: an empty title must fall back too, which is
+  // exactly what `??` would not do.
+  const titleOf = (id: string): string => {
+    const found = tasks.find((t) => t.id === id)?.title.trim();
+    return found === undefined || found === '' ? 'Untitled task' : found;
+  };
+
   const quickAdd = (): void => {
-    const title = quickTitle.trim();
+    // The date phrase comes out of the title as the task is created (D35):
+    // it has done its job, and it would only contradict the due date the
+    // first time the task is rescheduled.
+    // maskMentions for the same reason the field does when it highlights
+    // (D31 × D29): "@Tom Whitaker" is a colleague, and "tom" is an
+    // abbreviation for tomorrow. The mask preserves offsets, so the match
+    // still indexes into the real title for stripping.
+    const found = quickDismissed ? null : findNlDate(maskMentions(quickTitle), today);
+    const title = (found === null ? quickTitle : stripNlDate(quickTitle, found)).trim();
     if (title === '') return;
     // Provisional people become real contacts only now, at the moment the
     // task they were named on is committed.
@@ -181,6 +222,22 @@ export function ProjectDetail(): React.JSX.Element {
             <span className="project-done-count">
               {done} / {total} done
             </span>
+            {(effort.open > 0 || effort.total > 0) && (
+              <span
+                className="project-effort"
+                data-testid="project-effort"
+                title={`${formatEstimate(effort.total) || '0h'} estimated in total${
+                  effort.unestimated > 0
+                    ? `; ${String(effort.unestimated)} open task(s) with no estimate`
+                    : ''
+                }`}
+              >
+                {formatEstimate(effort.open) || '0h'} left
+                {effort.unestimated > 0 && (
+                  <span className="project-effort-gap">+{effort.unestimated} unestimated</span>
+                )}
+              </span>
+            )}
             <TagEditor
               tags={project.tags}
               onChange={(tags) => {
@@ -348,6 +405,11 @@ export function ProjectDetail(): React.JSX.Element {
                 tasks={tasks}
                 positions={depLayout}
                 onMove={moveDepNode}
+                onLink={linkDep}
+                onUnlink={(taskId, dependsOnId) => {
+                  apply((ws) => removeDependency(ws, taskId, dependsOnId));
+                  showToast('Dependency removed');
+                }}
                 height={project.depMapHeight}
                 onResize={(h) => {
                   apply((ws) => updateProject(ws, project.id, { depMapHeight: h }));

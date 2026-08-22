@@ -11,6 +11,8 @@ import {
   overdueDependency,
   relativeDueLabel,
 } from './derive';
+import type { EstimateTotals } from './estimate';
+import { estimateTotals, formatEstimate } from './estimate';
 import { byDue } from './sort';
 
 /**
@@ -100,6 +102,8 @@ export interface PortfolioRow {
   done: number;
   overdue: number;
   next: Task | null;
+  /** Effort estimates over the project's tasks (D36). */
+  effort: EstimateTotals;
 }
 
 /**
@@ -125,6 +129,7 @@ export function portfolioRollup(
       done: tasks.filter((t) => t.status === 'Done').length,
       overdue: open.filter((t) => isOverdue(t, today)).length,
       next,
+      effort: estimateTotals(tasks),
     };
   });
 }
@@ -137,6 +142,7 @@ export const PORTFOLIO_COLUMNS = [
   ['open', 'Open'],
   ['done', 'Done'],
   ['overdue', 'Overdue'],
+  ['effort', 'Effort left'],
   ['next', 'Next due'],
 ] as const;
 
@@ -178,6 +184,8 @@ export function sortPortfolio(
         return a.done - b.done;
       case 'overdue':
         return a.overdue - b.overdue;
+      case 'effort':
+        return a.effort.open - b.effort.open;
       case 'next': {
         if (a.next === null || b.next === null) {
           if (a.next === null && b.next === null) return 0;
@@ -196,7 +204,18 @@ export function sortPortfolio(
 
 /** The portfolio roll-up as CSV rows — header first, one row per project. */
 export function portfolioCsvRows(rows: readonly PortfolioRow[]): string[][] {
-  const header = ['Project', 'Type', 'Progress %', 'Open', 'Done', 'Overdue', 'Next due'];
+  const header = [
+    'Project',
+    'Type',
+    'Progress %',
+    'Open',
+    'Done',
+    'Overdue',
+    // Hours, not "2d 4h": a spreadsheet can sum a number and cannot sum a label.
+    'Effort left (h)',
+    'Effort total (h)',
+    'Next due',
+  ];
   return [
     header,
     ...rows.map((r) => [
@@ -206,6 +225,8 @@ export function portfolioCsvRows(rows: readonly PortfolioRow[]): string[][] {
       String(r.open),
       String(r.done),
       String(r.overdue),
+      String(r.effort.open),
+      String(r.effort.total),
       // The raw ISO date, not the "in 3d" label: a spreadsheet can sort and
       // filter a date, and cannot do anything useful with a relative phrase.
       r.next?.dueDate ?? '',
@@ -218,6 +239,7 @@ export function portfolioText(rows: readonly PortfolioRow[], today: IsoDate): st
   for (const r of rows) {
     out += `- ${r.project.name} [${r.project.category}]: ${r.open} open, ${r.done} done`;
     if (r.overdue > 0) out += `, ${r.overdue} overdue`;
+    if (r.effort.open > 0) out += `, ${formatEstimate(r.effort.open)} left`;
     out += '\n';
   }
   return out;

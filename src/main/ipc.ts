@@ -8,7 +8,7 @@ import { DEBUG_LOG_CATEGORIES, IPC, isOpenableExternally } from '@shared/ipc-con
 import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
 import type { ReportPdfRequest, ReportPdfResponse } from '@shared/ipc-contract';
-import { dialog, ipcMain, shell } from 'electron';
+import { dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { app } from 'electron';
 
 import { AiExtractService } from './services/ai-extract-service';
@@ -206,6 +206,14 @@ export function registerIpc(
         : `import from ${path} FAILED: ${result.error}`,
     );
     return result;
+  });
+
+  ipcMain.handle(IPC.nativeTheme, (_event, choice: unknown) => {
+    // Electron's own vocabulary happens to match ours; validate anyway rather
+    // than assigning whatever the renderer sent.
+    if (choice === 'system' || choice === 'light' || choice === 'dark') {
+      nativeTheme.themeSource = choice;
+    }
   });
 
   ipcMain.handle(IPC.csvPick, async () => {

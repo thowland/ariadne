@@ -18,6 +18,40 @@ function escapeHtml(text: string): string {
 }
 
 export const REPORT_PRINT_CSS = `
+  /*
+   * The palette, redeclared. Report markup is captured from the live DOM and
+   * carries inline styles like color: var(--status-done-c) (D38); this
+   * document never loads tokens.css, so without these every one of them
+   * resolves to nothing and the report prints in flat black. Always the light
+   * values — paper is white whatever the screen is doing.
+   */
+  :root {
+    --text: #14140f;
+    --muted: #55554d;
+    --faint: #7a7a72;
+    --accent: #4f5bd5;
+    --track: #e6e6de;
+    --danger-text: #b3261e;
+    --danger-dot: #d94c3a;
+    --warn-text: #a8710f;
+    --warn-dot: #d69220;
+    --warn-bg: #faf0dc;
+    --ok-text: #2f8552;
+    --ok-dot: #3a9a5f;
+    --ok-bg: #e7f3ec;
+    --status-todo-c: #7d7d75;      --status-todo-bg: #efefec;      --status-todo-dot: #b4b4ac;
+    --status-doing-c: #2f62d8;     --status-doing-bg: #e9f0fd;     --status-doing-dot: #2f62d8;
+    --status-waiting-c: #a8710f;   --status-waiting-bg: #faf0dc;   --status-waiting-dot: #d69220;
+    --status-done-c: #2f8552;      --status-done-bg: #e7f3ec;      --status-done-dot: #3a9a5f;
+    --status-dropped-c: #9a9a92;   --status-dropped-bg: #f0f0ee;   --status-dropped-dot: #bdbdb5;
+    --prio-critical-c: #c23b2b;    --prio-critical-dot: #d94c3a;   --prio-critical-bg: #fbeae7;
+    --prio-high-c: #a8710f;        --prio-high-dot: #e0a020;       --prio-high-bg: #faf0dc;
+    --prio-medium-c: #4f5bd5;      --prio-medium-dot: #6b76e0;     --prio-medium-bg: #eef0fc;
+    --prio-low-c: #8a8a82;         --prio-low-dot: #c2c2ba;        --prio-low-bg: #f1f1ef;
+    --map-node-fill: #ffffff;      --map-edge: #d6d6ce;            --map-arrow: #c8c8c0;
+    --spark-accent: #8f99e8;       --spark-soft: #c9cef4;          --spark-warn: #e8c88a;
+    --file-md: #7c4dd6;            --on-accent: #ffffff;
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -187,6 +221,8 @@ export const REPORT_PRINT_CSS = `
   .progress-track { width: 54px; height: 5px; background: #e6e6de; border-radius: 3px; }
   .progress-fill { height: 5px; border-radius: 3px; }
   .overdue-count { color: #b3261e; font-weight: 700; }
+  /* The "some of this is unestimated" marker on an effort cell (D36). */
+  .effort-gap { color: #55554d; font-size: 9px; }
 
   /* Project/status dots are <span class="dot"> sized by inline style. Without
      an explicit display they stay inline, where width/height do nothing and

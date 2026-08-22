@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Task } from '../types';
 
-import { layoutDepGraph, NODE_H, NODE_W } from './dep-graph';
+import { belowNode, layoutDepGraph, NODE_H, NODE_W, wouldCycle } from './dep-graph';
 
 let n = 0;
 function task(patch: Partial<Task> = {}): Task {
@@ -171,5 +171,43 @@ describe('layoutDepGraph hand-placed positions', () => {
 
     const back = layoutDepGraph([a, b], { a: { x: 400, y: 100 }, b: { x: 0, y: 100 } })!.edges[0]!;
     expect(back).toMatchObject({ axis: 'h', x1: 400, x2: NODE_W });
+  });
+});
+
+describe('wouldCycle (D37)', () => {
+  const chain = (): Task[] => [
+    task({ id: 'a' }),
+    task({ id: 'b', dependsOn: ['a'] }),
+    task({ id: 'c', dependsOn: ['b'] }),
+  ];
+
+  it('is true for a link that closes a loop, however long the chain', () => {
+    // c already waits on b waits on a; making a wait on c closes the ring.
+    expect(wouldCycle(chain(), 'a', 'c')).toBe(true);
+    expect(wouldCycle(chain(), 'a', 'b')).toBe(true);
+  });
+
+  it('is true for a task depending on itself', () => {
+    expect(wouldCycle(chain(), 'a', 'a')).toBe(true);
+  });
+
+  it('is false for a link that only deepens the chain', () => {
+    expect(wouldCycle(chain(), 'c', 'a')).toBe(false);
+    expect(wouldCycle([...chain(), task({ id: 'd' })], 'd', 'c')).toBe(false);
+  });
+
+  it('terminates on data that already contains a cycle', () => {
+    // normalizeWorkspace would not produce this, a hand-edited file might.
+    const looped = [task({ id: 'a', dependsOn: ['b'] }), task({ id: 'b', dependsOn: ['a'] })];
+    expect(wouldCycle(looped, 'a', 'b')).toBe(true);
+    expect(wouldCycle([...looped, task({ id: 'c' })], 'c', 'a')).toBe(false);
+  });
+});
+
+describe('belowNode', () => {
+  it('is one layout row under the predecessor, same column', () => {
+    const under = belowNode({ x: 40, y: 100 });
+    expect(under.x).toBe(40);
+    expect(under.y).toBeGreaterThan(100 + NODE_H);
   });
 });

@@ -1,4 +1,5 @@
 import { badgeCount } from '@shared/domain/derive';
+import { resolveTheme } from '@shared/domain/theme';
 import { todoistSyncDue } from '@shared/domain/todoist';
 import { useEffect, useState } from 'react';
 
@@ -78,6 +79,24 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     void getApi().setBadge(badge);
   }, [badge]);
+
+  // Appearance (D38). The attribute on <html> is what tokens.css keys off;
+  // the media query is only listened to while the choice is "system", so an
+  // explicit light or dark setting is not disturbed by the OS at sunset.
+  const themeChoice = workspace?.settings.theme ?? 'system';
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const paint = (): void => {
+      const resolved = resolveTheme(themeChoice, query.matches);
+      document.documentElement.dataset.theme = resolved;
+      void getApi().setNativeTheme(themeChoice);
+    };
+    paint();
+    query.addEventListener('change', paint);
+    return () => {
+      query.removeEventListener('change', paint);
+    };
+  }, [themeChoice]);
 
   // Escape unwinds one layer at a time: context menu, confirm, then modal.
   useEffect(() => {

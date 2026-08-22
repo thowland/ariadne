@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '../app/store';
 import { loadTestWorkspace, setupTestApp } from '../test-utils';
 
+import { ContextMenu } from './ContextMenu';
 import { DependencyMap } from './DependencyMap';
 
 beforeEach(() => {
@@ -172,5 +173,81 @@ describe('DependencyMap resizing', () => {
     expect(onResize).toHaveBeenCalledWith(340);
     await userEvent.keyboard('{ArrowUp}');
     expect(onResize).toHaveBeenLastCalledWith(260);
+  });
+});
+
+describe('DependencyMap linking (D37)', () => {
+  /** Drop `id` onto the centre of `onto`, reading positions from the layout. */
+  function dropOnto(id: string, onto: string): void {
+    const from = rectXY(id);
+    const to = rectXY(onto);
+    const node = screen.getByTestId(`dep-node-${id}`);
+    pointer(node, 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
+    pointer(window, 'pointermove', { clientX: to.x - from.x, clientY: to.y - from.y });
+    pointer(window, 'pointerup', { clientX: to.x - from.x, clientY: to.y - from.y });
+    fireEvent.click(node);
+  }
+
+  it('a drop onto another box links instead of placing', () => {
+    const onLink = vi.fn();
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} onLink={onLink} />);
+    dropOnto('t6', 't1');
+    expect(onLink).toHaveBeenCalledWith('t6', 't1');
+    // The two are alternatives: a link is not also a hand-placement.
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('a drop into empty space still just moves the box', () => {
+    const onLink = vi.fn();
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} onLink={onLink} />);
+    drag('t6', [0, 0], [600, 600]);
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(onLink).not.toHaveBeenCalled();
+  });
+
+  it('highlights the box under the dragged one, and clears it again', () => {
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={vi.fn()} onLink={vi.fn()} />);
+    const from = rectXY('t6');
+    const to = rectXY('t1');
+    const node = screen.getByTestId('dep-node-t6');
+    pointer(node, 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
+    pointer(window, 'pointermove', { clientX: to.x - from.x, clientY: to.y - from.y });
+    expect(screen.getByTestId('dep-node-t1').getAttribute('class')).toContain('drop-target');
+
+    pointer(window, 'pointermove', { clientX: 900, clientY: 900 });
+    expect(screen.getByTestId('dep-node-t1').getAttribute('class')).not.toContain('drop-target');
+    pointer(window, 'pointerup', { clientX: 900, clientY: 900 });
+  });
+
+  it('does nothing on a drop when the caller has not asked for linking', () => {
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} />);
+    dropOnto('t6', 't1');
+    // Without onLink a drop is an ordinary placement, wherever it lands.
+    expect(onMove).toHaveBeenCalledTimes(1);
+  });
+
+  it('right-clicking a line offers to remove that dependency', async () => {
+    const onUnlink = vi.fn();
+    render(
+      <>
+        <DependencyMap tasks={projectTasks('p1')} onUnlink={onUnlink} />
+        <ContextMenu />
+      </>,
+    );
+    // t2 "Provision new k8s cluster" waits on t1 "Audit legacy…".
+    fireEvent.contextMenu(screen.getByTestId('edge-t1-t2'), { clientX: 40, clientY: 40 });
+    const menu = screen.getByRole('menu');
+    expect(menu).toHaveAccessibleName(/Audit legacy service dependencies →/);
+
+    await userEvent.click(within(menu).getByText('Remove this dependency'));
+    expect(onUnlink).toHaveBeenCalledWith('t2', 't1');
+  });
+
+  it('offers no line menu when the caller has not asked for one', () => {
+    render(<DependencyMap tasks={projectTasks('p1')} />);
+    expect(screen.queryByTestId('edge-t1-t2')).not.toBeInTheDocument();
   });
 });

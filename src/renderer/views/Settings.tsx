@@ -2,7 +2,7 @@ import { clearAll, replaceWorkspace, updateSettings } from '@shared/domain/mutat
 import { seedWorkspace } from '@shared/domain/seed';
 import { collectTodoistPushCandidates, markTasksPushed } from '@shared/domain/todoist';
 import type { ImportResponse } from '@shared/ipc-contract';
-import type { BadgeMode, TodoistSyncEvery } from '@shared/types';
+import type { BadgeMode, TodoistSyncEvery, ThemeChoice } from '@shared/types';
 import { BACKUP_KEEP_MAX, TASK_PRIORITIES, TASK_STATUSES } from '@shared/types';
 import { useEffect, useState } from 'react';
 
@@ -459,6 +459,30 @@ export function Settings(): React.JSX.Element {
             <p className="settings-copy muted">
               macOS shows this on the dock icon; Linux needs a Unity-style launcher. Windows has no
               equivalent badge, so the setting has no effect there.
+            </p>
+          </div>
+        </Card>
+
+        <Card title="Appearance">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Ariadne follows your operating system’s light or dark setting by default, switching
+              when it does. Pin it here if you would rather it stayed put.
+            </p>
+            <select
+              className="inp select"
+              value={workspace?.settings.theme ?? 'system'}
+              aria-label="Theme"
+              onChange={(e) => {
+                apply((ws2) => updateSettings(ws2, { theme: e.target.value as ThemeChoice }));
+              }}
+            >
+              <option value="system">Match the system</option>
+              <option value="light">Always light</option>
+              <option value="dark">Always dark</option>
+            </select>
+            <p className="settings-copy muted">
+              Printed and exported reports stay on white paper whichever you pick.
             </p>
           </div>
         </Card>

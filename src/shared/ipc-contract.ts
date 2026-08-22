@@ -35,6 +35,7 @@ export const IPC = {
   logReveal: 'log:reveal',
   logInfo: 'log:info',
   badgeSet: 'badge:set',
+  nativeTheme: 'theme:set',
 } as const;
 
 /** Debug-log entry categories (D18); the main process drops anything else. */
@@ -292,6 +293,12 @@ export interface AriadneApi {
    * platforms without one — Windows needs an overlay icon instead.
    */
   setBadge(count: number): Promise<void>;
+  /**
+   * Tells Electron which theme to paint its own chrome with (D38) — native
+   * dialogs, menus and the macOS traffic lights, none of which read the
+   * renderer's CSS.
+   */
+  setNativeTheme(choice: import('./types').ThemeChoice): Promise<void>;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
   /**

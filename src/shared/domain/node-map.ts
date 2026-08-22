@@ -17,6 +17,9 @@ export interface MapEdge {
   y2: number;
   /** Which axis the line leaves and enters on — drives the curve's bend. */
   axis: 'v' | 'h';
+  /** The node the line runs from, and the one it points at. */
+  from: string;
+  to: string;
 }
 
 export interface PositionedNode {
@@ -44,20 +47,38 @@ export function anchorEdge(
   to: { x: number; y: number },
   nodeW: number,
   nodeH: number,
+  ids: { from: string; to: string } = { from: '', to: '' },
 ): MapEdge {
   const cxFrom = from.x + nodeW / 2;
   const cxTo = to.x + nodeW / 2;
   const cyFrom = from.y + nodeH / 2;
   const cyTo = to.y + nodeH / 2;
   if (to.y >= from.y + nodeH) {
-    return { x1: cxFrom, y1: from.y + nodeH, x2: cxTo, y2: to.y, axis: 'v' };
+    return { x1: cxFrom, y1: from.y + nodeH, x2: cxTo, y2: to.y, axis: 'v', ...ids };
   }
   if (from.y >= to.y + nodeH) {
-    return { x1: cxFrom, y1: from.y, x2: cxTo, y2: to.y + nodeH, axis: 'v' };
+    return { x1: cxFrom, y1: from.y, x2: cxTo, y2: to.y + nodeH, axis: 'v', ...ids };
   }
   return to.x >= from.x
-    ? { x1: from.x + nodeW, y1: cyFrom, x2: to.x, y2: cyTo, axis: 'h' }
-    : { x1: from.x, y1: cyFrom, x2: to.x + nodeW, y2: cyTo, axis: 'h' };
+    ? { x1: from.x + nodeW, y1: cyFrom, x2: to.x, y2: cyTo, axis: 'h', ...ids }
+    : { x1: from.x, y1: cyFrom, x2: to.x + nodeW, y2: cyTo, axis: 'h', ...ids };
+}
+
+/** Node boxes that the point `(x, y)` falls inside, nearest last. */
+export function nodeAt(
+  nodes: readonly PositionedNode[],
+  x: number,
+  y: number,
+  nodeW: number,
+  nodeH: number,
+  exclude: string,
+): PositionedNode | null {
+  let hit: PositionedNode | null = null;
+  for (const n of nodes) {
+    if (n.id === exclude) continue;
+    if (x >= n.x && x <= n.x + nodeW && y >= n.y && y <= n.y + nodeH) hit = n;
+  }
+  return hit;
 }
 
 /**

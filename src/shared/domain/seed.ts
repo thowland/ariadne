@@ -94,6 +94,9 @@ export function seedWorkspace(today: IsoDate): Workspace {
     },
   ];
 
+  // Effort estimates (D36) on most of the work, deliberately not all of it:
+  // the "unestimated" hint on the project header and the portfolio column
+  // only renders when some open task has none.
   const tasks: Task[] = [];
   let n = 0;
   const mk = (projectId: string, o: Partial<Task>): string => {
@@ -120,6 +123,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const a = mk('p1', {
     title: 'Audit legacy service dependencies',
+    estimateHours: 12,
     contactIds: ['c1'],
     status: 'Done',
     priority: 'High',
@@ -128,6 +132,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const b = mk('p1', {
     title: 'Provision new k8s cluster',
+    estimateHours: 24,
     contactIds: ['c1', 'c2'],
     status: 'Doing',
     priority: 'High',
@@ -141,6 +146,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const c = mk('p1', {
     title: 'Migrate auth service',
+    estimateHours: 16,
     contactIds: ['c1'],
     status: 'Todo',
     priority: 'Critical',
@@ -157,6 +163,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const e = mk('p1', {
     title: 'Migrate billing service',
+    estimateHours: 16,
     status: 'Todo',
     priority: 'High',
     dueDate: d(9),
@@ -164,6 +171,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p1', {
     title: 'Cutover & DNS switch',
+    estimateHours: 6,
     contactIds: ['c2', 'c8'],
     status: 'Waiting',
     priority: 'Critical',
@@ -172,6 +180,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   mk('p1', {
     title: 'Write migration runbook',
+    estimateHours: 4,
     contactIds: ['c2'],
     status: 'Doing',
     priority: 'Medium',
@@ -184,6 +193,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const f = mk('p2', {
     title: 'User interviews (8 participants)',
+    estimateHours: 20,
     contactIds: ['c3'],
     status: 'Done',
     priority: 'Medium',
@@ -192,6 +202,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const g = mk('p2', {
     title: 'Synthesize findings',
+    estimateHours: 8,
     contactIds: ['c3'],
     status: 'Done',
     priority: 'Medium',
@@ -208,6 +219,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const w = mk('p2', {
     title: 'New onboarding wireframes',
+    estimateHours: 12,
     contactIds: ['c3'],
     status: 'Doing',
     priority: 'High',
@@ -231,6 +243,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const s1 = mk('p3', {
     title: 'Strip old varnish',
+    estimateHours: 3,
     status: 'Done',
     priority: 'Medium',
     dueDate: d(-6),
@@ -238,6 +251,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const s2 = mk('p3', {
     title: 'Sand to 220 grit',
+    estimateHours: 4,
     status: 'Doing',
     priority: 'Medium',
     dueDate: d(-2),
@@ -249,6 +263,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const s3 = mk('p3', {
     title: 'Apply first coat of spar varnish',
+    estimateHours: 2,
     contactIds: ['c5'],
     status: 'Todo',
     priority: 'Medium',
@@ -272,6 +287,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
 
   const x1 = mk('p4', {
     title: 'Gather 1099s and receipts',
+    estimateHours: 5,
     contactIds: ['c4'],
     status: 'Doing',
     priority: 'High',
@@ -313,6 +329,7 @@ export function seedWorkspace(today: IsoDate): Workspace {
   });
   const j2 = mk('p5', {
     title: 'Screen candidates (12)',
+    estimateHours: 10,
     contactIds: ['c6'],
     status: 'Doing',
     priority: 'Medium',

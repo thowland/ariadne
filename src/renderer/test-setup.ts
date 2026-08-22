@@ -56,6 +56,23 @@ if (typeof g.ImageData === 'undefined') {
   };
 }
 
+// jsdom implements no media queries at all, and the theme (D38) asks it
+// whether the OS wants dark. A stub that reports "light" and accepts
+// listeners is enough; the tests that care about dark set the choice
+// explicitly, which never consults this.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => false,
+  });
+}
+
 // The Blob.prototype.arrayBuffer shim that used to live here is gone: jsdom
 // implements it natively as of v30 (it did not in v25), so the polyfill was
 // dead code the moment jsdom was bumped.

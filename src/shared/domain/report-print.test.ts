@@ -72,6 +72,7 @@ describe('buildReportDocument', () => {
       'contact-report-reach',
       'copy-value',
       'copy-value-icon',
+      'effort-gap',
     ]) {
       expect(REPORT_PRINT_CSS, `.${cls} has no print rule`).toContain(`.${cls} `);
     }

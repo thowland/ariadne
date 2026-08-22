@@ -1,5 +1,7 @@
 import { contactsOfTask } from '@shared/domain/contacts';
+import { formatEstimate, parseEstimate } from '@shared/domain/estimate';
 import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
+import { stripNlDate } from '@shared/domain/nl-date';
 import type { SingleTaskPushBlock } from '@shared/domain/todoist';
 import {
   markTasksPushed,
@@ -163,6 +165,14 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               setDateDismissed(true);
               patch({ dueDate: null });
             }}
+            // The words come out when you leave the field, not while you are
+            // still typing them (D35). Gated on titleEdited for the same
+            // reason the date is: opening a saved task must not rewrite it.
+            onCommitDate={(match) => {
+              if (match !== null && titleEdited.current) {
+                patch({ title: stripNlDate(task.title, match) });
+              }
+            }}
             mentionContacts={workspace.contacts}
             mentionExclude={task.contactIds ?? []}
             onMention={(contactId) => {
@@ -223,6 +233,35 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
                   <option key={s}>{s}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <FieldLabel text="Estimate" />
+              <input
+                className="inp full"
+                defaultValue={formatEstimate(task.estimateHours)}
+                // Uncontrolled and committed on blur: a controlled field
+                // would reformat "2d 4" into nonsense on the keystroke
+                // before the "h".
+                key={task.id}
+                placeholder="2d 4h"
+                aria-label="Estimate"
+                title="Effort, not calendar time. Days and hours; a day is 8 hours."
+                onBlur={(e) => {
+                  const hours = parseEstimate(e.target.value);
+                  if (hours === null) {
+                    // Unreadable: put back what is actually recorded rather
+                    // than silently discarding the estimate.
+                    e.target.value = formatEstimate(task.estimateHours);
+                    showToast('Estimates look like “2d 4h”, “3h” or “1.5d”');
+                    return;
+                  }
+                  e.target.value = formatEstimate(hours);
+                  patch({ estimateHours: hours > 0 ? hours : undefined });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+              />
             </div>
             <div>
               <FieldLabel text="Priority" />

@@ -129,7 +129,17 @@ export interface Task {
    * absent means "nobody linked".
    */
   contactIds?: string[];
+  /**
+   * Effort estimate in hours (D36). Effort, not calendar time: 16 hours means
+   * two working days of work, whenever they happen. Optional-additive, and
+   * absent rather than 0 when nobody has estimated it — "no estimate" and
+   * "no work" are different answers.
+   */
+  estimateHours?: number;
 }
+
+/** Hours in an estimating day. Fixed; see `shared/domain/estimate.ts`. */
+export const HOURS_PER_DAY = 8;
 
 /**
  * A person you work with (D31). Deliberately a small, flat record: the app is
@@ -213,6 +223,15 @@ export const BACKUP_KEEP_MAX = 100;
 export const BADGE_CHOICES = ['none', 'due', 'overdue'] as const;
 export type BadgeMode = (typeof BADGE_CHOICES)[number];
 
+/**
+ * Appearance (D38). `system` follows the OS, which is the default: a setting
+ * that says "follow the system" and then does not would be a bug, and this is
+ * the one place the "new settings default to off" rule is deliberately not
+ * applied — see the D38 row.
+ */
+export const THEME_CHOICES = ['system', 'light', 'dark'] as const;
+export type ThemeChoice = (typeof THEME_CHOICES)[number];
+
 export const TODOIST_SYNC_CHOICES = ['manual', 'hourly', 'daily'] as const;
 export type TodoistSyncEvery = (typeof TODOIST_SYNC_CHOICES)[number];
 
@@ -236,6 +255,8 @@ export interface Settings {
   debugLogDir: string | null;
   /** What the dock/taskbar badge counts, if anything (D28). */
   badgeMode: BadgeMode;
+  /** Light, dark, or whatever the OS is doing (D38). */
+  theme: ThemeChoice;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -249,6 +270,7 @@ export const DEFAULT_SETTINGS: Settings = {
   debugLogging: false,
   debugLogDir: null,
   badgeMode: 'none',
+  theme: 'system',
 };
 
 /** The full in-memory domain state. */

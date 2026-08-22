@@ -8,6 +8,10 @@ import { NodeMap, truncate } from './NodeMap';
 
 export interface DependencyMapProps {
   tasks: readonly Task[];
+  /** Dropping one box on another links them (D37); omit to disable. */
+  onLink?: (draggedId: string, targetId: string) => void;
+  /** Right-click on a line, to offer removing that dependency. */
+  onUnlink?: (taskId: string, dependsOnId: string) => void;
   /** Hand-placed node positions; anything absent uses the computed layout. */
   positions?: DepPositions;
   /** Committed on pointer-up, once per drag. */
@@ -24,15 +28,27 @@ export interface DependencyMapProps {
  * click that never travels far still opens the task. The dragging, resizing
  * and click handling all live in `NodeMap`, shared with the org map (D34) —
  * this component supplies the layout and what a box says.
+ *
+ * Dropping one box onto another declares a dependency (D37), and right-
+ * clicking a line offers to remove one. Both are accelerators: the task
+ * editor's "Blocked by" checkboxes do the same two edits the long way.
  */
 export function DependencyMap({
   tasks,
   positions = {},
   onMove,
+  onLink,
+  onUnlink,
   height,
   onResize,
 }: DependencyMapProps): React.JSX.Element {
-  const openTask = useStore((s) => s.openTask);
+  const { openTask, openContextMenu } = useStore();
+  // Explicit rather than `||`: an empty title must fall back too, which is
+  // exactly what `??` would not do.
+  const titleOf = (id: string): string => {
+    const found = tasks.find((t) => t.id === id)?.title.trim();
+    return found === undefined || found === '' ? 'Untitled task' : found;
+  };
 
   return (
     <NodeMap
@@ -42,8 +58,40 @@ export function DependencyMap({
           No dependencies mapped yet. Open a task and add “Blocked by” links to build the chain.
         </div>
       }
+      nodeW={NODE_W}
+      nodeH={NODE_H}
       positions={positions}
       onMove={onMove}
+      onLink={onLink}
+      onEdgeMenu={
+        onUnlink === undefined
+          ? undefined
+          : (edge, x, y) => {
+              openContextMenu({
+                x,
+                y,
+                label: `${titleOf(edge.from)} → ${titleOf(edge.to)}`,
+                items: [
+                  {
+                    label: 'Open the blocked task…',
+                    onSelect: () => {
+                      openTask(edge.to);
+                    },
+                  },
+                  {
+                    // Unticking the same box in the task editor is the
+                    // ordinary route (D21); this is the accelerator.
+                    label: 'Remove this dependency',
+                    danger: true,
+                    separatorBefore: true,
+                    onSelect: () => {
+                      onUnlink(edge.to, edge.from);
+                    },
+                  },
+                ],
+              });
+            }
+      }
       height={height}
       onResize={onResize}
       minHeight={DEP_MAP_MIN_H}
@@ -63,7 +111,7 @@ export function DependencyMap({
               width={NODE_W}
               height={NODE_H}
               rx={9}
-              fill="#fff"
+              fill="var(--map-node-fill)"
               stroke={st.dot}
               strokeWidth={1.5}
             />
@@ -71,7 +119,7 @@ export function DependencyMap({
             <text x={x + 23} y={y + 21} fontSize={10.5} fontWeight={700} fill={st.c}>
               {task.status}
             </text>
-            <text x={x + 12} y={y + 40} fontSize={12} fontWeight={600} fill="#1b1b18">
+            <text x={x + 12} y={y + 40} fontSize={12} fontWeight={600} fill="var(--text)">
               {truncate(task.title || 'Untitled', 22)}
             </text>
           </>

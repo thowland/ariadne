@@ -190,3 +190,73 @@ describe('App shell', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('App — appearance (D38)', () => {
+  const setTheme = (theme: 'system' | 'light' | 'dark'): void => {
+    const ws = useStore.getState().workspace;
+    if (ws === null) throw new Error('no workspace');
+    useStore.setState({ workspace: { ...ws, settings: { ...ws.settings, theme } } });
+  };
+
+  it('paints light by default on a light system', async () => {
+    setupTestApp();
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('honours an explicit dark choice regardless of the system', async () => {
+    setupTestApp();
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    act(() => {
+      setTheme('dark');
+    });
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  it('follows the system when asked to, and stops when it is not', async () => {
+    let listener: (() => void) | null = null;
+    let prefersDark = false;
+    window.matchMedia = ((query: string) => ({
+      get matches() {
+        return prefersDark;
+      },
+      media: query,
+      addEventListener: (_: string, cb: () => void) => {
+        listener = cb;
+      },
+      removeEventListener: () => {
+        listener = null;
+      },
+    })) as unknown as typeof window.matchMedia;
+
+    setupTestApp();
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    expect(document.documentElement.dataset.theme).toBe('light');
+
+    // The OS flips at sunset.
+    prefersDark = true;
+    act(() => {
+      listener?.();
+    });
+    expect(document.documentElement.dataset.theme).toBe('dark');
+
+    // Pinning it light must survive the OS being dark.
+    act(() => {
+      setTheme('light');
+    });
+    expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('tells the main process, so native menus and dialogs match', async () => {
+    const api = setupTestApp();
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    act(() => {
+      setTheme('dark');
+    });
+    expect(api.setNativeTheme).toHaveBeenLastCalledWith('dark');
+  });
+});

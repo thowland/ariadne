@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { findNlDate } from './nl-date';
+import { findNlDate, stripNlDate } from './nl-date';
 
 // A Wednesday, matching the rest of the suite.
 const TODAY = '2026-07-08';
@@ -125,5 +125,37 @@ describe('findNlDate', () => {
     expect(on('x sunday', sunday)).toBe('2026-07-19');
     expect(on('x monday', sunday)).toBe('2026-07-13');
     expect(on('x saturday', sunday)).toBe('2026-07-18');
+  });
+});
+
+describe('stripNlDate (D35)', () => {
+  const strip = (text: string): string => {
+    const m = findNlDate(text, TODAY);
+    if (m === null) throw new Error(`no date in ${text}`);
+    return stripNlDate(text, m);
+  };
+
+  it('removes a trailing phrase and the space before it', () => {
+    expect(strip('Ship the deck friday')).toBe('Ship the deck');
+    expect(strip('Call the vendor tomorrow')).toBe('Call the vendor');
+  });
+
+  it('removes a phrase from the middle without leaving a double space', () => {
+    expect(strip('Ship friday to the client')).toBe('Ship to the client');
+  });
+
+  it('takes the dangling punctuation with it', () => {
+    expect(strip('Review the deck, friday')).toBe('Review the deck');
+    expect(strip('Invoice Acme — aug 5')).toBe('Invoice Acme —');
+  });
+
+  it('leaves a title that is nothing but a date as an empty string', () => {
+    // The caller decides what to do with that; quick-add refuses to add it.
+    expect(strip('tomorrow')).toBe('');
+  });
+
+  it('removes only the matched phrase, never a second date-looking word', () => {
+    // findNlDate reports one match; the rest of the sentence is untouched.
+    expect(strip('call Bob tomorrow about friday')).toBe('call Bob about friday');
   });
 });

@@ -499,25 +499,41 @@ test('natural-language dates highlight in the title and set the due date (D29)',
   expect(mark!.width).toBeGreaterThan(10);
 
   await quick.press('Enter');
-  await win.getByText('call the vendor tomorrow').first().click();
+  // Accepting the date takes the words out of the title (D35): the due date
+  // is the single copy, and the phrase would contradict it after a reschedule.
+  await win.locator('.trow-title', { hasText: 'call the vendor' }).click();
   const editor = win.getByRole('dialog', { name: 'Edit task' });
   // ARIADNE_FAKE_TODAY is 2026-07-08, so "tomorrow" is the 9th.
   await expect(editor.getByLabel('Due date')).toHaveValue('2026-07-09');
-  // The phrase stays in the title exactly as typed.
-  await expect(editor.getByLabel('Task title')).toHaveValue('call the vendor tomorrow');
+  await expect(editor.getByLabel('Task title')).toHaveValue('call the vendor');
   await editor.getByLabel('Close').click();
 
-  // Dismissing the highlight drops the date but keeps the words.
+  // Dismissing the highlight drops the date — and then there is nothing
+  // accepted, so the words stay exactly as typed.
   await quick.fill('review the deck friday');
   await expect(win.getByTestId('nl-date-chip')).toBeVisible();
   await win.getByTestId('nl-date-chip').click();
   await expect(win.getByTestId('nl-date-chip')).toHaveCount(0);
   await quick.click();
   await quick.press('Enter');
-  await win.getByText('review the deck friday').first().click();
+  await win.locator('.trow-title', { hasText: 'review the deck friday' }).click();
   const editor2 = win.getByRole('dialog', { name: 'Edit task' });
   await expect(editor2.getByLabel('Due date')).toHaveValue('');
   await expect(editor2.getByLabel('Task title')).toHaveValue('review the deck friday');
+  await editor2.getByLabel('Close').click();
+
+  // In the editor the words go when the field is left, not while typing.
+  await win.locator('.trow-title', { hasText: 'call the vendor' }).click();
+  const editor3 = win.getByRole('dialog', { name: 'Edit task' });
+  const title = editor3.getByLabel('Task title');
+  await title.fill('call the vendor friday');
+  await expect(win.getByTestId('nl-date-chip')).toBeVisible();
+  // Still there while the caret is in the field.
+  await expect(title).toHaveValue('call the vendor friday');
+  await editor3.getByLabel('Due date').click();
+  await expect(title).toHaveValue('call the vendor');
+  await expect(editor3.getByLabel('Due date')).toHaveValue('2026-07-10');
+
   await app.close();
 });
 
@@ -927,8 +943,10 @@ test('report exports: PDF from every tab, CSV and column sorting on the portfoli
   await win.getByRole('button', { name: 'Export CSV' }).click();
   await expect.poll(() => existsSync(csv)).toBe(true);
   const text = readFileSync(csv, 'utf8');
-  expect(text.split('\r\n')[0]).toBe('Project,Type,Progress %,Open,Done,Overdue,Next due');
-  expect(text).toContain('Q3 Platform Migration,work,17,5,1,1,2026-07-07');
+  expect(text.split('\r\n')[0]).toBe(
+    'Project,Type,Progress %,Open,Done,Overdue,Effort left (h),Effort total (h),Next due',
+  );
+  expect(text).toContain('Q3 Platform Migration,work,17,5,1,1,66,78,2026-07-07');
 
   // Sorting: click a column, then click it again to reverse.
   const table = win.getByTestId('portfolio-table');
@@ -1154,6 +1172,94 @@ test('contacts: the org map is hand-placeable and remembers it across a restart 
   // Clicking a box opens that person.
   await win.getByTestId('org-node-c8').click();
   await expect(win.getByTestId('contact-headline')).toHaveText('Rachel Okonjo');
+
+  await second.close();
+});
+
+test('dependency map: drop a box on another to link, right-click a line to unlink (D37)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(userData);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Q3 Platform Migration/ })
+    .click();
+  await win.getByTestId('dependency-map').waitFor();
+
+  // "Write migration runbook" (t6) has no dependencies; drop it on the audit.
+  const dragged = win.getByTestId('dep-node-t6').locator('rect');
+  const target = win.getByTestId('dep-node-t1').locator('rect');
+  await dragged.hover();
+  await win.mouse.down();
+  // Pinning the dragged box reflows the rest, so re-read the target's live
+  // position before the final move — the highlight is what a person follows.
+  for (let i = 0; i < 2; i++) {
+    const box = await target.boundingBox();
+    if (box === null) throw new Error('no target box');
+    await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
+  }
+  await expect(win.locator('.node-map-node.drop-target')).toHaveAttribute(
+    'data-testid',
+    'dep-node-t1',
+  );
+  await win.mouse.up();
+
+  await expect(win.getByText(/now waits on “Audit legacy service dependencies”/)).toBeVisible();
+  // The new edge exists, and the box parked under its predecessor.
+  await expect(win.getByTestId('edge-t1-t6')).toBeAttached();
+  const audit = await win.getByTestId('dep-node-t1').locator('rect').boundingBox();
+  const runbook = await win.getByTestId('dep-node-t6').locator('rect').boundingBox();
+  expect(runbook?.y ?? 0).toBeGreaterThan(audit?.y ?? 0);
+
+  // The same link is visible the ordinary way, in the task editor.
+  await win.getByTestId('dep-node-t6').click();
+  const dialog = win.getByRole('dialog', { name: 'Edit task' });
+  await expect(
+    dialog.locator('.dep-row.on', { hasText: 'Audit legacy service dependencies' }),
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+
+  // Right-click the line to take it away again.
+  await win.getByTestId('edge-t1-t6').click({ button: 'right' });
+  await win.getByRole('menu').getByText('Remove this dependency').click();
+  await expect(win.getByText('Dependency removed')).toBeVisible();
+  await expect(win.getByTestId('edge-t1-t6')).toHaveCount(0);
+
+  await app.close();
+});
+
+test('dark mode: chosen in Settings, applied everywhere, remembered (D38)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  // Following the system, which the CI runner reports as light.
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByLabel('Theme').selectOption('dark');
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // The tokens really repaint, not just the attribute: --bg and --text have
+  // swapped ends. (Read through Playwright rather than getComputedStyle —
+  // e2e/ is typechecked without the DOM lib.)
+  await expect(win.locator('body')).toHaveCSS('background-color', 'rgb(22, 22, 26)');
+  await expect(win.locator('body')).toHaveCSS('color', 'rgb(236, 236, 234)');
+
+  await first.close();
+
+  // The choice is workspace data, so it survives a restart.
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // Pinning it light overrides whatever the OS is doing.
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByLabel('Theme').selectOption('light');
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
 
   await second.close();
 });
