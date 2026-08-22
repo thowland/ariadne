@@ -1107,3 +1107,53 @@ test('contacts: CSV export and import round trip, with an org chart (D32/D33)', 
 
   await app.close();
 });
+
+test('contacts: the org map is hand-placeable and remembers it across a restart (D34)', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+
+  const first = await launch(userData);
+  let win = await first.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await win.getByTestId('contact-row-c2').click(); // Marcus Bell, managed by Rachel
+
+  const map = win.getByTestId('org-map');
+  await expect(map).toBeVisible();
+  // One hop each way: his manager, and not his manager's other report.
+  await expect(win.getByTestId('org-node-c8')).toContainText('Rachel Okonjo');
+  await expect(win.getByTestId('org-node-c6')).toHaveCount(0);
+
+  // Drag the manager box somewhere deliberate.
+  const box = win.getByTestId('org-node-c8');
+  const before = await box.locator('rect').first().getAttribute('x');
+  await box.hover();
+  await win.mouse.down();
+  await win.mouse.move(900, 320, { steps: 10 });
+  await win.mouse.up();
+  const after = await box.locator('rect').first().getAttribute('x');
+  expect(Number(after)).toBeGreaterThan(Number(before));
+
+  await first.close();
+
+  const second = await launch(userData);
+  win = await second.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  await win.getByRole('button', { name: 'Contacts', exact: true }).click();
+  await win.getByTestId('contact-row-c2').click();
+  await expect(win.getByTestId('org-map')).toBeVisible();
+  expect(await win.getByTestId('org-node-c8').locator('rect').first().getAttribute('x')).toBe(
+    after,
+  );
+
+  // Reset puts it back where the layout wanted it.
+  await win.getByRole('button', { name: 'Reset layout' }).click();
+  expect(await win.getByTestId('org-node-c8').locator('rect').first().getAttribute('x')).toBe(
+    before,
+  );
+
+  // Clicking a box opens that person.
+  await win.getByTestId('org-node-c8').click();
+  await expect(win.getByTestId('contact-headline')).toHaveText('Rachel Okonjo');
+
+  await second.close();
+});

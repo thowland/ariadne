@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.0 — 2026-08-22
+
+- **An organization map on a contact's page.** Their manager sits above them,
+  their direct reports below, and the person themself in the middle. It works
+  the way the dependency map does: drag a box to put it where you want, drag
+  the strip underneath to make the map taller or shorter, click a box to open
+  that person, and **Reset layout** to put everything back. The arrangement is
+  remembered per contact and survives a restart.
+- It shows **one step each way, deliberately**. A colleague who reports to the
+  same manager as you does not appear on your map — the question the page is
+  answering is where _this_ person sits, not what the whole company looks like.
+  A person with no reporting line either way says so instead of drawing a
+  single box of themself.
+
 ## 2.1.0 — 2026-08-22
 
 Fit and finish on Contacts, aimed at the way an organization's address book

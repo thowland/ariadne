@@ -18,6 +18,7 @@ import {
   ContactPicker,
   CopyValue,
 } from '../components/ContactBits';
+import { OrgMap } from '../components/OrgMap';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
@@ -78,6 +79,13 @@ export function ContactDetail(): React.JSX.Element {
   // a reporting loop cannot be built through the UI at all.
   const allowed = new Set(managerCandidates(workspace, contact.id).map((c) => c.id));
   const forbidden = workspace.contacts.filter((c) => !allowed.has(c.id)).map((c) => c.id);
+
+  const orgLayout = contact.orgLayout ?? {};
+  const moveOrgNode = (contactId: string, x: number, y: number): void => {
+    patch({
+      orgLayout: { ...orgLayout, [contactId]: { x: Math.round(x), y: Math.round(y) } },
+    });
+  };
 
   const patch = (fields: Partial<Omit<Contact, 'id'>>): void => {
     apply((ws) => updateContact(ws, contact.id, fields));
@@ -182,6 +190,38 @@ export function ContactDetail(): React.JSX.Element {
                   to any task yet.
                 </div>
               )}
+            </div>
+          </Card>
+
+          <Card
+            title="Organization map"
+            headRight={
+              <div className="lib-actions dep-head">
+                {Object.keys(orgLayout).length > 0 && (
+                  <button
+                    className="lib-btn"
+                    onClick={() => {
+                      patch({ orgLayout: {} });
+                    }}
+                  >
+                    Reset layout
+                  </button>
+                )}
+                <span className="card-hint">drag to arrange · click to open</span>
+              </div>
+            }
+          >
+            <div className="card-pad">
+              <OrgMap
+                workspace={workspace}
+                contact={contact}
+                positions={orgLayout}
+                onMove={moveOrgNode}
+                height={contact.orgMapHeight}
+                onResize={(orgMapHeight) => {
+                  patch({ orgMapHeight });
+                }}
+              />
             </div>
           </Card>
 

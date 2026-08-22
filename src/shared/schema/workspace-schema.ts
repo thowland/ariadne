@@ -97,6 +97,11 @@ export const contactSchema = z.object({
   notes: z.string().catch(''),
   tags: z.array(z.string()).catch([]),
   managerId: z.string().optional().catch(undefined),
+  orgLayout: z
+    .record(z.string(), z.object({ x: z.number().finite(), y: z.number().finite() }))
+    .optional()
+    .catch(undefined),
+  orgMapHeight: z.number().finite().optional().catch(undefined),
   createdAt: isoDate,
 });
 

@@ -277,6 +277,31 @@ describe('contact manager links (D32)', () => {
     expect(parsed.data.department).toBe('');
   });
 
+  it('round-trips a hand-placed org-map layout, and drops a broken one', () => {
+    const good = contactSchema.safeParse({
+      id: 'c1',
+      createdAt: TODAY,
+      orgLayout: { c8: { x: 480, y: 12 } },
+      orgMapHeight: 320,
+    });
+    expect(good.success).toBe(true);
+    if (!good.success) return;
+    expect(good.data.orgLayout).toEqual({ c8: { x: 480, y: 12 } });
+    expect(good.data.orgMapHeight).toBe(320);
+
+    // A non-finite coordinate would place a node nowhere at all.
+    const bad = contactSchema.safeParse({
+      id: 'c1',
+      createdAt: TODAY,
+      orgLayout: { c8: { x: 'over there', y: 12 } },
+      orgMapHeight: Infinity,
+    });
+    expect(bad.success).toBe(true);
+    if (!bad.success) return;
+    expect(bad.data.orgLayout).toBeUndefined();
+    expect(bad.data.orgMapHeight).toBeUndefined();
+  });
+
   it('drops a manager id that is not a string rather than failing the contact', () => {
     const parsed = contactSchema.safeParse({ id: 'c1', createdAt: TODAY, managerId: 7 });
     expect(parsed.success).toBe(true);

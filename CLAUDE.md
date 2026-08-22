@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.1.0**
+(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.2.0**
 (`package.json`/`CHANGELOG.md` are authoritative).
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D33**); record
+source of truth for domain semantics and the decision table (**D1–D34**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -73,6 +73,13 @@ The most common mistake on this codebase is writing a second implementation of
 something that already exists, which then drifts from the first. Before adding
 logic, check whether it is already there:
 
+- **Box-and-line maps** share `renderer/components/NodeMap.tsx` (drag, resize,
+  click-vs-drag) and `shared/domain/node-map.ts` (edge anchoring, pinned
+  positions, canvas bounds). A third map supplies a pure layout and a
+  `renderNode`; it does **not** copy the pointer handling, which is where the
+  drag slop, the click suppression after a real drag and the latest-callback
+  refs live. The org map (D34) is one hop each way on purpose — never grow it
+  into a whole company chart without a new decision row.
 - **Aggregations over the workspace** live in `shared/domain/reports.ts` and
   `derive.ts`. The Projects inventory screen is `portfolioRollup` + `sortPortfolio`
   with an extra column — not its own counting pass.

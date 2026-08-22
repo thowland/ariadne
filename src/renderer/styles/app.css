@@ -1433,23 +1433,23 @@ input.inp.full {
 
 /* ============ Dependency map ============ */
 
-.dep-graph-scroll {
+.node-map-scroll {
   overflow: auto;
   max-width: 100%;
 }
-.dep-node {
+.node-map-node {
   cursor: pointer;
 }
-.dep-node.draggable {
+.node-map-node.draggable {
   cursor: grab;
   /* Without this a drag paints a text selection across the node labels. */
   user-select: none;
   touch-action: none;
 }
-.dep-node.dragging {
+.node-map-node.dragging {
   cursor: grabbing;
 }
-.dep-node.dragging rect {
+.node-map-node.dragging rect {
   filter: drop-shadow(0 3px 8px rgba(20, 20, 15, 0.22));
 }
 .dep-head {
@@ -1458,7 +1458,7 @@ input.inp.full {
 }
 
 /* Drag-to-resize strip under the dependency canvas. */
-.dep-resize {
+.node-map-resize {
   height: 14px;
   margin-top: 2px;
   display: flex;
@@ -1468,11 +1468,11 @@ input.inp.full {
   border-radius: 7px;
   touch-action: none;
 }
-.dep-resize:hover,
-.dep-resize:focus-visible {
+.node-map-resize:hover,
+.node-map-resize:focus-visible {
   background: rgba(20, 20, 15, 0.05);
 }
-.dep-resize-grip {
+.node-map-grip {
   width: 34px;
   height: 3px;
   border-radius: 2px;

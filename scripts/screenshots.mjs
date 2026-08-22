@@ -144,7 +144,7 @@ const SHOTS = [
     async go(win) {
       await win.getByRole('button', { name: 'Contacts', exact: true }).click();
       await win.getByTestId('contact-row-c8').click();
-      await win.getByTestId('contact-org').waitFor();
+      await win.getByTestId('org-map').waitFor();
     },
   },
   {

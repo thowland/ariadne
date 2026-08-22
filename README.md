@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v2.1.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v2.2.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -476,7 +476,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D33. Record any deliberate behavior change as a new row
+  decision table D1–D34. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.

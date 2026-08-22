@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -202,5 +202,51 @@ describe('ContactDetail', () => {
       expect(ws().contacts.some((c) => c.id === 'c8')).toBe(false);
     });
     expect(ws().contacts.find((c) => c.id === 'c2')?.managerId).toBeUndefined();
+  });
+
+  it('carries the org map, and persists a hand-placed box on the contact (D34)', () => {
+    useStore.setState({ activeContactId: 'c2' }); // Marcus, managed by Rachel
+    renderDetail();
+    expect(screen.getByTestId('org-map')).toBeInTheDocument();
+    // No pinned nodes yet, so nothing to reset.
+    expect(screen.queryByRole('button', { name: 'Reset layout' })).not.toBeInTheDocument();
+
+    const node = screen.getByTestId('org-node-c8');
+    fireEvent(
+      node,
+      new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
+    );
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60 }));
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientX: 120, clientY: 60 }));
+
+    // Saved against the contact whose map it is, not globally.
+    const marcus = ws().contacts.find((c) => c.id === 'c2');
+    expect(marcus?.orgLayout?.c8).toEqual({ x: 128, y: 68 });
+    expect(ws().contacts.find((c) => c.id === 'c8')?.orgLayout).toBeUndefined();
+  });
+
+  it('resets a hand-placed layout back to the computed rows', async () => {
+    const w = ws();
+    loadTestWorkspace({
+      ...w,
+      contacts: w.contacts.map((c) =>
+        c.id === 'c2' ? { ...c, orgLayout: { c8: { x: 400, y: 30 } } } : c,
+      ),
+    });
+    useStore.setState({ activeContactId: 'c2' });
+    renderDetail();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+    expect(ws().contacts.find((c) => c.id === 'c2')?.orgLayout).toEqual({});
+  });
+
+  it('remembers the map height on the contact', () => {
+    useStore.setState({ activeContactId: 'c2' });
+    renderDetail();
+    const handle = screen.getByTestId('org-map-resize');
+    fireEvent(handle, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientY: 100 }));
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientY: 260 }));
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientY: 260 }));
+    expect(ws().contacts.find((c) => c.id === 'c2')?.orgMapHeight).toBeGreaterThan(140);
   });
 });

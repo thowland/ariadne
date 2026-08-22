@@ -182,7 +182,7 @@ describe('ProjectDetail', () => {
   it('persists the dependency-map height', async () => {
     useStore.setState({ activeProjectId: 'p1' });
     render(<ProjectDetail />);
-    screen.getByTestId('dep-map-resize').focus();
+    screen.getByTestId('dependency-map-resize').focus();
     await userEvent.keyboard('{ArrowDown}');
     const h = ws().projects.find((p) => p.id === 'p1')?.depMapHeight;
     expect(h).toBeGreaterThan(160);
