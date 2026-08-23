@@ -14,6 +14,9 @@
   that is where your Todoist and Anthropic keys live.
 - Nothing listens on a port and nothing goes to the network. Claude starts the
   server when it needs it and it reads the same JSON files the app does.
+- The in-app help has caught up: new sections for **Contacts** and **Ask
+  Claude**, and the existing ones now cover dark mode, typed due dates, effort
+  estimates, drawing dependencies on the map, and hiding completed tasks.
 
 ## 2.3.0 — 2026-08-22
 

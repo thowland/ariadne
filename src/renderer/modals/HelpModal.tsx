@@ -15,8 +15,10 @@ import { ExternalLink } from './AboutModal';
 const SECTIONS: { id: HelpSection; label: string }[] = [
   { id: 'start', label: 'Getting started' },
   { id: 'tasks', label: 'Projects & tasks' },
+  { id: 'contacts', label: 'Contacts' },
   { id: 'reports', label: 'Reports' },
   { id: 'data', label: 'Data & backups' },
+  { id: 'claude', label: 'Ask Claude' },
   { id: 'shortcuts', label: 'Keyboard shortcuts' },
 ];
 
@@ -84,14 +86,18 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
           </p>
           <ul>
             <li>
-              <strong>Sidebar</strong> — projects, the scope switch, and archived projects.
+              <strong>Sidebar</strong> — projects, the scope switch, and archived projects. The
+              PROJECTS heading itself opens an inventory of every project with its counts.
             </li>
             <li>
               <strong>Calendar</strong> — month or single-week view of everything with a due date.
             </li>
             <li>
+              <strong>Reports</strong> — six ways of looking at the same work, all copyable and
+              exportable to PDF.
+            </li>
+            <li>
               <strong>Contacts</strong> — the people you work with, and what you have asked of them.
-              Type <code>@</code> in a task title to link someone to it.
             </li>
             <li>
               <strong>Files</strong> — every uploaded document and markdown note in one library.
@@ -100,6 +106,12 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
               <strong>Tags</strong> — cross-project labels, with a management list for renames.
             </li>
           </ul>
+          <h3>Light and dark</h3>
+          <p>
+            Ariadne follows your system appearance by default and switches when it does.{' '}
+            <strong>Settings → Appearance</strong> pins it to light or dark if you would rather it
+            stayed put. Exported and printed reports stay black-on-white either way.
+          </p>
         </>
       );
     case 'tasks':
@@ -113,11 +125,35 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             rather than finished. Marking a task Done stamps its completion date, which is what the
             retrospective report reads.
           </p>
+          <h3>Typing a due date</h3>
+          <p>
+            Write the date into the title and Ariadne picks it up: “call the vendor{' '}
+            <em>tomorrow</em>”, “review the deck <em>friday</em>”, “invoice <em>aug 5</em>”. The
+            phrase is underlined as you type and a chip shows the date it would set; click the chip
+            to wave it off. Once you accept it — by adding the task, or by leaving the title field —
+            the words come out of the title, because the due date is now the single copy and the two
+            would disagree the first time you rescheduled.
+          </p>
+          <h3>Estimates</h3>
+          <p>
+            A task can carry an optional estimate in days and hours — <code>2d 4h</code>,{' '}
+            <code>3h</code>, <code>1.5d</code>. It is <em>effort</em>, not calendar time: two days
+            means two days of work, whenever they happen, and a day is eight hours. The project
+            header totals what is left, and the portfolio report has a sortable{' '}
+            <strong>Effort left</strong> column.
+          </p>
           <h3>Dependencies</h3>
           <p>
             A task can depend on other tasks in the same project. Anything waiting on an unfinished
             task shows as <strong>blocked</strong>, and the project&apos;s dependency map draws the
             whole chain — click a node to open that task.
+          </p>
+          <p>
+            You can draw the links on the map itself: <strong>drag one box onto another</strong> and
+            the dragged task now waits on the one you dropped it on, landing underneath it with the
+            arrow in place. <strong>Right-click a line</strong> to remove that dependency. Both are
+            shortcuts for the “Blocked by” checkboxes in the task editor. Ariadne refuses a link
+            that would leave two tasks waiting on each other.
           </p>
           <h3>Files &amp; documents</h3>
           <p>
@@ -125,6 +161,13 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             zone, or use the buttons to browse or start a markdown note. Uploads are copied into
             your data folder, so moving or deleting the original does not break the link. Attach a
             file to a specific task from the task editor.
+          </p>
+          <h3>Hiding finished work</h3>
+          <p>
+            A long-running project fills up with completed tasks. The Tasks card offers{' '}
+            <strong>Hide N completed</strong>, and the choice sticks to that project — it survives a
+            restart and does not follow you elsewhere. The dependency map still shows everything, so
+            no arrow ever points at a task that vanished.
           </p>
           <h3>Archiving</h3>
           <p>
@@ -134,18 +177,62 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
           </p>
         </>
       );
+    case 'contacts':
+      return (
+        <>
+          <h3>The people behind the work</h3>
+          <p>
+            A contact has a name, company, department, role, email, phone, notes and tags — none of
+            it required beyond a name, so somebody can be captured in three seconds and filled in
+            later. The <strong>Contacts</strong> screen lists everyone with what they are carrying;
+            sort by open tasks to see who you are leaning on.
+          </p>
+          <h3>Linking people to work</h3>
+          <p>
+            Type <code>@</code> and a few letters of a name in any task title — in the quick-add box
+            or the task editor. Pick from the list and the person is attached to the task; the name
+            completes in place and stays in the title, where it reads naturally. If they are not in
+            your address book yet, the last row of the list adds them.
+          </p>
+          <p>
+            Every project grows a <strong>Contacts</strong> card listing the people attached to the
+            project itself <em>and</em> everyone on one of its tasks, so linking someone to a task
+            puts them there with no second step. Each row opens to their email and phone, with a
+            button to copy either and an envelope and handset that hand the address to your mail
+            client or dialer.
+          </p>
+          <h3>Reporting lines</h3>
+          <p>
+            Give a contact a manager and their page shows both who they report to and who reports to
+            them, each a link. The <strong>Organization map</strong> draws the same thing — manager
+            above, reports below — and works like the dependency map: drag a box to place it, drag
+            the strip to resize, click a box to open that person. It shows one step each way, not
+            your whole company.
+          </p>
+          <h3>Importing and exporting</h3>
+          <p>
+            <strong>Import CSV…</strong> on the Contacts screen reads a spreadsheet and shows you
+            what would happen — how many are new, who would be updated, which rows it could not use
+            — before anything is written. Somebody whose first name, last name and company already
+            match is <em>updated</em> rather than duplicated, and a blank cell never clears
+            something you already have. A <strong>Manager</strong> column of full names rebuilds
+            reporting lines. <strong>Export CSV</strong> writes the same shape back out.
+          </p>
+        </>
+      );
     case 'reports':
       return (
         <>
-          <h3>The five reports</h3>
+          <h3>The six reports</h3>
           <ul>
             <li>
               <strong>Weekly status</strong> — done in the last 7 days, planned for the next 7, and
               what is at risk, grouped by project. Built for pasting into a status email.
             </li>
             <li>
-              <strong>Portfolio roll-up</strong> — one row per project: open, done, overdue, and the
-              next thing due.
+              <strong>Portfolio roll-up</strong> — one row per project: open, done, overdue, effort
+              left, and the next thing due. Click a column to sort by it; this is the one report
+              that also exports to CSV.
             </li>
             <li>
               <strong>Retrospective</strong> — everything completed in a date range, with a
@@ -160,11 +247,17 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
               push-out, so this report can rank the work you keep putting off and tell you what the
               churn is costing in days.
             </li>
+            <li>
+              <strong>Contact activity</strong> — who you have actually been working with over a
+              date range, ranked, with the organizations behind them and how much of their work is
+              still open.
+            </li>
           </ul>
           <p>
             Every report is scoped by the picker in its toolbar (all projects, work only, home only,
             or a single tag), and <strong>Copy report</strong> puts a plain-text version on the
-            clipboard.
+            clipboard. <strong>PDF</strong> prints whatever is on screen, including the sort you
+            chose — always on white paper, whichever appearance you use.
           </p>
         </>
       );
@@ -173,10 +266,10 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
         <>
           <h3>Where your data lives</h3>
           <p>
-            One folder on this computer: plain JSON files for projects, tasks, files, and settings,
-            plus a <code>blobs</code> directory holding your uploads byte-for-byte. Settings shows
-            the exact path and lets you move it. Nothing is sent anywhere unless you turn on a
-            Todoist or Claude integration.
+            One folder on this computer: plain JSON files for projects, tasks, files, contacts and
+            settings, plus a <code>blobs</code> directory holding your uploads byte-for-byte.
+            Settings shows the exact path and lets you move it. Nothing is sent anywhere unless you
+            turn on a Todoist or Claude integration.
           </p>
           <h3>Backups</h3>
           <p>
@@ -198,6 +291,39 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             here when you tick them off there. Claude: paste meeting notes into the AI import and
             review the extracted tasks before any are created. Both need a key you supply in
             Settings.
+          </p>
+        </>
+      );
+    case 'claude':
+      return (
+        <>
+          <h3>Ask Claude about your workspace</h3>
+          <p>
+            Ariadne can hand a local Claude a <strong>read-only</strong> view of your projects,
+            tasks and contacts, so you can ask “what&apos;s overdue?”, “what have I asked Dana
+            for?”, or “write my standup”. It answers from your real workspace instead of guessing.
+          </p>
+          <p>
+            It is not part of this app: it is a small program Claude starts when it needs an answer.
+            Nothing listens on a port, nothing goes to the network, and Ariadne does not have to be
+            running — it reads the same files on disk.
+          </p>
+          <h3>Setting it up</h3>
+          <p>
+            From a checkout of the source, run <code>npm run build</code> and then{' '}
+            <code>npm run install:skill</code>, which prints the one command to register it with
+            Claude Code and the JSON to paste into Claude Desktop&apos;s config. The full guide is{' '}
+            <code>docs/CLAUDE_MCP.md</code> in the source repository.
+          </p>
+          <h3>What it will not do</h3>
+          <p>
+            It cannot create, edit, complete or delete anything — there is no tool that writes. Ask
+            Claude to change something and it will tell you what to change and where. Your settings
+            file is never read at all, because that is where your Todoist and Anthropic keys live.
+          </p>
+          <p>
+            It reads the last state saved to disk, which lands about a second after you stop typing,
+            so something changed a moment ago may not be there yet.
           </p>
         </>
       );

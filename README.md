@@ -147,6 +147,8 @@ npm run install:skill  # links the skill and prints the registration command
 
 The skill lives in `skills/ariadne/` and is symlinked into `~/.claude/skills`,
 so it works in any session rather than only inside this checkout.
+**`docs/CLAUDE_MCP.md`** is the full guide — setup for both Claude Code and
+Claude Desktop, the five tools, and what to check when it misbehaves.
 
 It cannot change anything, on purpose. The running app holds the workspace in
 memory and rewrites the JSON on its next save, so an outside writer would be
@@ -512,6 +514,8 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
+- `docs/CLAUDE_MCP.md` — setting up the read-only MCP server in Claude Code and
+  Claude Desktop, what the five tools return, and why there is no write path.
 - `docs/CODE_REVIEW_2026-07-18.md` — a standing best-practices review. The P1
   robustness items are done and annotated inline; the remaining P2–P4 sections
   are agreed future work, so read it before starting a refactor in those areas.

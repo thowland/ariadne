@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '../app/store';
+import type { HelpSection } from '../app/store';
 import { loadTestWorkspace, setupTestApp } from '../test-utils';
 
 import { HelpModal } from './HelpModal';
@@ -33,17 +34,39 @@ describe('HelpModal', () => {
   });
 
   it('documents every section, including the deferred report', () => {
-    for (const [section, marker] of [
-      ['tasks', 'The status cycle'],
-      ['reports', 'The five reports'],
-      ['data', 'Where your data lives'],
-    ] as const) {
+    // Typed as a full Record, so adding a section to HelpSection without
+    // writing its body fails to compile rather than shipping a blank pane.
+    const markers: Record<HelpSection, string> = {
+      start: 'Ariadne in one minute',
+      tasks: 'The status cycle',
+      contacts: 'Linking people to work',
+      reports: 'The six reports',
+      data: 'Where your data lives',
+      claude: 'Ask Claude about your workspace',
+      shortcuts: 'NAVIGATE',
+    };
+    for (const [section, marker] of Object.entries(markers) as [HelpSection, string][]) {
       const { unmount } = render(<HelpModal section={section} />);
       expect(screen.getByText(marker)).toBeInTheDocument();
       unmount();
     }
     render(<HelpModal section="reports" />);
     expect(screen.getByTestId('help-body')).toHaveTextContent('keeps sliding');
+  });
+
+  it('covers the features added since the help was last written', () => {
+    const body = (section: HelpSection): HTMLElement => {
+      render(<HelpModal section={section} />);
+      return screen.getAllByTestId('help-body').at(-1)!;
+    };
+    // A typed date, an effort estimate, drag-to-link, and dark mode.
+    expect(body('tasks')).toHaveTextContent('invoice aug 5');
+    expect(body('tasks')).toHaveTextContent('effort');
+    expect(body('start')).toHaveTextContent('dark');
+    // Contacts CSV keeps its matching rule where a user will look for it.
+    expect(body('contacts')).toHaveTextContent('never clears');
+    // The Claude bridge is read-only, and the help says so out loud.
+    expect(body('claude')).toHaveTextContent('read-only');
   });
 
   it('shows platform-correct modifier keys in the shortcuts table', async () => {

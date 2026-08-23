@@ -90,7 +90,8 @@ export interface ContextMenuState {
 export interface AboutModalState {
   type: 'about';
 }
-export type HelpSection = 'start' | 'tasks' | 'reports' | 'data' | 'shortcuts';
+export type HelpSection =
+  'start' | 'tasks' | 'contacts' | 'reports' | 'data' | 'claude' | 'shortcuts';
 export interface HelpModalState {
   type: 'help';
   section: HelpSection;

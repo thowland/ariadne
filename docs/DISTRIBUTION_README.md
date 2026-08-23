@@ -41,6 +41,16 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   date, tags, notes, subtasks, and links. Click a task's status circle to
   advance it: **Todo → Doing → Waiting → Done → back to Todo**. "Dropped" is
   only available from the status dropdown, so you can't hit it by accident.
+- **Due dates you can type.** Write the date into the task's title —
+  "call the vendor tomorrow", "review the deck friday", "invoice aug 5" — and
+  Ariadne underlines the phrase and offers the date it read. Accept it by
+  adding the task and the words come out of the title, leaving the due date
+  set. A chip next to the field waves it off if you meant the words literally.
+- **Estimates** are optional and written the way you'd say them: `2d 4h`,
+  `3h`, `1.5d`. They measure **effort, not calendar time** — two days means
+  two days of work whenever they happen, and a day counts as eight hours. The
+  project header totals what's left to do, and the Portfolio report has a
+  sortable **Effort left** column.
 - **Dependencies**: a task can depend on other tasks in the same project.
   A task with an unfinished dependency shows as **Blocked**; each project
   page has a **Dependency map** that draws the chain. The map lays itself
@@ -50,7 +60,12 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   arrangement is saved with the project; the strip under the map drags
   (or arrow-keys) to make the card taller, and **Reset layout** in the
   card header puts everything back on the automatic rows. A plain click
-  still opens the task.
+  still opens the task. You can also **create** a dependency on the map:
+  drag one box onto another and the dragged task now waits on the one you
+  dropped it on, landing underneath it with the arrow drawn in.
+  **Right-click a line** to remove that dependency. Both are shortcuts for
+  the "Blocked by" checkboxes in the task editor, and Ariadne refuses a link
+  that would leave two tasks waiting on each other.
 - **At risk** means a task is overdue, or directly waiting on an overdue
   task (it will tell you which one).
 - The **Command Center** (home screen) groups what matters now: Overdue,
@@ -69,6 +84,10 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   the box to bring one back. The one report that still counts them is the
   **Retrospective** — it looks backwards, so work you finished before
   parking a project keeps showing up there, marked "archived".
+- **Hiding finished work.** A long-running project fills up with completed
+  tasks. Its Tasks card offers **Hide N completed**, and the choice sticks to
+  that project — it survives a restart and doesn't follow you to other
+  projects. The dependency map still shows everything.
 - **Right-click shortcuts.** Right-click any task row for its common edits —
   due today, tomorrow or next week, clear the due date, mark complete or
   reopen, drop it, move it to another project, or delete it. Right-click a
@@ -85,23 +104,62 @@ projects and tasks you see are demo data. When you are ready to start fresh:
   type. **Escape** closes any dialog.
 - **Calendar** shows tasks by due date, as a month grid or a single
   Sun–Sat week (the Month/Week toggle); click a day for its list.
-- **Reports** offers Weekly status, Portfolio roll-up, Retrospective, and
-  At-risk — each scopable to All / Work / Home / a #tag, with a
-  **Copy report** button that puts a plain-text version on the clipboard.
-  The retrospective has quick range presets (last week, last month, month
-  to date, year to date) and a chart of completions over time; it is the
-  only report that includes archived projects.
+- **Reports** offers Weekly status, Portfolio roll-up, Retrospective,
+  At-risk, Deferred, and Contact activity — each scopable to All / Work /
+  Home / a #tag, with a **Copy report** button that puts a plain-text version
+  on the clipboard and a **PDF** button that saves or previews a printable
+  copy. The Portfolio roll-up totals remaining effort per project and exports
+  to CSV. The retrospective has quick range presets (last week, last month,
+  month to date, year to date) and a chart of completions over time; it is the
+  only report that includes archived projects. Contact activity shows who is
+  carrying what, and who has gone quiet.
 - Each project has a **Files & documents** card: create markdown notes
   in-app or upload files (PDF, CSV, DOCX, XLSX, PPTX, RTF, images). Images,
   PDFs, and CSVs preview inside Ariadne. The **Files** view in the sidebar
   lists every file across all projects in one place.
 - The **Tags** view in the sidebar shows every tag you use, with counts —
   click one to search for everything carrying it.
+- **Light and dark.** **Settings → Appearance** follows your system theme by
+  default, or you can pin Ariadne to light or dark regardless. Printed reports
+  and PDFs stay black-on-white either way.
+
+## Contacts
+
+Ariadne keeps its own address book — it does not read your system contacts,
+and nothing is shared with them.
+
+- A contact has a first and last name and, optionally, a company, department,
+  role, email, phone, tags and notes. Only the name is required, so someone
+  can be captured in seconds and filled in later.
+- **Linking people to work**: type `@` and a few letters in any task title —
+  in the quick-add box or the task editor — and pick from the list. The person
+  is attached to the task and their name stays in the title where it reads
+  naturally. If they aren't in your address book yet, the last row of the list
+  adds them.
+- Every project grows a **Contacts** card listing the people attached to the
+  project itself _and_ everyone on one of its tasks. Each row opens to show
+  their email and phone with a button to copy either, plus an **envelope** and
+  a **handset** that hand the address to your mail client or dialer.
+- The **Contacts** view in the sidebar lists everyone with what they are
+  carrying; sort by open tasks to see who you're leaning on. A contact's page
+  shows every task and project they touch, all of them clickable.
+- **Reporting lines**: give a contact a manager and their page shows who they
+  report to and who reports to them. The **Organization map** draws the same
+  thing — manager above, reports below — and behaves like the dependency map:
+  drag a box to place it, drag the strip to resize, **Reset layout** to start
+  over, click a box to open that person. It shows one step in each direction,
+  not your whole company.
+- **Import CSV…** reads a spreadsheet and shows you what _would_ happen — how
+  many are new, who would be updated, which rows it couldn't use — before
+  anything is written. Someone whose first name, last name and company already
+  match is **updated** rather than duplicated, and a blank cell never clears
+  something you already have. A **Manager** column of full names rebuilds
+  reporting lines. **Export CSV** writes the same shape back out.
 
 ## Where your data lives
 
-Everything is plain JSON plus your uploaded files, in a data folder you can
-open and back up yourself:
+Everything is plain JSON — projects, tasks, files, contacts and settings —
+plus your uploaded files, in a data folder you can open and back up yourself:
 
 - Windows: `%APPDATA%\Ariadne\data`
 - macOS: `~/Library/Application Support/Ariadne/data`
@@ -156,6 +214,20 @@ import costs a few cents):
 Privacy notes: only the text you paste is sent to Anthropic, and only for
 that one request. The API key is stored **in plain text** in Ariadne's local
 settings file — treat that file like a password.
+
+## Asking Claude about your work (optional, for developers)
+
+If you use **Claude Code** or **Claude Desktop**, Ariadne can hand it a
+**read-only** view of your projects, tasks and contacts, so you can ask "what's
+overdue?", "what have I asked Dana for?" or "write my standup" and get an
+answer from your real workspace.
+
+It is not part of the installed app: it is a small program built from the
+source, which Claude starts when it needs an answer. Nothing listens on a port,
+nothing goes to the network, and it cannot create, edit or delete anything —
+there is no tool that writes. Your `settings.json` is never read at all, so the
+tokens above stay where they are. Setup instructions are in `docs/CLAUDE_MCP.md`
+in the source repository.
 
 ## Todoist (optional)
 
