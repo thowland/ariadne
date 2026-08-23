@@ -1,6 +1,6 @@
 {
   "name": "ariadne",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Ariadne — a single-user, local-first personal project & task tracker",
   "main": "./out/main/index.js",
   "private": true,
@@ -19,7 +19,8 @@
   "scripts": {
     "postinstall": "patch-package && install-electron",
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && npm run build:mcp",
+    "build:mcp": "vite build --config vite.mcp.config.ts",
     "start": "electron-vite preview",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -41,7 +42,8 @@
     "package:mac": "electron-vite build && electron-builder --mac --publish never",
     "package:win": "electron-vite build && bash scripts/package-win.sh",
     "package:win:native": "electron-vite build && electron-builder --win --publish never",
-    "package:mac:universal": "electron-vite build && electron-builder --mac --universal --publish never"
+    "package:mac:universal": "electron-vite build && electron-builder --mac --universal --publish never",
+    "install:skill": "node scripts/install-skill.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

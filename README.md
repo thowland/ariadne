@@ -11,7 +11,7 @@ database, which means the app keeps working when the network doesn't, and your
 data outlives the application: if Ariadne disappeared tomorrow, the JSON is still
 readable in any text editor and the attachments are still files in a folder.
 
-**Current release: v2.3.0.** `CHANGELOG.md` records what shipped when.
+**Current release: v2.4.0.** `CHANGELOG.md` records what shipped when.
 
 <!-- prettier-ignore -->
 ![The Command Center: stat cards, an overdue banner, focus sections, and the portfolio column](docs/screenshots/command-center.png)
@@ -132,6 +132,29 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   File. There is an About box with version and runtime details, and bundled
   offline help with a platform-correct keyboard-shortcut table. Files can be
   added by dragging them onto the library.
+
+## Asking Claude about your workspace
+
+Ariadne ships a **read-only MCP server** (decision D39) so a local Claude can
+answer questions about your own projects, tasks and people — "what's overdue",
+"what did I ask Dana for", "write my standup". It is a single dependency-free
+file that Claude spawns on demand; there is no port, no daemon and no network.
+
+```sh
+npm run build          # produces out/mcp/server.mjs
+npm run install:skill  # links the skill and prints the registration command
+```
+
+The skill lives in `skills/ariadne/` and is symlinked into `~/.claude/skills`,
+so it works in any session rather than only inside this checkout.
+**`docs/CLAUDE_MCP.md`** is the full guide — setup for both Claude Code and
+Claude Desktop, the five tools, and what to check when it misbehaves.
+
+It cannot change anything, on purpose. The running app holds the workspace in
+memory and rewrites the JSON on its next save, so an outside writer would be
+silently overwritten; a write path needs the app to watch its data directory
+first. `settings.json` is never read at all, because it holds your API tokens
+in plain text.
 
 ## Installing a release
 
@@ -278,6 +301,7 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 | `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                                                  |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Contacts, ContactDetail, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
+| `src/mcp/`                        | Read-only MCP server (D39): workspace locator, loader, tool projections, hand-rolled stdio protocol                                                                  |
 | `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, contacts, debug log                                                       |
 
 ## Adding a feature
@@ -486,10 +510,12 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D38. Record any deliberate behavior change as a new row
+  decision table D1–D39. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
+- `docs/CLAUDE_MCP.md` — setting up the read-only MCP server in Claude Code and
+  Claude Desktop, what the five tools return, and why there is no write path.
 - `docs/CODE_REVIEW_2026-07-18.md` — a standing best-practices review. The P1
   robustness items are done and annotated inline; the remaining P2–P4 sections
   are agreed future work, so read it before starting a refactor in those areas.

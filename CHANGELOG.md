@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.4.0 — 2026-08-22
+
+- **Ask Claude about your own work.** Ariadne now ships a small read-only
+  server that a local Claude can talk to, plus a skill that teaches it what to
+  ask. "What's overdue?", "what did I ask Dana for?", "how is the migration
+  going?", "write my standup" — it answers from your real workspace instead of
+  guessing. Set it up with `npm run build && npm run install:skill`, which
+  prints the one command to register it.
+- **It cannot change anything, and that is deliberate.** There is no tool to
+  create, edit or delete; if you ask Claude to change something it will tell
+  you what to change and where. Your settings file is never read at all, since
+  that is where your Todoist and Anthropic keys live.
+- Nothing listens on a port and nothing goes to the network. Claude starts the
+  server when it needs it and it reads the same JSON files the app does.
+- The in-app help has caught up: new sections for **Contacts** and **Ask
+  Claude**, and the existing ones now cover dark mode, typed due dates, effort
+  estimates, drawing dependencies on the map, and hiding completed tasks.
+
 ## 2.3.0 — 2026-08-22
 
 - **Dark mode.** Ariadne follows your operating system's light or dark setting

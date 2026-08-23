@@ -21,11 +21,13 @@
   "include": [
     "src/main/**/*",
     "src/preload/**/*",
+    "src/mcp/**/*",
     "src/shared/**/*",
     "src/renderer/**/*.node.test.ts",
     "e2e/**/*",
     "electron.vite.config.ts",
     "vitest.config.ts",
+    "vite.mcp.config.ts",
     "vitest.setup.node.ts",
     "playwright.config.ts"
   ]

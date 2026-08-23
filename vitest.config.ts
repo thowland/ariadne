@@ -20,7 +20,7 @@ export default defineConfig({
           // `*.node.test.ts` lets a renderer-adjacent test that needs the
           // filesystem — the theme contract reads the stylesheets as text —
           // live beside what it checks without giving the renderer node types.
-          include: ['src/{shared,main,preload}/**/*.test.ts', 'src/renderer/**/*.node.test.ts'],
+          include: ['src/{shared,main,preload,mcp}/**/*.test.ts', 'src/renderer/**/*.node.test.ts'],
           setupFiles: ['vitest.setup.node.ts'],
         },
       },

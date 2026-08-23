@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.3.0**
+(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.4.0**
 (`package.json`/`CHANGELOG.md` are authoritative).
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D38**); record
+source of truth for domain semantics and the decision table (**D1–D39**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -201,6 +201,14 @@ logic, check whether it is already there:
   those into one step. A blank cell must never clear a stored value. `toCsv`
   escapes a leading `+`, so anything reading a CSV back has to call
   `unguardCsvCell` or every international phone number gains an apostrophe.
+- **The MCP server is read-only, structurally** (D39). Nothing in `src/mcp/`
+  may import a mutation, `StorageService`, or `settings.json` — the last holds
+  API keys in plaintext (D10). It shares the zod schemas and `normalizeWorkspace`
+  so it sees exactly what the app sees, and nothing else. Its stdout is the
+  protocol channel: **never** `console.log` there, diagnostics go to stderr.
+  Adding a write tool is not a small change; the renderer is authoritative in
+  memory and would overwrite anything written behind its back, so writes need
+  the app to watch its data directory first.
 - **Colour is never a literal** (D38). Every colour lives in
   `styles/tokens.css` with a light and a dark value; `styles/colors.ts` is
   nothing but `var(--…)` strings, which work because every consumer passes

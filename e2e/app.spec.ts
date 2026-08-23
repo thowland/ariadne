@@ -833,7 +833,7 @@ test('menu commands drive the app: help, about, and the deferred report', async 
   const help = win.getByRole('dialog', { name: 'Ariadne help' });
   await expect(help).toBeVisible();
   await help.getByRole('button', { name: 'Reports' }).click();
-  await expect(win.getByTestId('help-body')).toContainText('The five reports');
+  await expect(win.getByTestId('help-body')).toContainText('The six reports');
   await help.getByLabel('Close').click();
 
   // About carries the version and the outbound links.
