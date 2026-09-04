@@ -13,3 +13,14 @@ export const TASK_DND_TYPE = 'application/x-ariadne-task';
 export function isTaskDrag(dt: DataTransfer | null): boolean {
   return dt?.types.includes(TASK_DND_TYPE) === true;
 }
+
+/**
+ * A sidebar group divider (D42) — dragged off the palette at the foot of the
+ * sidebar, or picked up from the project list to be moved or thrown away.
+ */
+export const DIVIDER_DND_TYPE = 'application/x-ariadne-divider';
+
+/** True while a divider (rather than a task or a project) is being dragged. */
+export function isDividerDrag(dt: DataTransfer | null): boolean {
+  return dt?.types.includes(DIVIDER_DND_TYPE) === true;
+}

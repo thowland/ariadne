@@ -2,6 +2,7 @@ import { contactsOfTask } from '@shared/domain/contacts';
 import { formatEstimate, parseEstimate } from '@shared/domain/estimate';
 import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
 import { stripNlDate } from '@shared/domain/nl-date';
+import { allKnownTags } from '@shared/domain/tags';
 import type { SingleTaskPushBlock } from '@shared/domain/todoist';
 import {
   markTasksPushed,
@@ -177,6 +178,11 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
             mentionExclude={task.contactIds ?? []}
             onMention={(contactId) => {
               patch({ contactIds: [...(task.contactIds ?? []), contactId] });
+            }}
+            tagVocabulary={allKnownTags(workspace)}
+            tagExclude={task.tags}
+            onTag={(tag) => {
+              patch({ tags: [...task.tags, tag] });
             }}
           />
           <button className="modal-close" aria-label="Close" onClick={closeModal}>

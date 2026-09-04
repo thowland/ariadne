@@ -161,3 +161,98 @@ export function deleteTag(ws: Workspace, tag: string): MutationResult {
   if (changed.length === 0) return { workspace: ws, changed: [] };
   return { workspace: { ...ws, projects, tasks, contacts }, changed };
 }
+
+// ---------- Inline #hashtags ----------
+
+/** The `#…` token the caret currently sits in. */
+export interface HashtagQuery {
+  /** Index of the `#`. */
+  start: number;
+  /** Index one past the last typed character (the caret). */
+  end: number;
+  /** The typed text after the `#`, possibly empty. */
+  query: string;
+}
+
+/**
+ * Longest fragment an inline hashtag will consider. Past this the user is
+ * writing prose that happens to contain a `#`, not picking a tag.
+ */
+const MAX_HASHTAG_LEN = 32;
+
+/** Characters allowed inside an inline hashtag. Tag-shaped, never a space. */
+const HASHTAG_CHAR = /[-_\p{L}\p{N}'’.]/u;
+
+/**
+ * Rows for the `#` tag picker (D40). A bare `#` lists the whole vocabulary —
+ * typing the sigil is itself the request to see what exists — while anything
+ * typed after it narrows through `suggestTags`. Both lists are alphabetical,
+ * which is the order `allKnownTags` already returns.
+ */
+export function hashtagCandidates(
+  known: readonly string[],
+  typed: string,
+  exclude: readonly string[] = [],
+  limit = 8,
+): string[] {
+  if (typed.trim() !== '') return suggestTags(known, typed, exclude, limit);
+  const excluded = new Set(exclude.map((t) => t.toLowerCase()));
+  return known.filter((t) => !excluded.has(t.toLowerCase())).slice(0, limit);
+}
+
+/**
+ * Finds the hashtag the caret is inside, or null.
+ *
+ * Anchored exactly like the @-mention (D31) and the date rules (D29): the `#`
+ * must start the text or follow whitespace or an opening bracket, which is
+ * what keeps "C#" and "issue#3" from opening a tag picker. Unlike a mention
+ * there is no inner space — a tag is one token in prose, and swallowing the
+ * next word would turn the rest of the sentence into the query.
+ */
+export function findHashtag(text: string, caret: number): HashtagQuery | null {
+  const end = Math.max(0, Math.min(caret, text.length));
+  for (let i = end - 1; i >= 0 && end - i <= MAX_HASHTAG_LEN; i -= 1) {
+    const ch = text.charAt(i);
+    if (ch === '#') {
+      const before = i === 0 ? '' : text.charAt(i - 1);
+      if (before !== '' && !/[\s([{]/.test(before)) return null;
+      return { start: i, end, query: text.slice(i + 1, end) };
+    }
+    if (!HASHTAG_CHAR.test(ch)) return null;
+  }
+  return null;
+}
+
+/**
+ * Completes a hashtag in place: the typed fragment becomes the full tag, `#`
+ * and all. The tag **stays in the title** for the same reason a picked
+ * mention does (D31) — the chip below the field is the durable link, the text
+ * is how the task reads to a human.
+ */
+export function completeHashtag(
+  text: string,
+  hashtag: HashtagQuery,
+  tag: string,
+): { text: string; caret: number } {
+  const inserted = `#${tag}`;
+  const before = text.slice(0, hashtag.start);
+  return {
+    text: before + inserted + text.slice(hashtag.end),
+    caret: before.length + inserted.length,
+  };
+}
+
+/**
+ * Blanks out `#tag` runs, keeping the string's length and every offset.
+ *
+ * Load-bearing for the same reason `maskMentions` is: `#mar` and `#sat` are
+ * D29 date vocabulary, and `#` is a non-word character, so the `\b`-anchored
+ * date rules read straight through it and would silently set a due date
+ * nobody asked for. Tags are not prose, so they come out before it is parsed.
+ */
+export function maskHashtags(text: string): string {
+  return text.replace(
+    /(^|[\s([{])#[-_\p{L}\p{N}'’.]+/gu,
+    (run, boundary: string) => boundary + ' '.repeat(run.length - boundary.length),
+  );
+}

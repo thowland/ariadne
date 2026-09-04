@@ -129,6 +129,29 @@ describe('normalizeWorkspace', () => {
     expect(workspace.tasks.find((x) => x.id === 't2')?.dependsOn).toEqual(['t1']);
   });
 
+  it('drops sidebar dividers whose project is gone (D42)', () => {
+    const { workspace } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      { ...ws.settings, sidebarDividers: ['p3', 'ghost'] },
+    );
+    expect(workspace.settings.sidebarDividers).toEqual(['p3']);
+  });
+
+  it('leaves an intact divider list untouched', () => {
+    const settings = { ...ws.settings, sidebarDividers: ['p2'] };
+    const { workspace } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      settings,
+    );
+    expect(workspace.settings).toBe(settings);
+  });
+
   it('nulls dangling file→task links', () => {
     const files = structuredClone(ws.files);
     files[0]!.taskId = 'ghost-task';
@@ -192,6 +215,8 @@ describe('badgeMode (D28)', () => {
   });
 
   it('falls back to none rather than rejecting an unknown value', () => {
+    expect(settingsSchema.parse({ sidebarDividers: 'p1' }).sidebarDividers).toEqual([]);
+    expect(settingsSchema.parse({ sidebarDividers: ['p1'] }).sidebarDividers).toEqual(['p1']);
     expect(settingsSchema.parse({ badgeMode: 'flashing' }).badgeMode).toBe('none');
   });
 

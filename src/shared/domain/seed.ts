@@ -573,5 +573,13 @@ export function seedWorkspace(today: IsoDate): Workspace {
     },
   ];
 
-  return { projects, tasks, files, contacts, settings: { ...DEFAULT_SETTINGS } };
+  // One seeded sidebar divider (D42), so the demo state, the screenshots and
+  // the E2E suite all render the grouped list rather than only its absence.
+  return {
+    projects,
+    tasks,
+    files,
+    contacts,
+    settings: { ...DEFAULT_SETTINGS, sidebarDividers: ['p3'] },
+  };
 }

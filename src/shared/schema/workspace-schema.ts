@@ -142,6 +142,7 @@ export const settingsSchema = z.object({
   debugLogDir: z.string().min(1).nullable().catch(null),
   badgeMode: z.enum(BADGE_CHOICES).catch('none'),
   theme: z.enum(THEME_CHOICES).catch('system'),
+  sidebarDividers: z.array(z.string()).catch([]),
 });
 
 export const projectsFileSchema = z.array(projectSchema);
@@ -217,6 +218,15 @@ export function normalizeWorkspace(
     warnings.push(`Cleared ${String(orphanedManagers)} unusable manager link(s)`);
   }
 
+  // A divider anchored to a project that has since been deleted would be a
+  // line floating above nothing (D42). Archived projects keep theirs: the
+  // project still exists, and restoring it should bring its group back.
+  const dividers = settings.sidebarDividers.filter((id) => projectIds.has(id));
+  const keptSettings: Settings =
+    dividers.length === settings.sidebarDividers.length
+      ? settings
+      : { ...settings, sidebarDividers: dividers };
+
   const keptFiles = files.filter((f) => projectIds.has(f.projectId));
   if (keptFiles.length !== files.length) {
     warnings.push(`Dropped ${files.length - keptFiles.length} file(s) with no parent project`);
@@ -227,7 +237,7 @@ export function normalizeWorkspace(
   }
 
   return {
-    workspace: { projects, tasks: keptTasks, files: keptFiles, contacts, settings },
+    workspace: { projects, tasks: keptTasks, files: keptFiles, contacts, settings: keptSettings },
     warnings,
   };
 }

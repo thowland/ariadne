@@ -3,15 +3,17 @@ import {
   createTask,
   deleteProject,
   moveProject,
+  moveSidebarDivider,
   moveTasksToProject,
+  removeSidebarDivider,
   rescheduleTasks,
   updateProject,
 } from '@shared/domain/mutate';
 import type { Project } from '@shared/types';
-import { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { getApi } from '../app/api';
-import { isTaskDrag, TASK_DND_TYPE } from '../app/dnd';
+import { DIVIDER_DND_TYPE, isDividerDrag, isTaskDrag, TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import type { ContextMenuItem, ViewName } from '../app/store';
 import { menuHandler } from '../components/ContextMenu';
@@ -49,6 +51,19 @@ export function Sidebar(): React.JSX.Element {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [archiveOver, setArchiveOver] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  // The divider being dragged: its anchor project id, or null while a fresh
+  // one is being pulled off the palette.
+  const [dividerDrag, setDividerDrag] = useState<{ from: string | null } | null>(null);
+  const [dividerOverId, setDividerOverId] = useState<string | null>(null);
+  /**
+   * Whether the divider drag ended on a slot in the project list. A drag that
+   * finishes anywhere else — the calendar, the desktop, the middle of the
+   * app — is how a divider is thrown away, so `dragend` deletes it unless a
+   * drop target claimed it first. Reading `dropEffect` in `dragend` would be
+   * the other way to tell, but browsers disagree about its value and jsdom
+   * does not set it at all.
+   */
+  const dividerLanded = useRef(false);
   const tasks = workspace?.tasks ?? [];
   const searching = q.trim() !== '';
   const projects = workspace?.projects ?? [];
@@ -141,6 +156,50 @@ export function Sidebar(): React.JSX.Element {
     ];
   };
 
+  const dividers = new Set(workspace?.settings.sidebarDividers ?? []);
+
+  const endDividerDrag = (): void => {
+    const from = dividerDrag?.from ?? null;
+    if (from !== null && !dividerLanded.current) {
+      apply((ws) => removeSidebarDivider(ws, from));
+      showToast('Divider removed');
+    }
+    dividerLanded.current = false;
+    setDividerDrag(null);
+    setDividerOverId(null);
+  };
+
+  /** Accepts a dropped divider above `projectId`. */
+  const dropDivider = (projectId: string): void => {
+    if (dividerDrag === null) return;
+    dividerLanded.current = true;
+    apply((ws) => moveSidebarDivider(ws, dividerDrag.from, projectId));
+    setDividerDrag(null);
+    setDividerOverId(null);
+  };
+
+  /** The line itself: a square grab handle and a rule, no name (D42). */
+  const renderDivider = (projectId: string): React.JSX.Element => (
+    <div
+      key={`divider-${projectId}`}
+      className={`sidebar-divider${dividerDrag?.from === projectId ? ' dragging' : ''}`}
+      data-testid={`sidebar-divider-${projectId}`}
+      draggable
+      role="separator"
+      aria-label="Group divider (drag to move, or off the list to remove)"
+      onDragStart={(e) => {
+        setDividerDrag({ from: projectId });
+        dividerLanded.current = false;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData(DIVIDER_DND_TYPE, projectId);
+      }}
+      onDragEnd={endDividerDrag}
+    >
+      <span className="sidebar-divider-grip" aria-hidden="true" />
+      <span className="sidebar-divider-rule" aria-hidden="true" />
+    </div>
+  );
+
   const archiveDragged = (): void => {
     if (dragId !== null) {
       const name = projects.find((p) => p.id === dragId)?.name ?? 'Project';
@@ -194,10 +253,10 @@ export function Sidebar(): React.JSX.Element {
           const open = projectTasks.filter(isOpen).length;
           const overdue = projectTasks.filter((t) => isOverdue(t, today)).length;
           const active = view === 'project' && activeProjectId === p.id && !searching;
-          return (
+          const button = (
             <button
               key={p.id}
-              className={`navitem ${active ? 'active' : ''} ${dragOverId === p.id && dragId !== p.id ? 'drag-over' : ''}`}
+              className={`navitem ${active ? 'active' : ''} ${dragOverId === p.id && dragId !== p.id ? 'drag-over' : ''}${dividerOverId === p.id ? ' divider-over' : ''}`}
               draggable
               aria-label={`${p.name} (drag to reorder, or drop a task here to move it)`}
               onDragStart={(e) => {
@@ -206,8 +265,15 @@ export function Sidebar(): React.JSX.Element {
                 e.dataTransfer.setData('text/plain', p.id);
               }}
               onDragOver={(e) => {
-                // Two kinds of payload land here: a project being reordered,
-                // and a task being reassigned to this project.
+                // Three kinds of payload land here: a project being reordered,
+                // a task being reassigned to this project, and a group
+                // divider being placed above it.
+                if (isDividerDrag(e.dataTransfer)) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDividerOverId(p.id);
+                  return;
+                }
                 if (dragId !== null || isTaskDrag(e.dataTransfer)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
@@ -216,12 +282,17 @@ export function Sidebar(): React.JSX.Element {
               }}
               onDragLeave={() => {
                 setDragOverId((current) => (current === p.id ? null : current));
+                setDividerOverId((current) => (current === p.id ? null : current));
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 // Gate on the payload type, the same signal dragover used —
                 // not on getData returning something, which cannot tell a
                 // missing key from a real value.
+                if (isDividerDrag(e.dataTransfer)) {
+                  dropDivider(p.id);
+                  return;
+                }
                 if (isTaskDrag(e.dataTransfer)) {
                   const taskId = e.dataTransfer.getData(TASK_DND_TYPE);
                   const moved = tasks.find((t) => t.id === taskId);
@@ -263,6 +334,15 @@ export function Sidebar(): React.JSX.Element {
                 <span className="nav-count">{open}</span>
               ) : null}
             </button>
+          );
+          // A divider is stored as "the group starts at this project", so it
+          // renders immediately above the project it is anchored to.
+          if (!dividers.has(p.id)) return button;
+          return (
+            <React.Fragment key={p.id}>
+              {renderDivider(p.id)}
+              {button}
+            </React.Fragment>
           );
         })}
       </nav>
@@ -319,6 +399,27 @@ export function Sidebar(): React.JSX.Element {
           )}
         </>
       )}
+      <div className="sidebar-divider-palette">
+        <button
+          className="divider-source"
+          data-testid="divider-source"
+          draggable
+          title="Drag onto a project to start a new group"
+          aria-label="New group divider — drag onto a project to start a group there"
+          onDragStart={(e) => {
+            setDividerDrag({ from: null });
+            dividerLanded.current = false;
+            // 'move', not 'copy': the drop targets set dropEffect = 'move',
+            // and a browser refuses a drop whose effects disagree.
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData(DIVIDER_DND_TYPE, 'new');
+          }}
+          onDragEnd={endDividerDrag}
+        >
+          <span className="sidebar-divider-grip" aria-hidden="true" />
+          <span className="sidebar-divider-rule" aria-hidden="true" />
+        </button>
+      </div>
     </aside>
   );
 }

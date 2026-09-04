@@ -361,3 +361,19 @@ describe('TaskModal — natural-language dates in the title (D29)', () => {
     expect(useStore.getState().toast).toContain('2d 4h');
   });
 });
+
+describe('TaskModal — #tags in the title (D40)', () => {
+  it('tags the task from the picker and completes the word in place', async () => {
+    act(() => {
+      useStore.getState().openTask('t1');
+    });
+    render(<ModalHost />);
+    const title = screen.getByLabelText('Task title');
+    await userEvent.type(title, ' #wood');
+    await userEvent.click(screen.getByRole('option', { name: '#woodworking' }));
+
+    const task = useStore.getState().workspace!.tasks.find((t) => t.id === 't1');
+    expect(task?.tags).toContain('woodworking');
+    expect(task?.title).toContain('#woodworking');
+  });
+});

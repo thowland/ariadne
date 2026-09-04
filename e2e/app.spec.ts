@@ -1263,3 +1263,70 @@ test('dark mode: chosen in Settings, applied everywhere, remembered (D38)', asyn
 
   await second.close();
 });
+
+test('sidebar dividers: drag one in to group projects, drag it out to remove it (D42)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  const projectNav = win.getByRole('navigation', { name: 'Projects' });
+  // The seeded divider sits above "Refinish boat table" (p3).
+  const seeded = win.getByTestId('sidebar-divider-p3');
+  await expect(seeded).toBeVisible();
+  // A real drag, not a synthesized event: the handlers being wired is not the
+  // same claim as the gesture working.
+  await win
+    .getByTestId('divider-source')
+    .dragTo(projectNav.getByRole('button', { name: /Hiring: Senior Engineer/ }));
+  const added = win.getByTestId('sidebar-divider-p5');
+  await expect(added).toBeVisible();
+
+  // The line renders directly above the project it groups, and carries no name.
+  const dividerBox = (await added.boundingBox())!;
+  const projectBox = (await projectNav
+    .getByRole('button', { name: /Hiring: Senior Engineer/ })
+    .boundingBox())!;
+  expect(dividerBox.y).toBeLessThan(projectBox.y);
+  await expect(added).toHaveText('');
+
+  // Dropped outside the project list, a divider goes away.
+  await added.dragTo(win.getByTestId('home-headline'));
+  await expect(win.locator('.toast')).toContainText('Divider removed');
+  await expect(win.getByTestId('sidebar-divider-p5')).toHaveCount(0);
+
+  // The one that stayed survives a restart.
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await expect(win2.getByTestId('sidebar-divider-p3')).toBeVisible();
+  await expect(win2.getByTestId('sidebar-divider-p5')).toHaveCount(0);
+  await second.close();
+});
+
+test('calendar: reschedule a whole day from the day view (D41)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win.getByRole('button', { name: 'Calendar', exact: true }).click();
+  // Two tasks are due today in the seeded workspace.
+  // The day number is the button when anything is due that day.
+  await win.getByTitle('View all 2 tasks due this day').first().click();
+  const dialog = win.getByRole('dialog', { name: /Tasks due/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Reschedule all…' }).click();
+  await dialog.getByLabel('New due date').fill('2026-07-22');
+  await dialog.getByRole('button', { name: 'Reschedule' }).click();
+  await expect(win.locator('.toast')).toContainText('Rescheduled 2 tasks');
+
+  await app.close();
+  const second = await launch(dir);
+  const win2 = await second.firstWindow();
+  await expect(win2.getByTestId('home-headline')).toBeVisible();
+  await win2.getByRole('button', { name: 'Calendar', exact: true }).click();
+  await expect(win2.getByText('Write migration runbook')).toHaveCount(1);
+  await second.close();
+});

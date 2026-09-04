@@ -65,3 +65,55 @@ describe('DayModal', () => {
     expect(useStore.getState().modal).toBeNull();
   });
 });
+
+describe('DayModal — reschedule the whole day (D41)', () => {
+  function openDay(iso = TEST_TODAY) {
+    act(() => {
+      useStore.getState().openDay(iso);
+    });
+    render(<ModalHost />);
+    return screen.getByRole('dialog', { name: /Tasks due/ });
+  }
+
+  it('moves every open task due that day to the picked date', async () => {
+    const dialog = openDay();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reschedule all…' }));
+    const date = within(dialog).getByLabelText('New due date');
+    await userEvent.clear(date);
+    await userEvent.type(date, '2026-07-15');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reschedule' }));
+
+    const due = useStore
+      .getState()
+      .workspace!.tasks.filter((t) => ['t6', 't9'].includes(t.id))
+      .map((t) => t.dueDate);
+    expect(due).toEqual(['2026-07-15', '2026-07-15']);
+    expect(useStore.getState().toast).toContain('Rescheduled 2 tasks');
+    expect(useStore.getState().modal).toBeNull();
+  });
+
+  it('will not reschedule onto the day the tasks are already on', async () => {
+    const dialog = openDay();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reschedule all…' }));
+    expect(within(dialog).getByRole('button', { name: 'Reschedule' })).toBeDisabled();
+  });
+
+  it('cancel puts the control away without touching anything', async () => {
+    const before = useStore.getState().workspace!.tasks;
+    const dialog = openDay();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reschedule all…' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).queryByTestId('day-reschedule')).not.toBeInTheDocument();
+    expect(useStore.getState().workspace!.tasks).toBe(before);
+  });
+
+  it('is not offered on a day with nothing open to move', () => {
+    // The only task due that day is Done: it happened when it happened, and
+    // moving its due date would rewrite history rather than plan.
+    const dialog = openDay('2026-06-22');
+    expect(within(dialog).getByText('1 task due')).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Reschedule all…' }),
+    ).not.toBeInTheDocument();
+  });
+});

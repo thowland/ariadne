@@ -91,6 +91,9 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             </li>
             <li>
               <strong>Calendar</strong> — month or single-week view of everything with a due date.
+              Clicking a day number lists that day&rsquo;s tasks, and offers{' '}
+              <strong>Reschedule all…</strong> to push the whole day onto another date — what a
+              holiday or a sick day actually needs. Finished tasks stay where they are.
             </li>
             <li>
               <strong>Reports</strong> — six ways of looking at the same work, all copyable and
@@ -134,6 +137,15 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             the words come out of the title, because the due date is now the single copy and the two
             would disagree the first time you rescheduled.
           </p>
+          <h3>Tagging as you type</h3>
+          <p>
+            Type <code>#</code> and a few letters in any task title — the quick-add box or the task
+            editor — and a tag picker opens the way the <code>@</code> people picker does. Pick one
+            and the tag is added to the task; the word completes in place and stays in the title. A
+            tag nobody has used yet is offered on the last row, so a new label costs one keystroke
+            more than an existing one. A tag that happens to spell a weekday or a month —{' '}
+            <code>#sat</code>, <code>#mar</code> — never sets a due date.
+          </p>
           <h3>Estimates</h3>
           <p>
             A task can carry an optional estimate in days and hours — <code>2d 4h</code>,{' '}
@@ -168,6 +180,13 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             <strong>Hide N completed</strong>, and the choice sticks to that project — it survives a
             restart and does not follow you elsewhere. The dependency map still shows everything, so
             no arrow ever points at a task that vanished.
+          </p>
+          <h3>Grouping the sidebar</h3>
+          <p>
+            The foot of the sidebar holds a divider: drag it onto a project and a line appears above
+            that project, splitting the list into groups. Drag a line to another project to move it,
+            or drop it anywhere outside the project list to remove it. A divider follows the project
+            it sits above, so reordering the list keeps the groups intact.
           </p>
           <h3>Archiving</h3>
           <p>

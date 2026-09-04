@@ -21,10 +21,12 @@ import {
   deleteProject,
   deleteTask,
   moveProject,
+  moveSidebarDivider,
   moveTasksToProject,
   registerUploadedFile,
   removeContactFromProject,
   removeDependency,
+  removeSidebarDivider,
   rescheduleTasks,
   replaceWorkspace,
   setContactManager,
@@ -867,5 +869,46 @@ describe('moveTasksToProject', () => {
     const same = moveTasksToProject(before, ['a'], 'p2');
     expect(same.count).toBe(0);
     expect(same.workspace).toBe(before);
+  });
+});
+
+describe('sidebar dividers (D42)', () => {
+  const three = ws({
+    projects: [project({ id: 'a' }), project({ id: 'b' }), project({ id: 'c' })],
+  });
+
+  it('creates a divider above the project it is dropped on', () => {
+    const r = moveSidebarDivider(three, null, 'b');
+    expect(r.changed).toEqual(['settings']);
+    expect(r.workspace.settings.sidebarDividers).toEqual(['b']);
+  });
+
+  it('moves an existing divider rather than leaving two behind', () => {
+    const withB = moveSidebarDivider(three, null, 'b').workspace;
+    const r = moveSidebarDivider(withB, 'b', 'c');
+    expect(r.workspace.settings.sidebarDividers).toEqual(['c']);
+  });
+
+  it('never stacks two dividers on the same project', () => {
+    let w = moveSidebarDivider(three, null, 'b').workspace;
+    w = moveSidebarDivider(w, null, 'c').workspace;
+    // Dragging c's divider onto b's slot leaves one line, not two.
+    const r = moveSidebarDivider(w, 'c', 'b');
+    expect(r.workspace.settings.sidebarDividers).toEqual(['b']);
+  });
+
+  it('is a no-op for an unknown project, a self-drop, or a duplicate', () => {
+    expect(moveSidebarDivider(three, null, 'nope').workspace).toBe(three);
+    const withB = moveSidebarDivider(three, null, 'b').workspace;
+    expect(moveSidebarDivider(withB, 'b', 'b').workspace).toBe(withB);
+    expect(moveSidebarDivider(withB, null, 'b').workspace).toBe(withB);
+  });
+
+  it('removes a divider dropped outside the list', () => {
+    const withB = moveSidebarDivider(three, null, 'b').workspace;
+    const r = removeSidebarDivider(withB, 'b');
+    expect(r.changed).toEqual(['settings']);
+    expect(r.workspace.settings.sidebarDividers).toEqual([]);
+    expect(removeSidebarDivider(r.workspace, 'b').workspace).toBe(r.workspace);
   });
 });

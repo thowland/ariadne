@@ -345,3 +345,120 @@ describe('NlDateField — @-mentions', () => {
     expect(onDate).toHaveBeenLastCalledWith('2026-07-09');
   });
 });
+
+// #-tags (D40). Same shape as the mention picker, and it shares its dropdown:
+// the caret can only be inside one sigil token at a time.
+const VOCAB = ['finance', 'infra', 'vibecoding', 'woodworking'];
+
+function TagHarness({
+  onTag,
+  exclude = [],
+  onEnter,
+  initial = '',
+}: {
+  onTag: (tag: string) => void;
+  exclude?: string[];
+  onEnter?: () => void;
+  initial?: string;
+}): React.JSX.Element {
+  const [value, setValue] = useState(initial);
+  const [date, setDate] = useState<IsoDate | null>(null);
+  return (
+    <>
+      <NlDateField
+        value={value}
+        onChange={setValue}
+        today={TODAY}
+        onDateChange={setDate}
+        dismissed={false}
+        onDismiss={() => undefined}
+        ariaLabel="Task title"
+        mentionContacts={PEOPLE}
+        onMention={() => undefined}
+        tagVocabulary={VOCAB}
+        tagExclude={exclude}
+        onTag={onTag}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onEnter?.();
+        }}
+      />
+      <div data-testid="text">{value}</div>
+      <div data-testid="date">{date ?? 'none'}</div>
+    </>
+  );
+}
+
+describe('NlDateField — #tags', () => {
+  it('opens the picker on # and narrows as you type', async () => {
+    render(<TagHarness onTag={vi.fn()} />);
+    const field = screen.getByLabelText('Task title');
+    await userEvent.type(field, 'Sand the top #');
+    expect(screen.getByRole('listbox', { name: 'Pick a tag' })).toBeInTheDocument();
+    await userEvent.type(field, 'wood');
+    expect(screen.getByRole('option', { name: '#woodworking' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: '#infra' })).not.toBeInTheDocument();
+  });
+
+  it('adds the tag and completes the typed fragment in place', async () => {
+    const onTag = vi.fn();
+    render(<TagHarness onTag={onTag} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Sand the top #vibe');
+    await userEvent.click(screen.getByRole('option', { name: '#vibecoding' }));
+    expect(onTag).toHaveBeenCalledWith('vibecoding');
+    expect(screen.getByTestId('text')).toHaveTextContent('Sand the top #vibecoding');
+  });
+
+  it('Enter picks the top match instead of submitting the task', async () => {
+    const onTag = vi.fn();
+    const onEnter = vi.fn();
+    render(<TagHarness onTag={onTag} onEnter={onEnter} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Strip it #wood{Enter}');
+    expect(onTag).toHaveBeenCalledWith('woodworking');
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
+  it('offers a brand-new tag, which the vocabulary has no say over', async () => {
+    const onTag = vi.fn();
+    render(<TagHarness onTag={onTag} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Try #kayak');
+    await userEvent.click(screen.getByRole('option', { name: '+ New tag “kayak”' }));
+    expect(onTag).toHaveBeenCalledWith('kayak');
+    expect(screen.getByTestId('text')).toHaveTextContent('Try #kayak');
+  });
+
+  it('never offers a tag the entity already carries', async () => {
+    render(<TagHarness onTag={vi.fn()} exclude={['woodworking']} />);
+    await userEvent.type(screen.getByLabelText('Task title'), '#wood');
+    expect(screen.queryByRole('option', { name: '#woodworking' })).not.toBeInTheDocument();
+  });
+
+  it('Escape closes the picker without tagging', async () => {
+    const onTag = vi.fn();
+    render(<TagHarness onTag={onTag} />);
+    await userEvent.type(screen.getByLabelText('Task title'), '#wood{Escape}');
+    expect(screen.queryByRole('listbox', { name: 'Pick a tag' })).not.toBeInTheDocument();
+    expect(onTag).not.toHaveBeenCalled();
+  });
+
+  it('leaves a mid-word # alone', async () => {
+    render(<TagHarness onTag={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText('Task title'), 'Learn C#');
+    expect(screen.queryByRole('listbox', { name: 'Pick a tag' })).not.toBeInTheDocument();
+  });
+
+  it('a tag that spells a weekday does not set a due date (D40 × D29)', () => {
+    render(<TagHarness onTag={vi.fn()} initial="Ship the #sat build" />);
+    expect(screen.getByTestId('date')).toHaveTextContent('none');
+  });
+
+  it('the two pickers never open at once', async () => {
+    render(<TagHarness onTag={vi.fn()} />);
+    const field = screen.getByLabelText('Task title');
+    await userEvent.type(field, 'Ask @dana');
+    expect(screen.getByRole('listbox', { name: 'Mention a contact' })).toBeInTheDocument();
+    expect(screen.queryByRole('listbox', { name: 'Pick a tag' })).not.toBeInTheDocument();
+    await userEvent.type(field, ' #wood');
+    expect(screen.getByRole('listbox', { name: 'Pick a tag' })).toBeInTheDocument();
+    expect(screen.queryByRole('listbox', { name: 'Mention a contact' })).not.toBeInTheDocument();
+  });
+});
