@@ -75,7 +75,7 @@ describe('ProjectDetail', () => {
 
   it('quick-added tasks append at the end of the pinned order', async () => {
     render(<ProjectDetail />);
-    const input = screen.getByPlaceholderText('Add a task, or @ someone, and press Enter…');
+    const input = screen.getByPlaceholderText('Add a task, @ someone or # a tag, and press Enter…');
     await userEvent.type(input, 'Buff the finish{Enter}');
     const titles = screen
       .getAllByTitle(/Advance status/)
@@ -95,7 +95,7 @@ describe('ProjectDetail', () => {
 
   it('quick-adds a task with Enter', async () => {
     render(<ProjectDetail />);
-    const input = screen.getByPlaceholderText('Add a task, or @ someone, and press Enter…');
+    const input = screen.getByPlaceholderText('Add a task, @ someone or # a tag, and press Enter…');
     await userEvent.type(input, 'Buy more sandpaper{Enter}');
     expect(input).toHaveValue('');
     const added = ws().tasks.find((t) => t.title === 'Buy more sandpaper');
@@ -529,5 +529,58 @@ describe('ProjectDetail — hide completed tasks (D30)', () => {
     await userEvent.click(within(screen.getByRole('menu')).getByText('Remove this dependency'));
     expect(ws().tasks.find((t) => t.id === 't2')?.dependsOn).toEqual([]);
     expect(useStore.getState().toast).toBe('Dependency removed');
+  });
+});
+
+describe('ProjectDetail — #tags in quick-add (D40)', () => {
+  const placeholder = 'Add a task, @ someone or # a tag, and press Enter…';
+
+  it('carries the picked tag onto the task it creates', async () => {
+    render(<ProjectDetail />);
+    const input = screen.getByPlaceholderText(placeholder);
+    await userEvent.type(input, 'Strip the varnish #wood');
+    await userEvent.click(screen.getByRole('option', { name: '#woodworking' }));
+    // The tag shows as a chip before the task exists, the way people do.
+    expect(within(screen.getByTestId('quick-add-tags')).getByText('#woodworking')).toBeVisible();
+
+    await userEvent.type(screen.getByPlaceholderText(placeholder), '{Enter}');
+    // The word comes back out of the title once the tag is stored (D40,
+    // following D35): the chip is the single copy.
+    const created = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'Strip the varnish');
+    expect(created?.tags).toEqual(['woodworking']);
+    // The chip row is cleared for the next task.
+    expect(screen.queryByTestId('quick-add-tags')).not.toBeInTheDocument();
+  });
+
+  it('a chip can be taken off again before the task is committed', async () => {
+    render(<ProjectDetail />);
+    await userEvent.type(screen.getByPlaceholderText(placeholder), 'Sand it #wood');
+    await userEvent.click(screen.getByRole('option', { name: '#woodworking' }));
+    await userEvent.click(
+      within(screen.getByTestId('quick-add-tags')).getByRole('button', {
+        name: 'Remove tag woodworking',
+      }),
+    );
+    expect(screen.queryByTestId('quick-add-tags')).not.toBeInTheDocument();
+
+    // A trailing space closes the picker that clicking back into the field
+    // reopens — the caret would otherwise be sitting inside `#woodworking`.
+    await userEvent.type(screen.getByPlaceholderText(placeholder), ' {Enter}');
+    // Nothing was tagged, so nothing is stripped — the text stays as typed.
+    const created = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'Sand it #woodworking');
+    expect(created?.tags).toEqual([]);
+  });
+
+  it('a tag that spells a weekday does not become a due date', async () => {
+    render(<ProjectDetail />);
+    await userEvent.type(screen.getByPlaceholderText(placeholder), 'Ship the #sat build{Enter}');
+    const created = useStore
+      .getState()
+      .workspace!.tasks.find((t) => t.title === 'Ship the #sat build');
+    expect(created?.dueDate).toBeNull();
   });
 });

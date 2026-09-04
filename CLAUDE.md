@@ -20,7 +20,7 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D39**); record
+source of truth for domain semantics and the decision table (**D1–D42**); record
 any deliberate behavior change as a new decision row there. `CHANGELOG.md`
 tracks releases and is written for the user, not for developers — describe what
 changed for someone using the app, not which module moved.
@@ -219,6 +219,19 @@ logic, check whether it is already there:
   `tokens.node.test.ts` fails the build if any of that slips. It is a
   `.node.test.ts` because it reads the stylesheets with `fs`: a `?raw` import
   silently resolves to `''` once another test imports the same CSS normally.
+- **Inline `#tags`** (D40): `shared/domain/tags.ts` owns the `#` picker, and it
+  is built from the D31 mention parts — same anchoring, same shared dropdown in
+  `NlDateField`, one sigil token under the caret at a time. It parts company
+  with D31 on one point: the picked tag **does not stay in the title**. It is
+  stripped on commit like a D35 date phrase, because a tag has its own stored
+  field and its own editor, so a word left in the text is a second copy that
+  drifts. `stripHashtags` only removes runs matching a tag actually on the
+  entity — a `#kayak` nobody picked is prose. `maskHashtags` is the D40×D29
+  twin of `maskMentions` and is equally load-bearing: `#` is a non-word
+  character, so the `\b`-anchored date rules read straight through it and
+  `#sat` becomes Saturday. Both masks run before every `findNlDate` over a
+  title; the date is stripped **first**, since its match carries offsets that
+  removing a tag would invalidate.
 - **Natural-language dates** (D29): `shared/domain/nl-date.ts` is pure and takes
   `today` as an argument. Every rule is `\b`-anchored — that is what keeps `sat`
   out of "satisfy" and `mar` out of "marching" — and bare numbers are never read

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { TASK_DND_TYPE } from '../app/dnd';
+import { DIVIDER_DND_TYPE, TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ContextMenu } from '../components/ContextMenu';
@@ -405,5 +405,85 @@ describe('Sidebar project context menu (D21)', () => {
     );
     expect(ws().projects.some((p) => p.id === 'p1')).toBe(false);
     expect(ws().tasks.some((t) => t.projectId === 'p1')).toBe(false);
+  });
+});
+
+describe('Sidebar — group dividers (D42)', () => {
+  /** A dataTransfer carrying a divider, the way a real drag would. */
+  function dividerTransfer(payload: string) {
+    const store = new Map<string, string>([[DIVIDER_DND_TYPE, payload]]);
+    return {
+      effectAllowed: '',
+      dropEffect: '',
+      types: [...store.keys()],
+      setData: (k: string, v: string) => store.set(k, v),
+      getData: (k: string) => store.get(k) ?? '',
+    };
+  }
+
+  function dividers() {
+    return useStore.getState().workspace?.settings.sidebarDividers ?? [];
+  }
+
+  it('renders the seeded divider above the project it is anchored to', () => {
+    render(<Sidebar />);
+    const list = screen.getByRole('navigation', { name: 'Projects' });
+    const divider = screen.getByTestId('sidebar-divider-p3');
+    // A sibling of the project rows, immediately above p3.
+    expect(divider.parentElement).toBe(list);
+    expect(divider.nextElementSibling).toHaveTextContent('Refinish boat table');
+  });
+
+  it('dragging the palette onto a project starts a group there', () => {
+    render(<Sidebar />);
+    const dataTransfer = dividerTransfer('new');
+    const target = screen.getByRole('button', { name: /2025 Taxes/ });
+
+    fireEvent.dragStart(screen.getByTestId('divider-source'), { dataTransfer });
+    fireEvent.dragOver(target, { dataTransfer });
+    expect(target).toHaveClass('divider-over');
+    fireEvent.drop(target, { dataTransfer });
+
+    expect(dividers()).toEqual(['p3', 'p4']);
+    expect(screen.getByTestId('sidebar-divider-p4')).toBeInTheDocument();
+  });
+
+  it('dragging an existing divider onto another project moves it', () => {
+    render(<Sidebar />);
+    const dataTransfer = dividerTransfer('p3');
+    fireEvent.dragStart(screen.getByTestId('sidebar-divider-p3'), { dataTransfer });
+    fireEvent.drop(screen.getByRole('button', { name: /Hiring: Senior Engineer/ }), {
+      dataTransfer,
+    });
+    expect(dividers()).toEqual(['p5']);
+  });
+
+  it('a divider dropped outside the project list disappears', () => {
+    render(<Sidebar />);
+    const dataTransfer = dividerTransfer('p3');
+    const divider = screen.getByTestId('sidebar-divider-p3');
+    fireEvent.dragStart(divider, { dataTransfer });
+    // No drop target claimed it — the drag just ended somewhere else.
+    fireEvent.dragEnd(divider, { dataTransfer });
+    expect(dividers()).toEqual([]);
+    expect(useStore.getState().toast).toBe('Divider removed');
+  });
+
+  it('a palette drag that lands nowhere leaves the list alone', () => {
+    render(<Sidebar />);
+    const dataTransfer = dividerTransfer('new');
+    const source = screen.getByTestId('divider-source');
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragEnd(source, { dataTransfer });
+    expect(dividers()).toEqual(['p3']);
+  });
+
+  it('a divider drag does not reorder projects or move tasks', () => {
+    render(<Sidebar />);
+    const before = (useStore.getState().workspace?.projects ?? []).map((p) => p.id);
+    const dataTransfer = dividerTransfer('p3');
+    fireEvent.dragStart(screen.getByTestId('sidebar-divider-p3'), { dataTransfer });
+    fireEvent.drop(screen.getByRole('button', { name: /2025 Taxes/ }), { dataTransfer });
+    expect((useStore.getState().workspace?.projects ?? []).map((p) => p.id)).toEqual(before);
   });
 });

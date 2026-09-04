@@ -110,6 +110,29 @@ const SHOTS = [
     },
   },
   {
+    name: 'task-tags',
+    async go(win) {
+      await win
+        .getByRole('navigation', { name: 'Projects' })
+        .getByRole('button', { name: /Refinish boat table/ })
+        .click();
+      const quickAdd = win.getByLabel('Add a task');
+      await quickAdd.fill('Strip the old varnish #wood');
+      await win.getByRole('listbox', { name: 'Pick a tag' }).waitFor();
+    },
+  },
+  {
+    name: 'day-reschedule',
+    async go(win) {
+      await win.getByRole('button', { name: 'Calendar' }).click();
+      await win.getByTestId('calendar-grid').waitFor();
+      await win.getByTitle('View all 2 tasks due this day').first().click();
+      const dialog = win.getByRole('dialog', { name: /Tasks due/ });
+      await dialog.getByRole('button', { name: 'Reschedule all…' }).click();
+      await dialog.getByLabel('New due date').fill('2026-07-13');
+    },
+  },
+  {
     name: 'contacts',
     async go(win) {
       await win.getByRole('button', { name: 'Contacts', exact: true }).click();

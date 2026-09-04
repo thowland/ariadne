@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.5.0 — 2026-09-04
+
+- **Tag a task while you are typing it.** Type `#` in a task title — the
+  quick-add box or the task editor — and a tag picker opens, exactly the way
+  `@` opens the people picker. Pick one and the tag is on the task. The word
+  completes as you type — `#wood` becomes `#woodworking` — and then comes back
+  out of the title once the task is entered, exactly the way a typed due date
+  does: "Strip the varnish #woodworking" becomes the task "Strip the varnish",
+  tagged. A `#` you never picked from the list is just text, and stays. A tag
+  nobody has used before is offered on the last row of the list, so a new label
+  is one keystroke more than an existing one. A tag that happens to spell a day or a month —
+  `#sat`, `#mar` — no longer sets a due date you never asked for.
+- **Reschedule a whole day at once.** Click a day on the calendar and its
+  task list now offers **Reschedule all…**: pick a new date and everything
+  still open that day moves to it. This is what a holiday, or a day you spend
+  in bed, actually needs. Tasks you already finished stay where they are —
+  they happened when they happened.
+- **Group the project sidebar with dividers.** A divider now sits at the foot
+  of the sidebar: drag it onto a project and a line appears above it,
+  splitting the list into groups. Drag a line somewhere else to move it, or
+  drop it outside the list to remove it. There are no group names, on
+  purpose — just a line. Reordering your projects keeps the groups where they
+  belong, because a divider follows the project it sits above.
+- In-app help covers all three.
+
 ## 2.4.0 — 2026-08-22
 
 - **Ask Claude about your own work.** Ariadne now ships a small read-only

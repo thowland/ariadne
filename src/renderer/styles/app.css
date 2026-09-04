@@ -2180,6 +2180,21 @@ input.inp.full {
 .day-body {
   padding: 8px 10px 14px;
 }
+/* Bulk reschedule (D41): a holiday or a sick day is cancelled a whole day at
+   a time, so the control sits with the day, above its task list. */
+.day-reschedule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 18px 12px;
+  border-bottom: 1px solid var(--border2);
+  background: var(--sunken);
+}
+.day-reschedule-label {
+  font-size: 12px;
+  color: var(--muted);
+}
 
 /* ---------- AI import wizard ---------- */
 .ai-import-modal {
@@ -3740,4 +3755,55 @@ input.inp.full {
   .contact-filter-input {
     width: 120px;
   }
+}
+
+/* ============ Sidebar group dividers (D42) ============ */
+
+/* A square grab handle and a rule — deliberately nameless. A divider says
+   "a new group starts here"; anything more would be a second project list. */
+.sidebar-divider,
+.divider-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  cursor: grab;
+  background: none;
+  border: none;
+}
+.sidebar-divider.dragging {
+  opacity: 0.4;
+}
+.sidebar-divider-grip {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.sidebar-divider:hover .sidebar-divider-grip,
+.divider-source:hover .sidebar-divider-grip {
+  background: var(--accent);
+}
+.sidebar-divider-rule {
+  display: block;
+  flex: 1;
+  height: 1px;
+  background: var(--border-strong);
+}
+/* The slot a dropped divider would land in: a line drawn on the top edge of
+   the project it would sit above. */
+.navitem.divider-over {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+.sidebar-divider-palette {
+  margin-top: auto;
+  padding-top: 12px;
+}
+.divider-source {
+  opacity: 0.55;
+}
+.divider-source:hover {
+  opacity: 1;
 }

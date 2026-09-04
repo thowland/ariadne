@@ -9,6 +9,8 @@ import type { MentionQuery } from '@shared/domain/contacts';
 import { relativeDueLabel } from '@shared/domain/derive';
 import { findNlDate } from '@shared/domain/nl-date';
 import type { NlDateMatch } from '@shared/domain/nl-date';
+import { completeHashtag, findHashtag, hashtagCandidates, maskHashtags } from '@shared/domain/tags';
+import type { HashtagQuery } from '@shared/domain/tags';
 import type { Contact, IsoDate } from '@shared/types';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -18,7 +20,8 @@ import { ContactAvatar, splitTypedName } from './ContactBits';
 
 /**
  * A title field that highlights a natural-language date as you type (D29),
- * and — when given contacts — completes an `@name` into a linked person (D31).
+ * and — when given contacts or a tag vocabulary — completes an `@name` into a
+ * linked person (D31) or a `#tag` into a tag on the entity (D40).
  *
  * You cannot style a range of text inside a `<textarea>` or `<input>`, so the
  * highlight is painted by a mirror element sitting directly behind a
@@ -26,13 +29,12 @@ import { ContactAvatar, splitTypedName } from './ContactBits';
  * span wrapped in a `<mark>`; as long as both share a font, padding, and
  * wrapping, the mark lands exactly under the real characters.
  *
- * The mirror is `aria-hidden` and never focusable — screen readers and the
- * caret only ever see the real field. The proposed date is announced through
- * the visible chip beside it instead.
+ * Neither picker uses the mirror. The pick is completed in place — `@dan`
+ * becomes `@Dana Reyes`, `#vibe` becomes `#vibecoding` — rather than marked
+ * up, so there is no second highlight to keep in register with the date's.
  *
- * The mention deliberately does *not* use the mirror. The picked name is
- * completed in place — `@dan` becomes `@Dana Reyes` — rather than marked up,
- * so there is no second highlight to keep in register with the date's.
+ * The caret sits in at most one sigil token at a time, so the two pickers
+ * share one dropdown, one highlighted row, and one set of key bindings.
  */
 export function NlDateField({
   value,
@@ -49,7 +51,10 @@ export function NlDateField({
   onKeyDown,
   mentionContacts,
   mentionExclude = [],
-  onCommitDate,
+  tagVocabulary,
+  tagExclude = [],
+  onTag,
+  onCommitTitle,
   onMention,
   onCreateContact,
 }: {
@@ -72,13 +77,19 @@ export function NlDateField({
   mentionContacts?: readonly Contact[];
   /** Contacts already linked, so the picker never offers a duplicate. */
   mentionExclude?: readonly string[];
+  /** Enables `#tag` completion when provided alongside `onTag` (D40). */
+  tagVocabulary?: readonly string[];
+  /** Tags already on the entity, so the picker never offers a duplicate. */
+  tagExclude?: readonly string[];
+  /** Fired with the picked tag once it is completed in place. */
+  onTag?: (tag: string) => void;
   /**
    * Fired when the field loses focus, with the date phrase still standing in
    * the text (null if there is none or it was waved off). The caller decides
-   * whether to strip it — only it knows whether the date was actually
-   * applied (D35).
+   * what to take out of the title — only it knows whether the date was
+   * actually applied (D35) and which tags ended up on the entity (D40).
    */
-  onCommitDate?: (match: NlDateMatch | null) => void;
+  onCommitTitle?: (match: NlDateMatch | null) => void;
   /** Fired with the picked contact's id once the name is completed in place. */
   onMention?: (contactId: string) => void;
   /**
@@ -95,20 +106,23 @@ export function NlDateField({
   const mirror = useRef<HTMLDivElement>(null);
   const [match, setMatch] = useState<NlDateMatch | null>(null);
   const [mention, setMention] = useState<MentionQuery | null>(null);
+  const [hashtag, setHashtag] = useState<HashtagQuery | null>(null);
   const [highlighted, setHighlighted] = useState(-1);
-  /** Where the caret must land after a mention is spliced out of the text. */
+  /** Where the caret must land after a pick is spliced into the text. */
   const pendingCaret = useRef<number | null>(null);
   const newContact = useStore((s) => s.newContact);
 
   const mentionsOn = mentionContacts !== undefined && onMention !== undefined;
+  const tagsOn = tagVocabulary !== undefined && onTag !== undefined;
 
   // Re-detect on every change to the text or the date. `today` matters: the
   // app can sit open across midnight, and "tomorrow" has to follow it.
   useEffect(() => {
-    // Scan the text with the @names blanked out: a colleague called Tom is
-    // not the word "tom", which D29 reads as tomorrow. Masking preserves every
-    // offset, so the mirror's highlight still lands on the real characters.
-    const found = dismissed ? null : findNlDate(maskMentions(value), today);
+    // Scan the text with the @names and #tags blanked out: a colleague called
+    // Tom is not the word "tom", and neither is a tag called #mar the month.
+    // Both masks preserve every offset, so the mirror's highlight still lands
+    // on the real characters.
+    const found = dismissed ? null : findNlDate(maskHashtags(maskMentions(value)), today);
     setMatch(found);
     onDateChange(found?.date ?? null, found);
     // onDateChange is a fresh closure each render in most callers; depending on
@@ -146,28 +160,50 @@ export function NlDateField({
     }
   };
 
-  /** Re-reads the caret and updates which `@…` token (if any) it sits in. */
-  const refreshMention = (text: string, caret: number | null): void => {
-    if (!mentionsOn || caret === null) {
-      setMention(null);
+  const closePickers = (): void => {
+    setMention(null);
+    setHashtag(null);
+  };
+
+  /** Re-reads the caret and updates which sigil token (if any) it sits in. */
+  const refreshPickers = (text: string, caret: number | null): void => {
+    if (caret === null) {
+      closePickers();
       return;
     }
-    setMention(findMention(text, caret));
+    // A `@` and a `#` cannot both own the caret: whichever token the caret is
+    // inside wins, and the mention is checked first only because it is the
+    // more constrained match (it allows an inner space, so it can start
+    // further back).
+    const foundMention = mentionsOn ? findMention(text, caret) : null;
+    setMention(foundMention);
+    setHashtag(foundMention === null && tagsOn ? findHashtag(text, caret) : null);
     setHighlighted(-1);
   };
 
-  const suggestions =
+  const contactRows =
     mention === null || !mentionsOn
       ? []
       : mentionCandidates(mentionContacts, mention.query, mentionExclude);
-  const typed = mention === null ? '' : mention.query.trim();
-  const canCreate =
+  const tagRows =
+    hashtag === null || !tagsOn ? [] : hashtagCandidates(tagVocabulary, hashtag.query, tagExclude);
+
+  const typed = (mention?.query ?? hashtag?.query ?? '').trim();
+  const canCreateContact =
     mentionsOn &&
     mention !== null &&
     typed !== '' &&
     !mentionContacts.some((c) => contactName(c).toLowerCase() === typed.toLowerCase());
+  const canCreateTag =
+    tagsOn &&
+    hashtag !== null &&
+    typed !== '' &&
+    !tagVocabulary.some((t) => t.toLowerCase() === typed.toLowerCase());
+
+  const suggestions: string[] = mention !== null ? contactRows.map((c) => c.id) : tagRows;
+  const canCreate = canCreateContact || canCreateTag;
   const rowCount = suggestions.length + (canCreate ? 1 : 0);
-  const pickerOpen = mention !== null && rowCount > 0;
+  const pickerOpen = (mention !== null || hashtag !== null) && rowCount > 0;
 
   /** Links the contact and completes the typed fragment to their full name. */
   const link = (contactId: string, name: string): void => {
@@ -176,17 +212,39 @@ export function NlDateField({
     pendingCaret.current = next.caret;
     onChange(next.text);
     onMention(contactId);
-    setMention(null);
+    closePickers();
+    setHighlighted(-1);
+  };
+
+  /** Adds the tag and completes the typed fragment to its full spelling. */
+  const applyTag = (tag: string): void => {
+    if (hashtag === null || onTag === undefined) return;
+    const next = completeHashtag(value, hashtag, tag);
+    pendingCaret.current = next.caret;
+    onChange(next.text);
+    onTag(tag);
+    closePickers();
     setHighlighted(-1);
   };
 
   const commitRow = (index: number): void => {
-    const contact = suggestions[index];
+    if (hashtag !== null) {
+      const tag = tagRows[index];
+      if (tag !== undefined) {
+        applyTag(tag);
+        return;
+      }
+      // A tag nobody has used yet is created by picking the "new tag" row —
+      // the vocabulary is free-form, so anything typed is already valid.
+      if (canCreateTag) applyTag(typed);
+      return;
+    }
+    const contact = contactRows[index];
     if (contact !== undefined) {
       link(contact.id, contactName(contact));
       return;
     }
-    if (!canCreate) return;
+    if (!canCreateContact) return;
     // A brand-new person's display name is exactly what was typed, which is
     // also what splitTypedName carves into first/last.
     const id = onCreateContact?.(typed) ?? newContact({ ...splitTypedName(typed) });
@@ -218,22 +276,22 @@ export function NlDateField({
         onScroll={syncScroll}
         onChange={(e) => {
           onChange(e.target.value);
-          refreshMention(e.target.value, e.target.selectionStart);
+          refreshPickers(e.target.value, e.target.selectionStart);
         }}
         onClick={(e) => {
-          refreshMention(value, e.currentTarget.selectionStart);
+          refreshPickers(value, e.currentTarget.selectionStart);
         }}
         onBlur={() => {
           // Let a suggestion's mousedown land before the list unmounts.
           setTimeout(() => {
-            setMention(null);
+            closePickers();
           }, 0);
-          onCommitDate?.(match);
+          onCommitTitle?.(match);
         }}
         onKeyDown={(e) => {
-          // While the people picker is open it owns the arrows, Enter and
-          // Escape; otherwise Enter here would submit the quick-add task the
-          // user is still in the middle of addressing.
+          // While a picker is open it owns the arrows, Enter and Escape;
+          // otherwise Enter here would submit the quick-add task the user is
+          // still in the middle of addressing.
           if (pickerOpen) {
             if (e.key === 'ArrowDown') {
               e.preventDefault();
@@ -246,8 +304,8 @@ export function NlDateField({
               return;
             }
             if (e.key === 'Enter') {
-              // Enter picks a person, but it never *creates* one. With a
-              // mistyped name nothing matches, the only row is "add this
+              // Enter picks an existing row, but it never *creates* one. With
+              // a mistyped name nothing matches, the only row is "add this
               // person", and Enter here means what it means everywhere else
               // in the field — commit the task. Creating has to be chosen:
               // click the row, or arrow onto it first. Otherwise a typo in
@@ -259,11 +317,11 @@ export function NlDateField({
                 commitRow(index);
                 return;
               }
-              setMention(null);
+              closePickers();
             }
             if (e.key === 'Escape') {
               e.stopPropagation();
-              setMention(null);
+              closePickers();
               return;
             }
           }
@@ -273,19 +331,19 @@ export function NlDateField({
         }}
         onKeyUp={(e) => {
           // Arrow keys and Home/End move the caret without changing the text,
-          // so onChange never fires and the mention has to be re-read here.
-          // Not the vertical arrows while the picker is open, though: those
+          // so onChange never fires and the token has to be re-read here.
+          // Not the vertical arrows while a picker is open, though: those
           // were consumed above to walk the list, the caret did not move, and
           // re-reading would reset the very highlight they just set.
           const walking = pickerOpen && (e.key === 'ArrowUp' || e.key === 'ArrowDown');
           if (!walking && (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End')) {
-            refreshMention(value, e.currentTarget.selectionStart);
+            refreshPickers(value, e.currentTarget.selectionStart);
           }
         }}
       />
-      {pickerOpen && (
+      {pickerOpen && mention !== null && (
         <div className="contact-suggestions mention" role="listbox" aria-label="Mention a contact">
-          {suggestions.map((c, i) => (
+          {contactRows.map((c, i) => (
             <button
               key={c.id}
               role="option"
@@ -303,19 +361,52 @@ export function NlDateField({
               </span>
             </button>
           ))}
-          {canCreate && (
+          {canCreateContact && (
             <button
               role="option"
-              aria-selected={highlighted === suggestions.length}
+              aria-selected={highlighted === contactRows.length}
               className={`contact-suggestion create ${
-                highlighted === suggestions.length ? 'active' : ''
+                highlighted === contactRows.length ? 'active' : ''
               }`}
               onMouseDown={(e) => {
                 e.preventDefault();
-                commitRow(suggestions.length);
+                commitRow(contactRows.length);
               }}
             >
               <span className="contact-suggestion-name">+ Add “{typed}” as a new contact</span>
+            </button>
+          )}
+        </div>
+      )}
+      {pickerOpen && hashtag !== null && (
+        <div className="contact-suggestions mention hashtag" role="listbox" aria-label="Pick a tag">
+          {tagRows.map((t, i) => (
+            <button
+              key={t}
+              role="option"
+              aria-selected={i === highlighted}
+              className={`contact-suggestion ${i === highlighted ? 'active' : ''}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                applyTag(t);
+              }}
+            >
+              <span className="contact-suggestion-name">#{t}</span>
+            </button>
+          ))}
+          {canCreateTag && (
+            <button
+              role="option"
+              aria-selected={highlighted === tagRows.length}
+              className={`contact-suggestion create ${
+                highlighted === tagRows.length ? 'active' : ''
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                commitRow(tagRows.length);
+              }}
+            >
+              <span className="contact-suggestion-name">+ New tag “{typed}”</span>
             </button>
           )}
         </div>

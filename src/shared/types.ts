@@ -257,6 +257,15 @@ export interface Settings {
   badgeMode: BadgeMode;
   /** Light, dark, or whatever the OS is doing (D38). */
   theme: ThemeChoice;
+  /**
+   * Sidebar group separators (D42), each stored as the id of the project it
+   * sits *above*. Anchoring to a project rather than to a slot index is what
+   * keeps a divider with its group when the list is reordered — a divider is
+   * "this group starts here", not "there is a line at row 4". A project id
+   * appears at most once, so there is no such thing as two stacked lines, and
+   * `normalizeWorkspace` drops ids whose project is gone.
+   */
+  sidebarDividers: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -271,6 +280,7 @@ export const DEFAULT_SETTINGS: Settings = {
   debugLogDir: null,
   badgeMode: 'none',
   theme: 'system',
+  sidebarDividers: [],
 };
 
 /** The full in-memory domain state. */

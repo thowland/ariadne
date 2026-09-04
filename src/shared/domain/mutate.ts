@@ -860,3 +860,38 @@ export function clearAll(ws: Workspace): DeleteFilesResult {
     removedBlobIds: ws.files.filter((f) => f.kind === 'file').map((f) => f.id),
   };
 }
+
+// ---------- sidebar dividers (D42) ----------
+
+/**
+ * Place a divider above `toProjectId`, moving the one currently above
+ * `fromProjectId` if this is a drag of an existing line rather than a new one
+ * off the palette (`from === null`).
+ *
+ * A project id can only carry one divider, so dropping onto a project that
+ * already has one is a no-op rather than a way to stack two lines.
+ */
+export function moveSidebarDivider(
+  ws: Workspace,
+  from: string | null,
+  toProjectId: string,
+): MutationResult {
+  if (!ws.projects.some((p) => p.id === toProjectId)) return unchanged(ws);
+  const current = ws.settings.sidebarDividers;
+  if (from === toProjectId) return unchanged(ws);
+  const without = from === null ? current : current.filter((id) => id !== from);
+  if (without.includes(toProjectId)) {
+    // Moving a divider onto a slot that already has one leaves one line, not
+    // two — but it still removes the one that was dragged.
+    if (without.length === current.length) return unchanged(ws);
+    return updateSettings(ws, { sidebarDividers: without });
+  }
+  return updateSettings(ws, { sidebarDividers: [...without, toProjectId] });
+}
+
+/** Drop a divider outside the project list: the group separator goes away. */
+export function removeSidebarDivider(ws: Workspace, beforeProjectId: string): MutationResult {
+  const kept = ws.settings.sidebarDividers.filter((id) => id !== beforeProjectId);
+  if (kept.length === ws.settings.sidebarDividers.length) return unchanged(ws);
+  return updateSettings(ws, { sidebarDividers: kept });
+}

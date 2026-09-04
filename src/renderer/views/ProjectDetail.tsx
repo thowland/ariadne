@@ -12,6 +12,7 @@ import {
 } from '@shared/domain/mutate';
 import { findNlDate, stripNlDate } from '@shared/domain/nl-date';
 import { byProjectListOrder, inPinnedOrder } from '@shared/domain/sort';
+import { allKnownTags, maskHashtags, stripHashtags } from '@shared/domain/tags';
 import type { IsoDate } from '@shared/types';
 import { useRef, useState } from 'react';
 
@@ -65,6 +66,9 @@ export function ProjectDetail(): React.JSX.Element {
   // exist yet, so the links — and any brand-new contacts — are held here and
   // only written when it is created.
   const [quickPeople, setQuickPeople] = useState<QuickPerson[]>([]);
+  // Tags picked with `#` while composing (D40). Held here for the same reason
+  // the people are: the task they belong to does not exist yet.
+  const [quickTags, setQuickTags] = useState<string[]>([]);
   const provisional = useRef(0);
   // The visual task order is pinned per visit so clicking the status circle
   // never reshuffles the list; it re-sorts on the next visit to the project.
@@ -135,15 +139,18 @@ export function ProjectDetail(): React.JSX.Element {
   };
 
   const quickAdd = (): void => {
-    // The date phrase comes out of the title as the task is created (D35):
-    // it has done its job, and it would only contradict the due date the
-    // first time the task is rescheduled.
+    // The date phrase and the picked #tags come out of the title as the task
+    // is created (D35, D40): they have done their job, and each would only
+    // contradict its own stored copy the first time one of them changed.
     // maskMentions for the same reason the field does when it highlights
     // (D31 × D29): "@Tom Whitaker" is a colleague, and "tom" is an
     // abbreviation for tomorrow. The mask preserves offsets, so the match
     // still indexes into the real title for stripping.
-    const found = quickDismissed ? null : findNlDate(maskMentions(quickTitle), today);
-    const title = (found === null ? quickTitle : stripNlDate(quickTitle, found)).trim();
+    const found = quickDismissed ? null : findNlDate(maskHashtags(maskMentions(quickTitle)), today);
+    // The date comes out first: its offsets index into the title as it stands,
+    // and taking a #tag out from under them would invalidate the match.
+    const dated = found === null ? quickTitle : stripNlDate(quickTitle, found);
+    const title = stripHashtags(dated, quickTags).trim();
     if (title === '') return;
     // Provisional people become real contacts only now, at the moment the
     // task they were named on is committed.
@@ -156,19 +163,19 @@ export function ProjectDetail(): React.JSX.Element {
       const created = apply((ws, ctx) => createContact(ws, ctx, splitTypedName(person.name)));
       if (created !== null) contactIds.push(created.id);
     }
-    // The date phrase stays in the title, as typed — it reads naturally there
-    // and the due date is visible on the row anyway.
     apply((ws, ctx) =>
       createTask(ws, ctx, project.id, {
         title,
         dueDate: quickDue,
         ...(contactIds.length > 0 ? { contactIds } : {}),
+        ...(quickTags.length > 0 ? { tags: quickTags } : {}),
       }),
     );
     setQuickTitle('');
     setQuickDue(null);
     setQuickDismissed(false);
     setQuickPeople([]);
+    setQuickTags([]);
   };
 
   const addAndEdit = (): void => {
@@ -335,6 +342,23 @@ export function ProjectDetail(): React.JSX.Element {
                 })}
               </div>
             )}
+            {quickTags.length > 0 && (
+              <div className="quick-add-people" data-testid="quick-add-tags">
+                {quickTags.map((tag) => (
+                  <span key={tag} className="tag-chip">
+                    <span>#{tag}</span>
+                    <button
+                      aria-label={`Remove tag ${tag}`}
+                      onClick={() => {
+                        setQuickTags((list) => list.filter((t) => t !== tag));
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="quick-add-row">
               <div className="inp quick-add-input">
                 <NlDateField
@@ -350,8 +374,17 @@ export function ProjectDetail(): React.JSX.Element {
                   onDismiss={() => {
                     setQuickDismissed(true);
                   }}
-                  placeholder="Add a task, or @ someone, and press Enter…"
+                  placeholder="Add a task, @ someone or # a tag, and press Enter…"
                   ariaLabel="Add a task"
+                  tagVocabulary={workspace === null ? [] : allKnownTags(workspace)}
+                  tagExclude={quickTags}
+                  onTag={(tag) => {
+                    setQuickTags((list) =>
+                      list.some((t) => t.toLowerCase() === tag.toLowerCase())
+                        ? list
+                        : [...list, tag],
+                    );
+                  }}
                   mentionContacts={workspace?.contacts ?? []}
                   mentionExclude={quickPeople
                     .map((p) => p.contactId)

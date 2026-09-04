@@ -36,6 +36,8 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
 | **Org links** — who they report to and who reports to them, plus an envelope and handset that hand the address to your mail app or dialer.  | **CSV import** — reviewed before anything is written: what is new, who gets updated, and which rows could not be used.              |
 | [![Linking a person to a task with @](docs/screenshots/task-mentions.png)](docs/screenshots/task-mentions.png)                              | [![The contact activity report](docs/screenshots/contact-activity.png)](docs/screenshots/contact-activity.png)                      |
 | **@-mentions** — type `@` and a few letters in a task title; the name completes in place, and somebody new is held until the task is added. | **Contact activity** — who you have actually been working with over a date range, ranked, with the organizations behind them.       |
+| [![Tagging a task with #](docs/screenshots/task-tags.png)](docs/screenshots/task-tags.png)                                                  | [![Rescheduling a whole day](docs/screenshots/day-reschedule.png)](docs/screenshots/day-reschedule.png)                             |
+| **#-tags** — type `#` in a task title and pick from the vocabulary, or coin a new one; the word comes back out once the tag is stored.      | **Reschedule a day** — a holiday or a sick day moves every open task due that day onto a new date in one step.                      |
 | [![The tags view](docs/screenshots/tags.png)](docs/screenshots/tags.png)                                                                    | [![Settings](docs/screenshots/settings.png)](docs/screenshots/settings.png)                                                         |
 | **Tags** — every tag with usage counts, plus rename, merge, and delete across the whole workspace.                                          | **Settings** — the data folder, backups and retention, JSON export/import, and the Todoist and Claude integrations.                 |
 
@@ -52,7 +54,12 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   auto-saves; there is no Save button anywhere in the app. Finished projects can
   be archived, either by the checkbox on the project screen or by dragging the
   project onto the sidebar's archive zone, at which point they leave every active
-  surface but stay intact under the sidebar's ARCHIVED section.
+  surface but stay intact under the sidebar's ARCHIVED section. The sidebar
+  project list can be split into groups with **dividers** (decision D42): drag
+  the divider at the foot of the sidebar onto a project and a nameless line
+  appears above it; drag a line elsewhere to move it, or off the list to remove
+  it. A divider is stored against the project it sits above, so reordering the
+  list keeps the groups intact.
 - **Dependency map** — a layered SVG graph of each project's task chains. Drop
   one box onto another to declare that the dragged task waits on it (decision
   D37), and right-click a line to remove a dependency. The automatic layering
@@ -62,7 +69,10 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   The arrangement is saved per project, the strip under the canvas resizes the
   card, and "Reset layout" returns everything to the computed rows.
 - **Calendar** — a month grid or a single Sun–Sat week, with priority-colored
-  chips, a single-day drill-in modal, and an Upcoming list.
+  chips, a single-day drill-in modal, and an Upcoming list. The day view carries
+  a bulk **Reschedule all…** (decision D41), which moves every _open_ task due
+  that day onto a new date — what a holiday or a sick day actually needs.
+  Finished tasks stay where they are; they happened when they happened.
 - **Document library** — per-project markdown notes with a sanitized live
   preview, file uploads (PDFs, CSVs, and images preview inline), task
   attachments, and a cross-project **Files** view that lists everything in one
@@ -71,6 +81,16 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   is doing, which is the default. Every colour in the app is a design token
   with both values, so the whole thing re-themes at once; exported report PDFs
   stay black-on-white regardless.
+- **Tagging as you type** (decision D40) — typing `#` in a task title opens a
+  tag picker built the same way the `@` people picker is: anchored so `C#` and
+  `issue#42` are left alone, a bare `#` listing the whole vocabulary, and the
+  picked tag completing in place as you type. The word then comes back out of
+  the title when the task is committed, the way an accepted date phrase does
+  (decision D35) — the tag itself is the single copy. A word nobody picked is
+  prose, and stays exactly as typed. A tag nobody has used yet is offered on
+  the last row, because the vocabulary is free-form. Tags are
+  masked out of the text before the natural-language date scanner reads it, so
+  `#sat` and `#mar` never set a due date nobody asked for.
 - **Effort estimates** (decision D36) — an optional estimate per task in days
   and hours, counted as _effort_ rather than calendar time. A project's header
   shows what is left, and the portfolio roll-up totals it in a sortable column
@@ -510,7 +530,7 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D39. Record any deliberate behavior change as a new row
+  decision table D1–D42. Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
