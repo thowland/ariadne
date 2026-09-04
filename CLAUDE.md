@@ -41,7 +41,11 @@ opens a window (`dev`, `test:e2e`, `screenshots`, any packaged-app run) needs an
 - `npm test` / `npx vitest run <path>` / `npx vitest -t "name"` — unit suite
 - `npm run verify` — typecheck + lint + format:check + coverage (≥80% enforced,
   never lowered); run `npm run format` first, since Prettier-clean is part of it
-- `npm run test:e2e` — Playwright against the built app (21 specs, ~40s)
+- `npm run test:e2e` — Playwright against the built app (35 specs, ~50s). It
+  runs the **full** `build`, not just `electron-vite build`: `e2e/mcp.spec.ts`
+  spawns `out/mcp/server.mjs`, so an app-only build leaves those three specs
+  failing on any clean checkout — which is exactly how CI stayed red from
+  v2.4.0 to v2.5.0 while every local run passed on a stale `out/`
 - `npm run screenshots` — regenerate `docs/screenshots/` from the seeded demo state
 - `npm run package:mac` (arm64 only) / `package:mac:universal` (what the release
   builds) / `package:linux` / `package:win` (cross-builds on the VM: needs `apt`
