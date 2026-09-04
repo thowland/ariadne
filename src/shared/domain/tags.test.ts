@@ -10,6 +10,7 @@ import {
   hashtagCandidates,
   maskHashtags,
   renameTag,
+  stripHashtags,
   suggestTags,
   tagUsage,
 } from './tags';
@@ -201,5 +202,41 @@ describe('maskHashtags', () => {
     // into a due date nine months out.
     expect(findNlDate('Ship #mar 5 build', TODAY)?.date).toBe('2027-03-05');
     expect(findNlDate(maskHashtags('Ship #mar 5 build'), TODAY)).toBeNull();
+  });
+});
+
+describe('stripHashtags', () => {
+  it('takes an applied tag back out of the title', () => {
+    expect(stripHashtags('Strip the varnish #woodworking', ['woodworking'])).toBe(
+      'Strip the varnish',
+    );
+  });
+
+  it('leaves a word nobody picked exactly as typed', () => {
+    expect(stripHashtags('Try the #kayak rack', ['woodworking'])).toBe('Try the #kayak rack');
+    expect(stripHashtags('Try the #kayak rack', [])).toBe('Try the #kayak rack');
+  });
+
+  it('matches case-insensitively, the way the rest of the tag code does', () => {
+    expect(stripHashtags('Sand it #Woodworking', ['woodworking'])).toBe('Sand it');
+  });
+
+  it('tidies the hole a mid-sentence removal leaves', () => {
+    expect(stripHashtags('Sand #wood the top', ['wood'])).toBe('Sand the top');
+    expect(stripHashtags('Sand the top, #wood', ['wood'])).toBe('Sand the top');
+    expect(stripHashtags('Sand #wood, then varnish', ['wood'])).toBe('Sand, then varnish');
+  });
+
+  it('removes every applied tag, not just the first', () => {
+    expect(stripHashtags('Ship #infra #q3 work', ['infra', 'q3'])).toBe('Ship work');
+  });
+
+  it('leaves a mid-word # alone', () => {
+    expect(stripHashtags('Learn C# properly', ['c'])).toBe('Learn C# properly');
+  });
+
+  it('returns the original string when nothing matched', () => {
+    const text = 'Nothing to do here';
+    expect(stripHashtags(text, ['wood'])).toBe(text);
   });
 });

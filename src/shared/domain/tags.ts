@@ -256,3 +256,31 @@ export function maskHashtags(text: string): string {
     (run, boundary: string) => boundary + ' '.repeat(run.length - boundary.length),
   );
 }
+
+/**
+ * Takes the `#tag` words back out of a title once they have been applied
+ * (D40, following D35). The chip is the durable copy; leaving the word in the
+ * text gives the tag two homes that disagree the moment one is renamed.
+ *
+ * Only runs matching a tag actually on the entity are removed — a `#kayak`
+ * the user typed and never picked is still prose, and stays exactly as
+ * written, the same way a date phrase waved off with the chip does.
+ */
+export function stripHashtags(text: string, tags: readonly string[]): string {
+  if (tags.length === 0) return text;
+  const wanted = new Set(tags.map((t) => t.trim().toLowerCase()));
+  const stripped = text.replace(
+    /(^|[\s([{])#([-_\p{L}\p{N}'’.]+)/gu,
+    (run, boundary: string, tag: string) => (wanted.has(tag.toLowerCase()) ? boundary : run),
+  );
+  if (stripped === text) return text;
+  return (
+    stripped
+      // Collapse the double space a mid-sentence removal leaves, and the
+      // orphaned space it leaves in front of punctuation.
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/[ \t]+([,;:.!?])/g, '$1')
+      .replace(/[,;:\s]+$/, '')
+      .trim()
+  );
+}

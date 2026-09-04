@@ -141,9 +141,11 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
           <p>
             Type <code>#</code> and a few letters in any task title — the quick-add box or the task
             editor — and a tag picker opens the way the <code>@</code> people picker does. Pick one
-            and the tag is added to the task; the word completes in place and stays in the title. A
-            tag nobody has used yet is offered on the last row, so a new label costs one keystroke
-            more than an existing one. A tag that happens to spell a weekday or a month —{' '}
+            and the tag is added to the task. The word completes as you type and then comes out of
+            the title when you commit the task, the way a typed due date does — the tag itself is
+            the copy that lasts. A <code>#</code> you never picked is just text, and stays. A tag
+            nobody has used yet is offered on the last row, so a new label costs one keystroke more
+            than an existing one. A tag that happens to spell a weekday or a month —{' '}
             <code>#sat</code>, <code>#mar</code> — never sets a due date.
           </p>
           <h3>Estimates</h3>

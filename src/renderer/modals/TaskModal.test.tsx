@@ -1,6 +1,6 @@
 import { seedWorkspace } from '@shared/domain/seed';
 import { markTasksPushed } from '@shared/domain/todoist';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -372,8 +372,28 @@ describe('TaskModal — #tags in the title (D40)', () => {
     await userEvent.type(title, ' #wood');
     await userEvent.click(screen.getByRole('option', { name: '#woodworking' }));
 
-    const task = useStore.getState().workspace!.tasks.find((t) => t.id === 't1');
-    expect(task?.tags).toContain('woodworking');
-    expect(task?.title).toContain('#woodworking');
+    const mid = useStore.getState().workspace!.tasks.find((t) => t.id === 't1');
+    expect(mid?.tags).toContain('woodworking');
+    // While the field still has focus the word is right where it was typed.
+    expect(mid?.title).toContain('#woodworking');
+
+    // Leaving the field takes it back out, the way a date phrase goes (D35).
+    fireEvent.blur(title);
+    const after = useStore.getState().workspace!.tasks.find((t) => t.id === 't1');
+    expect(after?.title).not.toContain('#');
+    expect(after?.tags).toContain('woodworking');
+  });
+
+  it('leaves a # nobody picked in the title', async () => {
+    act(() => {
+      useStore.getState().openTask('t1');
+    });
+    render(<ModalHost />);
+    const title = screen.getByLabelText('Task title');
+    await userEvent.type(title, ' #kayak');
+    fireEvent.blur(title);
+    expect(useStore.getState().workspace!.tasks.find((t) => t.id === 't1')?.title).toContain(
+      '#kayak',
+    );
   });
 });

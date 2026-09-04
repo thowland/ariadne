@@ -1330,3 +1330,35 @@ test('calendar: reschedule a whole day from the day view (D41)', async () => {
   await expect(win2.getByText('Write migration runbook')).toHaveCount(1);
   await second.close();
 });
+
+test('tags: # picks a tag, which then comes out of the title (D40)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+
+  await win
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: /Refinish boat table/ })
+    .click();
+  const quick = win.getByLabel('Add a task');
+  await quick.fill('Strip the old varnish #wood');
+  await win.getByRole('option', { name: '#woodworking' }).click();
+  // Completed in place while you are still typing…
+  await expect(quick).toHaveValue('Strip the old varnish #woodworking');
+  await quick.press('End');
+  await quick.press('Enter');
+
+  // …and gone from the title once the tag is stored (D40, following D35).
+  await win.locator('.trow-title', { hasText: 'Strip the old varnish' }).click();
+  const editor = win.getByRole('dialog', { name: 'Edit task' });
+  await expect(editor.getByLabel('Task title')).toHaveValue('Strip the old varnish');
+  await expect(editor.getByText('#woodworking')).toBeVisible();
+
+  // A word nobody picked is prose, and stays exactly as typed.
+  await editor.getByLabel('Close').click();
+  await quick.fill('Order more #kayak straps');
+  await quick.press('Enter');
+  await expect(win.locator('.trow-title', { hasText: 'Order more #kayak straps' })).toBeVisible();
+  await app.close();
+});

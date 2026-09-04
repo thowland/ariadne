@@ -2,7 +2,7 @@ import { contactsOfTask } from '@shared/domain/contacts';
 import { formatEstimate, parseEstimate } from '@shared/domain/estimate';
 import { createMarkdownFile, cycleTaskStatus, deleteTask, updateTask } from '@shared/domain/mutate';
 import { stripNlDate } from '@shared/domain/nl-date';
-import { allKnownTags } from '@shared/domain/tags';
+import { allKnownTags, stripHashtags } from '@shared/domain/tags';
 import type { SingleTaskPushBlock } from '@shared/domain/todoist';
 import {
   markTasksPushed,
@@ -166,13 +166,17 @@ export function TaskModal({ taskId }: { taskId: string }): React.JSX.Element | n
               setDateDismissed(true);
               patch({ dueDate: null });
             }}
-            // The words come out when you leave the field, not while you are
-            // still typing them (D35). Gated on titleEdited for the same
-            // reason the date is: opening a saved task must not rewrite it.
-            onCommitDate={(match) => {
-              if (match !== null && titleEdited.current) {
-                patch({ title: stripNlDate(task.title, match) });
-              }
+            // The date phrase and the picked #tags come out when you leave
+            // the field, not while you are still typing them (D35, D40).
+            // Gated on titleEdited for the same reason the date is: opening a
+            // saved task must not rewrite it. The date goes first — its match
+            // carries offsets into the title as it stands right now, which
+            // stripping a tag out from under it would invalidate.
+            onCommitTitle={(match) => {
+              if (!titleEdited.current) return;
+              const dated = match === null ? task.title : stripNlDate(task.title, match);
+              const next = stripHashtags(dated, task.tags);
+              if (next !== task.title) patch({ title: next });
             }}
             mentionContacts={workspace.contacts}
             mentionExclude={task.contactIds ?? []}

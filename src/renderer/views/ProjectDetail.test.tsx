@@ -544,9 +544,11 @@ describe('ProjectDetail — #tags in quick-add (D40)', () => {
     expect(within(screen.getByTestId('quick-add-tags')).getByText('#woodworking')).toBeVisible();
 
     await userEvent.type(screen.getByPlaceholderText(placeholder), '{Enter}');
+    // The word comes back out of the title once the tag is stored (D40,
+    // following D35): the chip is the single copy.
     const created = useStore
       .getState()
-      .workspace!.tasks.find((t) => t.title === 'Strip the varnish #woodworking');
+      .workspace!.tasks.find((t) => t.title === 'Strip the varnish');
     expect(created?.tags).toEqual(['woodworking']);
     // The chip row is cleared for the next task.
     expect(screen.queryByTestId('quick-add-tags')).not.toBeInTheDocument();
@@ -566,6 +568,7 @@ describe('ProjectDetail — #tags in quick-add (D40)', () => {
     // A trailing space closes the picker that clicking back into the field
     // reopens — the caret would otherwise be sitting inside `#woodworking`.
     await userEvent.type(screen.getByPlaceholderText(placeholder), ' {Enter}');
+    // Nothing was tagged, so nothing is stripped — the text stays as typed.
     const created = useStore
       .getState()
       .workspace!.tasks.find((t) => t.title === 'Sand it #woodworking');

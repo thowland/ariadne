@@ -54,7 +54,7 @@ export function NlDateField({
   tagVocabulary,
   tagExclude = [],
   onTag,
-  onCommitDate,
+  onCommitTitle,
   onMention,
   onCreateContact,
 }: {
@@ -86,10 +86,10 @@ export function NlDateField({
   /**
    * Fired when the field loses focus, with the date phrase still standing in
    * the text (null if there is none or it was waved off). The caller decides
-   * whether to strip it — only it knows whether the date was actually
-   * applied (D35).
+   * what to take out of the title — only it knows whether the date was
+   * actually applied (D35) and which tags ended up on the entity (D40).
    */
-  onCommitDate?: (match: NlDateMatch | null) => void;
+  onCommitTitle?: (match: NlDateMatch | null) => void;
   /** Fired with the picked contact's id once the name is completed in place. */
   onMention?: (contactId: string) => void;
   /**
@@ -286,7 +286,7 @@ export function NlDateField({
           setTimeout(() => {
             closePickers();
           }, 0);
-          onCommitDate?.(match);
+          onCommitTitle?.(match);
         }}
         onKeyDown={(e) => {
           // While a picker is open it owns the arrows, Enter and Escape;

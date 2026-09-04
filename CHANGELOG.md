@@ -4,11 +4,13 @@
 
 - **Tag a task while you are typing it.** Type `#` in a task title — the
   quick-add box or the task editor — and a tag picker opens, exactly the way
-  `@` opens the people picker. Pick one and the tag is on the task; the word
-  completes in place and stays in the title, so "Strip the varnish
-  #woodworking" still reads like a sentence. A tag nobody has used before is
-  offered on the last row of the list, so a new label is one keystroke more
-  than an existing one. A tag that happens to spell a day or a month —
+  `@` opens the people picker. Pick one and the tag is on the task. The word
+  completes as you type — `#wood` becomes `#woodworking` — and then comes back
+  out of the title once the task is entered, exactly the way a typed due date
+  does: "Strip the varnish #woodworking" becomes the task "Strip the varnish",
+  tagged. A `#` you never picked from the list is just text, and stays. A tag
+  nobody has used before is offered on the last row of the list, so a new label
+  is one keystroke more than an existing one. A tag that happens to spell a day or a month —
   `#sat`, `#mar` — no longer sets a due date you never asked for.
 - **Reschedule a whole day at once.** Click a day on the calendar and its
   task list now offers **Reschedule all…**: pick a new date and everything
