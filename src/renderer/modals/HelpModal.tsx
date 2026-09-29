@@ -169,6 +169,19 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             shortcuts for the “Blocked by” checkboxes in the task editor. Ariadne refuses a link
             that would leave two tasks waiting on each other.
           </p>
+          <p>
+            Boxes you drag <strong>snap into line</strong>: bring one near another box&apos;s row or
+            column and it locks there, with a dashed guide showing what it lined up with; anywhere
+            else it settles onto a fine grid. Hold <strong>Option</strong> (Alt on Windows and
+            Linux) while dragging to place a box exactly where you let go. The organization map on a
+            contact&apos;s page snaps the same way.
+          </p>
+          <h3>Links</h3>
+          <p>
+            A project&apos;s <strong>Links</strong> card shows each link as a link — click it and it
+            opens in your browser. Press <strong>Edit</strong> to change a label or address, add
+            one, or remove one; <strong>Done</strong> puts them back to links.
+          </p>
           <h3>Files &amp; documents</h3>
           <p>
             Each project has a files card. Drag files from Finder or Explorer straight onto its drop
@@ -207,6 +220,14 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             it required beyond a name, so somebody can be captured in three seconds and filled in
             later. The <strong>Contacts</strong> screen lists everyone with what they are carrying;
             sort by open tasks to see who you are leaning on.
+          </p>
+          <h3>Avatar colours</h3>
+          <p>
+            Everyone gets a coloured circle with their initials, picked automatically. To choose one
+            yourself, use the <strong>Colour</strong> row in the contact&apos;s details — the
+            palette, <strong>A</strong> to go back to automatic, or <strong>+</strong> for any
+            colour at all — or just click the big avatar at the top of their page to step through
+            the palette.
           </p>
           <h3>Linking people to work</h3>
           <p>
@@ -264,9 +285,12 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
               (which names the culprit).
             </li>
             <li>
-              <strong>Deferred</strong> — tasks whose due date keeps sliding. Ariadne records every
-              push-out, so this report can rank the work you keep putting off and tell you what the
-              churn is costing in days.
+              <strong>Deferred</strong> — tasks whose due date keeps sliding, ranked by how many
+              times they have been rescheduled. It counts how often, not how far: one big push is a
+              decision, but a task moved again every few days usually has a step in front of it
+              nobody has written down. Several changes to a date on the same day count once.
+              Finished tasks are included by default; choose <strong>Incomplete only</strong> to see
+              just what is still live.
             </li>
             <li>
               <strong>Contact activity</strong> — who you have actually been working with over a

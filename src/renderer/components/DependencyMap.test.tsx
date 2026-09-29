@@ -74,7 +74,9 @@ function pointer(target: Window | Element, type: string, init: MouseEventInit): 
 function drag(id: string, from: [number, number], to: [number, number]): void {
   const node = screen.getByTestId(`dep-node-${id}`);
   pointer(node, 'pointerdown', { button: 0, clientX: from[0], clientY: from[1] });
-  pointer(window, 'pointermove', { clientX: to[0], clientY: to[1] });
+  // Alt held: free placement, so these tests can assert exact positions.
+  // Snapping has its own tests below.
+  pointer(window, 'pointermove', { clientX: to[0], clientY: to[1], altKey: true });
   pointer(window, 'pointerup', { clientX: to[0], clientY: to[1] });
   fireEvent.click(node);
 }
@@ -102,7 +104,7 @@ describe('DependencyMap dragging', () => {
     const start = rectXY('t3');
     const node = screen.getByTestId('dep-node-t3');
     pointer(node, 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
-    pointer(window, 'pointermove', { clientX: 240, clientY: 260 });
+    pointer(window, 'pointermove', { clientX: 240, clientY: 260, altKey: true });
     // The node follows the pointer before the drag is committed…
     expect(rectXY('t3')).toEqual({ x: start.x + 240, y: start.y + 260 });
     // …and so do the edges, which is the whole point of the rubber band.
@@ -173,6 +175,54 @@ describe('DependencyMap resizing', () => {
     expect(onResize).toHaveBeenCalledWith(340);
     await userEvent.keyboard('{ArrowUp}');
     expect(onResize).toHaveBeenLastCalledWith(260);
+  });
+});
+
+describe('DependencyMap snapping', () => {
+  /** Press on `id`, move by (dx, dy), and leave the pointer down. */
+  function hold(id: string, dx: number, dy: number, altKey = false): void {
+    const node = screen.getByTestId(`dep-node-${id}`);
+    pointer(node, 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
+    pointer(window, 'pointermove', { clientX: dx, clientY: dy, altKey });
+  }
+
+  it('lands a box on the grid when nothing is near it', () => {
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} />);
+    // Far below and right of everything, just off a round number.
+    const start = rectXY('t3');
+    hold('t3', 903 - start.x, 907 - start.y);
+    pointer(window, 'pointerup', {});
+    expect(onMove).toHaveBeenCalledWith('t3', 900, 910);
+  });
+
+  it('locks to another box’s column and shows the guide while dragging', () => {
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} />);
+    const mine = rectXY('t3');
+    const other = rectXY('t1');
+    // 4px off t1's column, far below it.
+    hold('t3', other.x + 4 - mine.x, 900 - mine.y);
+    expect(rectXY('t3').x).toBe(other.x);
+    expect(screen.getByTestId('dependency-map-guide-x')).toBeInTheDocument();
+    expect(screen.getByTestId('dependency-map-grid')).toBeInTheDocument();
+    pointer(window, 'pointerup', {});
+    expect(onMove).toHaveBeenCalledWith('t3', other.x, 900);
+    // Guides and the grid are for the drag only.
+    expect(screen.queryByTestId('dependency-map-guide-x')).toBeNull();
+    expect(screen.queryByTestId('dependency-map-grid')).toBeNull();
+  });
+
+  it('places the box exactly where it was dropped while Alt is held', () => {
+    const onMove = vi.fn();
+    render(<DependencyMap tasks={projectTasks('p1')} onMove={onMove} />);
+    const mine = rectXY('t3');
+    const other = rectXY('t1');
+    hold('t3', other.x + 4 - mine.x, 903 - mine.y, true);
+    expect(screen.queryByTestId('dependency-map-guide-x')).toBeNull();
+    expect(screen.queryByTestId('dependency-map-grid')).toBeNull();
+    pointer(window, 'pointerup', {});
+    expect(onMove).toHaveBeenCalledWith('t3', other.x + 4, 903);
   });
 });
 

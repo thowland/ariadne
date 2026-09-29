@@ -23,8 +23,9 @@ import { ContactAvatar, splitTypedName } from '../components/ContactBits';
 import { ContactsCard } from '../components/ContactsCard';
 import { DependencyMap } from '../components/DependencyMap';
 import { FileRow } from '../components/FileRow';
-import { LinkListEditor } from '../components/LinkListEditor';
+import { LinksCard } from '../components/LinkListEditor';
 import { NlDateField } from '../components/NlDateField';
+import { FREE_PLACE_KEY } from '../components/NodeMap';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
 import { TaskRow } from '../components/TaskRow';
@@ -429,7 +430,9 @@ export function ProjectDetail(): React.JSX.Element {
                     Reset layout
                   </button>
                 )}
-                <span className="card-hint">drag to arrange · click to edit</span>
+                <span className="card-hint">
+                  drag to arrange · hold {FREE_PLACE_KEY} to place freely · click to edit
+                </span>
               </div>
             }
           >
@@ -464,16 +467,14 @@ export function ProjectDetail(): React.JSX.Element {
               />
             </div>
           </Card>
-          <Card title="Links">
-            <div className="card-pad">
-              <LinkListEditor
-                links={project.links}
-                onChange={(links) => {
-                  apply((ws) => updateProject(ws, project.id, { links }));
-                }}
-              />
-            </div>
-          </Card>
+          <LinksCard
+            // Keyed so switching projects leaves edit mode behind.
+            key={project.id}
+            links={project.links}
+            onChange={(links) => {
+              apply((ws) => updateProject(ws, project.id, { links }));
+            }}
+          />
           <ContactsCard projectId={project.id} />
           <Card
             title="Files & documents"

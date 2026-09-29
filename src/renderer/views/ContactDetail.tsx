@@ -15,9 +15,12 @@ import { useStore } from '../app/store';
 import {
   ContactActionLink,
   ContactAvatar,
+  ContactColorPicker,
   ContactPicker,
   CopyValue,
+  nextContactColor,
 } from '../components/ContactBits';
+import { FREE_PLACE_KEY } from '../components/NodeMap';
 import { OrgMap } from '../components/OrgMap';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
@@ -137,7 +140,20 @@ export function ContactDetail(): React.JSX.Element {
       </div>
 
       <div className="contact-hero">
-        <ContactAvatar contact={contact} size={54} />
+        {/* Click-to-cycle is the shortcut; the swatches under Details are
+            the ordinary route, and the only one to "Automatic" or a custom
+            colour (D44). */}
+        <button
+          type="button"
+          className="contact-hero-avatar"
+          title="Change colour"
+          aria-label="Next avatar colour"
+          onClick={() => {
+            patch({ color: nextContactColor(contact) });
+          }}
+        >
+          <ContactAvatar contact={contact} size={54} />
+        </button>
         <div className="contact-hero-body">
           <h1 className="hero-title" data-testid="contact-headline">
             {name}
@@ -220,7 +236,9 @@ export function ContactDetail(): React.JSX.Element {
                     Reset layout
                   </button>
                 )}
-                <span className="card-hint">drag to arrange · click to open</span>
+                <span className="card-hint">
+                  drag to arrange · hold {FREE_PLACE_KEY} to place freely · click to open
+                </span>
               </div>
             }
           >
@@ -350,6 +368,15 @@ export function ContactDetail(): React.JSX.Element {
                   }}
                 />
                 <ContactActionLink kind="phone" value={contact.phone} who={name} />
+              </div>
+              <div>
+                <div className="field-label">COLOUR</div>
+                <ContactColorPicker
+                  contact={contact}
+                  onChange={(color) => {
+                    patch({ color });
+                  }}
+                />
               </div>
               <div>
                 <div className="field-label">TAGS</div>

@@ -181,6 +181,12 @@ export interface Contact {
   orgLayout?: Record<string, { x: number; y: number }>;
   /** Org-map canvas height in px; absent = fit the layout. */
   orgMapHeight?: number;
+  /**
+   * Avatar colour the user picked, as `#rrggbb` (D44). Optional-additive;
+   * absent means the stable hashed palette slot `contactColor` derives.
+   * Stored data like a project's `color`, so it is a literal, not a token.
+   */
+  color?: string;
   createdAt: IsoDate;
 }
 

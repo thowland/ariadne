@@ -48,7 +48,9 @@ function pointer(target: Window | Element, type: string, init: MouseEventInit): 
 function drag(id: string, from: [number, number], to: [number, number]): void {
   const node = screen.getByTestId(`org-node-${id}`);
   pointer(node, 'pointerdown', { button: 0, clientX: from[0], clientY: from[1] });
-  pointer(window, 'pointermove', { clientX: to[0], clientY: to[1] });
+  // Alt held: free placement, so these tests can assert exact positions.
+  // Snapping has its own tests below.
+  pointer(window, 'pointermove', { clientX: to[0], clientY: to[1], altKey: true });
   pointer(window, 'pointerup', { clientX: to[0], clientY: to[1] });
   fireEvent.click(node);
 }
@@ -103,7 +105,7 @@ describe('OrgMap', () => {
     const start = rectXY('c8');
     const node = screen.getByTestId('org-node-c8');
     pointer(node, 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
-    pointer(window, 'pointermove', { clientX: 200, clientY: 90 });
+    pointer(window, 'pointermove', { clientX: 200, clientY: 90, altKey: true });
     expect(rectXY('c8')).toEqual({ x: start.x + 200, y: start.y + 90 });
     expect(edgePaths()).not.toEqual(before);
     pointer(window, 'pointerup', { clientX: 200, clientY: 90 });

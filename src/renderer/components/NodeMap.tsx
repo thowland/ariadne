@@ -1,5 +1,11 @@
-import type { MapEdge, MapPositions, NodeMapLayout, PositionedNode } from '@shared/domain/node-map';
-import { nodeAt } from '@shared/domain/node-map';
+import type {
+  MapEdge,
+  MapPositions,
+  NodeMapLayout,
+  PositionedNode,
+  SnapGuide,
+} from '@shared/domain/node-map';
+import { nodeAt, SNAP_GRID, snapPosition } from '@shared/domain/node-map';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -12,8 +18,16 @@ import { useEffect, useRef, useState } from 'react';
  * against the live positions (so edges rubber-band mid-drag) and `renderNode`
  * draws the box. Written this way because the pointer handling below —
  * drag slop, click suppression after a real drag, latest-callback refs,
- * pointercancel — is the part that would rot if a second map copied it.
+ * pointercancel, snapping — is the part that would rot if a second map
+ * copied it. A new map supplies a pure layout and a `renderNode`, nothing more.
+ *
+ * Snapping (`snapPosition`) is on by default: a dragged box locks to another
+ * box's row or column within a few pixels and a guide shows the line, and
+ * otherwise falls onto a coarse grid. Holding Alt/Option places it freely.
  */
+
+/** The key that turns snapping off mid-drag, as the keyboard labels it. */
+export const FREE_PLACE_KEY = navigator.userAgent.includes('Mac') ? '⌥' : 'Alt';
 
 /** Pointer travel (px) that turns a click on a node into a drag. */
 const DRAG_SLOP = 4;
@@ -68,6 +82,8 @@ export interface NodeMapProps<N extends PositionedNode> {
   nodeTestIdPrefix: string;
   resizeLabel: string;
   minWidth?: number;
+  /** Snap drags to other boxes and the grid; Alt/Option still places freely. */
+  snap?: boolean;
 }
 
 export function NodeMap<N extends PositionedNode>({
@@ -90,6 +106,7 @@ export function NodeMap<N extends PositionedNode>({
   nodeTestIdPrefix,
   resizeLabel,
   minWidth = 300,
+  snap = true,
 }: NodeMapProps<N>): React.JSX.Element {
   const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   const [resizeH, setResizeH] = useState<number | null>(null);
@@ -109,6 +126,8 @@ export function NodeMap<N extends PositionedNode>({
   const [hover, setHover] = useState<string | null>(null);
   /** Latest layout, so the pointer handlers can hit-test without re-binding. */
   const layoutRef = useRef<NodeMapLayout<N> | null>(null);
+  /** Alignment lines for the drag in progress; null when not snapping. */
+  const [guides, setGuides] = useState<SnapGuide[] | null>(null);
 
   const clampHeight = (h: number): number =>
     Math.min(maxHeight, Math.max(minHeight, Math.round(h)));
@@ -125,6 +144,15 @@ export function NodeMap<N extends PositionedNode>({
       d.moved = true;
       d.x = Math.max(0, d.nodeX + dx);
       d.y = Math.max(0, d.nodeY + dy);
+      if (snap && !e.altKey) {
+        const others = (layoutRef.current?.nodes ?? []).filter((n) => n.id !== d.id);
+        const snapped = snapPosition(d.x, d.y, others, nodeW, nodeH);
+        d.x = snapped.x;
+        d.y = snapped.y;
+        setGuides(snapped.guides);
+      } else {
+        setGuides(null);
+      }
       setDrag({ id: d.id, x: d.x, y: d.y });
       // Hit-test from the box's own centre, not the pointer: dropping is
       // about where the box ended up, and the pointer may have grabbed it
@@ -147,6 +175,7 @@ export function NodeMap<N extends PositionedNode>({
       suppressClick.current = d?.moved === true;
       setDrag(null);
       setHover(null);
+      setGuides(null);
       if (d?.moved !== true) return;
       // A drop onto another box is a link, not a placement.
       if (target !== null && onLinkRef.current !== undefined) onLinkRef.current(d.id, target);
@@ -160,7 +189,7 @@ export function NodeMap<N extends PositionedNode>({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
-  }, [dragId, nodeW, nodeH]);
+  }, [dragId, nodeW, nodeH, snap]);
 
   const resizing = resizeH !== null;
   useEffect(() => {
@@ -221,7 +250,26 @@ export function NodeMap<N extends PositionedNode>({
             >
               <path d="M0,0 L9,4.5 L0,9 z" fill="var(--map-arrow)" />
             </marker>
+            <pattern
+              id={`${arrowId}-grid`}
+              width={SNAP_GRID}
+              height={SNAP_GRID}
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx={0.75} cy={0.75} r={0.75} fill="var(--map-grid)" />
+            </pattern>
           </defs>
+          {/* The grid only shows while a snapping drag is under way — it
+              explains where the box is going, and is clutter otherwise. */}
+          {guides !== null && (
+            <rect
+              className="node-map-grid"
+              data-testid={`${testId}-grid`}
+              width="100%"
+              height="100%"
+              fill={`url(#${arrowId}-grid)`}
+            />
+          )}
           {layout.edges.map((e, i) => {
             // Stop 3px short of the box so the arrowhead sits on the border.
             const gap = 3;
@@ -264,6 +312,17 @@ export function NodeMap<N extends PositionedNode>({
               </g>
             );
           })}
+          {guides?.map((g, i) => (
+            <line
+              key={`guide-${String(i)}`}
+              className="node-map-guide"
+              data-testid={`${testId}-guide-${g.axis}`}
+              x1={g.axis === 'x' ? g.at : g.from}
+              x2={g.axis === 'x' ? g.at : g.to}
+              y1={g.axis === 'x' ? g.from : g.at}
+              y2={g.axis === 'x' ? g.to : g.at}
+            />
+          ))}
           {layout.nodes.map((node) => {
             const draggable = onMove !== undefined;
             return (

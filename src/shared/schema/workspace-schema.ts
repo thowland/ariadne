@@ -103,6 +103,12 @@ export const contactSchema = z.object({
     .optional()
     .catch(undefined),
   orgMapHeight: z.number().finite().optional().catch(undefined),
+  // D44: a malformed colour falls back to the hashed one rather than failing.
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional()
+    .catch(undefined),
   createdAt: isoDate,
 });
 

@@ -35,7 +35,11 @@ describe('ProjectDetail', () => {
     expect(
       screen.getByDisplayValue('Teak table off the boat', { exact: false }),
     ).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Varnish product')).toBeInTheDocument();
+    // Links read as links until Edit is pressed.
+    expect(
+      within(screen.getByTestId('link-list')).getByRole('button', { name: /Varnish product/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Varnish product')).toBeNull();
   });
 
   it('edits name, category, notes, and tags with auto-save', async () => {
@@ -111,6 +115,47 @@ describe('ProjectDetail', () => {
     expect(modal?.type).toBe('task');
     const modalId = modal !== null && modal.type === 'task' ? modal.id : null;
     expect(ws().tasks.find((t) => t.id === modalId)?.projectId).toBe('p3');
+  });
+
+  it('opens a link in the browser on click, and only edits behind the Edit button', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'project', activeProjectId: 'p3' });
+    render(<ProjectDetail />);
+    await userEvent.click(
+      within(screen.getByTestId('link-list')).getByRole('button', { name: /Varnish product/ }),
+    );
+    expect(api.openExternal).toHaveBeenCalledWith('https://example.com/varnish');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByDisplayValue('Varnish product')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByDisplayValue('Varnish product')).toBeNull();
+  });
+
+  it('renders a link the OS would refuse as plain text, not a dead button', () => {
+    useStore.setState((s) => ({
+      workspace:
+        s.workspace === null
+          ? null
+          : {
+              ...s.workspace,
+              projects: s.workspace.projects.map((p) =>
+                p.id === 'p3' ? { ...p, links: [{ title: 'Typo', url: 'example.com/x' }] } : p,
+              ),
+            },
+    }));
+    render(<ProjectDetail />);
+    expect(screen.getByText('Typo')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Typo/ })).toBeNull();
+  });
+
+  it('sweeps up rows left blank when editing ends', async () => {
+    render(<ProjectDetail />);
+    await userEvent.click(screen.getByRole('button', { name: '+ Add link' }));
+    expect(ws().projects.find((p) => p.id === 'p3')?.links).toHaveLength(2);
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(ws().projects.find((p) => p.id === 'p3')?.links).toHaveLength(1);
   });
 
   it('edits links inline', async () => {

@@ -1,8 +1,10 @@
 import {
+  autoContactColor,
   contactColor,
   contactInitials,
   contactName,
   mentionCandidates,
+  needsDarkInk,
 } from '@shared/domain/contacts';
 import type { Contact } from '@shared/types';
 import { PROJECT_PALETTE } from '@shared/types';
@@ -10,6 +12,7 @@ import { useRef, useState } from 'react';
 
 import { getApi } from '../app/api';
 import { useStore } from '../app/store';
+import { AVATAR_INK_DARK } from '../styles/colors';
 
 /**
  * Small shared pieces of the contacts UI (D31): click-to-copy, the avatar
@@ -89,6 +92,7 @@ export function ContactAvatar({
   contact: Contact;
   size?: number;
 }): React.JSX.Element {
+  const fill = contactColor(contact, PROJECT_PALETTE);
   return (
     <span
       className="contact-avatar"
@@ -96,12 +100,88 @@ export function ContactAvatar({
       style={{
         width: size,
         height: size,
-        background: contactColor(contact, PROJECT_PALETTE),
+        background: fill,
         fontSize: Math.round(size * 0.42),
+        color: needsDarkInk(fill) ? AVATAR_INK_DARK : undefined,
       }}
     >
       {contactInitials(contact)}
     </span>
+  );
+}
+
+/** The next palette colour after this contact's current one, for click-to-cycle. */
+export function nextContactColor(contact: Contact): string {
+  const current = contactColor(contact, PROJECT_PALETTE);
+  const i = (PROJECT_PALETTE as readonly string[]).indexOf(current);
+  return PROJECT_PALETTE[(i + 1) % PROJECT_PALETTE.length] ?? PROJECT_PALETTE[0];
+}
+
+/**
+ * Avatar colour choice (D44): "Automatic" (the hashed slot every contact
+ * starts with), the palette, and the OS colour picker for anything else.
+ * `undefined` means automatic, and is what clears a pick.
+ */
+export function ContactColorPicker({
+  contact,
+  onChange,
+}: {
+  contact: Contact;
+  onChange: (color: string | undefined) => void;
+}): React.JSX.Element {
+  const picked = contact.color;
+  const auto = autoContactColor(contact, PROJECT_PALETTE);
+  const custom =
+    picked !== undefined && !(PROJECT_PALETTE as readonly string[]).includes(picked)
+      ? picked
+      : undefined;
+
+  return (
+    <div className="color-swatches" role="radiogroup" aria-label="Avatar colour">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={picked === undefined}
+        aria-label="Automatic colour"
+        title="Automatic"
+        className={`color-swatch auto ${picked === undefined ? 'selected' : ''}`}
+        style={{ background: auto }}
+        onClick={() => {
+          onChange(undefined);
+        }}
+      >
+        A
+      </button>
+      {PROJECT_PALETTE.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={picked === c}
+          aria-label={`Colour ${c}`}
+          className={`color-swatch ${picked === c ? 'selected' : ''}`}
+          style={{ background: c }}
+          onClick={() => {
+            onChange(c);
+          }}
+        />
+      ))}
+      <label
+        className={`color-swatch custom ${custom !== undefined ? 'selected' : ''}`}
+        title="Choose any colour"
+        style={custom === undefined ? undefined : { background: custom }}
+      >
+        {custom === undefined && <span aria-hidden="true">+</span>}
+        <input
+          type="color"
+          aria-label="Custom colour"
+          value={picked ?? auto}
+          onChange={(e) => {
+            onChange(e.target.value.toLowerCase());
+          }}
+        />
+      </label>
+    </div>
   );
 }
 

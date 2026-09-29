@@ -216,7 +216,10 @@ describe('ContactDetail', () => {
       node,
       new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
     );
-    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60 }));
+    fireEvent(
+      window,
+      new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60, altKey: true }),
+    );
     fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientX: 120, clientY: 60 }));
 
     // Saved against the contact whose map it is, not globally.
@@ -267,5 +270,36 @@ describe('ContactDetail', () => {
     // They go as soon as it has a name.
     fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Nia' } });
     expect(screen.getByLabelText('Company')).not.toHaveAttribute('placeholder');
+  });
+});
+
+describe('ContactDetail avatar colour (D44)', () => {
+  const colorOf = () => ws().contacts.find((c) => c.id === 'c1')?.color;
+
+  it('picks a palette colour, and Automatic clears it', async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole('radio', { name: 'Colour #c23b2b' }));
+    expect(colorOf()).toBe('#c23b2b');
+    expect(screen.getByRole('radio', { name: 'Colour #c23b2b' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Automatic colour' }));
+    expect(colorOf()).toBeUndefined();
+  });
+
+  it('takes any colour from the OS picker', () => {
+    renderDetail();
+    fireEvent.change(screen.getByLabelText('Custom colour'), { target: { value: '#F5E6A8' } });
+    expect(colorOf()).toBe('#f5e6a8');
+  });
+
+  it('cycles through the palette when the big avatar is clicked', async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Next avatar colour' }));
+    const first = colorOf();
+    expect(first).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Next avatar colour' }));
+    expect(colorOf()).not.toBe(first);
   });
 });

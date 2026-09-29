@@ -4,6 +4,7 @@ import type { Contact, Workspace } from '../types';
 import { emptyWorkspace, PROJECT_PALETTE } from '../types';
 
 import {
+  autoContactColor,
   contactColor,
   contactInitials,
   contactName,
@@ -24,6 +25,7 @@ import {
   sortContacts,
   suggestContacts,
   tasksOfContact,
+  needsDarkInk,
 } from './contacts';
 import { seedWorkspace } from './seed';
 
@@ -74,6 +76,30 @@ describe('names and identity', () => {
     const a = contactColor(contact({ id: 'abc' }), PROJECT_PALETTE);
     expect(PROJECT_PALETTE).toContain(a);
     expect(contactColor(contact({ id: 'abc', firstName: 'Renamed' }), PROJECT_PALETTE)).toBe(a);
+  });
+
+  it('uses a colour the user picked, and ignores one that is not a colour (D44)', () => {
+    expect(contactColor(contact({ id: 'abc', color: '#123456' }), PROJECT_PALETTE)).toBe('#123456');
+    const auto = autoContactColor(contact({ id: 'abc' }), PROJECT_PALETTE);
+    expect(contactColor(contact({ id: 'abc', color: 'red' }), PROJECT_PALETTE)).toBe(auto);
+    // Automatic is the hashed slot whatever was picked.
+    expect(autoContactColor(contact({ id: 'abc', color: '#123456' }), PROJECT_PALETTE)).toBe(auto);
+  });
+});
+
+describe('needsDarkInk (D44)', () => {
+  it('keeps white initials on every palette colour', () => {
+    for (const c of PROJECT_PALETTE) expect(needsDarkInk(c), c).toBe(false);
+  });
+
+  it('switches to dark initials on a pale pick', () => {
+    expect(needsDarkInk('#f5e6a8')).toBe(true);
+    expect(needsDarkInk('#ffffff')).toBe(true);
+    expect(needsDarkInk('#000000')).toBe(false);
+  });
+
+  it('treats anything that is not a hex colour as needing nothing special', () => {
+    expect(needsDarkInk('white')).toBe(false);
   });
 });
 

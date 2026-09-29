@@ -82,7 +82,10 @@ logic, check whether it is already there:
   positions, canvas bounds). A third map supplies a pure layout and a
   `renderNode`; it does **not** copy the pointer handling, which is where the
   drag slop, the click suppression after a real drag and the latest-callback
-  refs live. The org map (D34) is one hop each way on purpose — never grow it
+  refs live — and so does snapping (D45): the pure `snapPosition` in
+  `node-map.ts` plus the guide/grid overlay, so a new map snaps for free.
+  Drag tests that assert exact coordinates hold `altKey` (free placement).
+  The org map (D34) is one hop each way on purpose — never grow it
   into a whole company chart without a new decision row.
 - **Aggregations over the workspace** live in `shared/domain/reports.ts` and
   `derive.ts`. The Projects inventory screen is `portfolioRollup` + `sortPortfolio`

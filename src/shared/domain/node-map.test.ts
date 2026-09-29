@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { anchorEdge, mapBounds, nodeAt, pinnedPosition } from './node-map';
+import {
+  anchorEdge,
+  mapBounds,
+  nodeAt,
+  pinnedPosition,
+  SNAP_THRESHOLD,
+  snapPosition,
+} from './node-map';
 
 const W = 100;
 const H = 40;
@@ -89,5 +96,70 @@ describe('mapBounds', () => {
 
   it('is just the padding when there is nothing to bound', () => {
     expect(mapBounds([], W, H, 8)).toEqual({ width: 8, height: 8 });
+  });
+});
+
+describe('snapPosition', () => {
+  // W = 100, H = 40 as above.
+  it('falls onto the grid when no other box is near', () => {
+    expect(snapPosition(23, 47, [], W, H)).toEqual({ x: 20, y: 50, guides: [] });
+    expect(snapPosition(26, 44, [], W, H, { grid: 20 })).toEqual({ x: 20, y: 40, guides: [] });
+  });
+
+  it('locks to another box’s column and draws the guide through both', () => {
+    // 4px left of the other box's column, far below it.
+    const r = snapPosition(213, 300, [{ x: 217, y: 10 }], W, H);
+    expect(r.x).toBe(217);
+    expect(r.y).toBe(300); // nothing near vertically: the grid
+    expect(r.guides).toEqual([{ axis: 'x', at: 267, from: 10, to: 340 }]);
+  });
+
+  it('locks to another box’s row', () => {
+    const r = snapPosition(400, 93, [{ x: 17, y: 88 }], W, H);
+    expect(r.y).toBe(88);
+    expect(r.guides).toEqual([{ axis: 'y', at: 108, from: 17, to: 500 }]);
+  });
+
+  it('decides each axis on its own, and can lock both at once', () => {
+    const others = [
+      { x: 217, y: 10 },
+      { x: 503, y: 88 },
+    ];
+    const r = snapPosition(215, 91, others, W, H);
+    expect({ x: r.x, y: r.y }).toEqual({ x: 217, y: 88 });
+    expect(r.guides.map((g) => g.axis)).toEqual(['x', 'y']);
+  });
+
+  it('prefers the nearest of several candidates', () => {
+    const r = snapPosition(
+      100,
+      300,
+      [
+        { x: 95, y: 0 },
+        { x: 103, y: 0 },
+      ],
+      W,
+      H,
+    );
+    expect(r.x).toBe(103);
+  });
+
+  it('ignores a box just past the threshold', () => {
+    const r = snapPosition(100, 300, [{ x: 100 + SNAP_THRESHOLD + 1, y: 0 }], W, H);
+    expect(r.x).toBe(100);
+    expect(r.guides).toEqual([]);
+  });
+
+  it('never snaps a box above or left of the canvas', () => {
+    expect(snapPosition(2, 3, [{ x: -4, y: -4 }], W, H)).toMatchObject({ x: 0, y: 0 });
+  });
+
+  it('lengthens the guide over every box already on the line', () => {
+    const others = [
+      { x: 50, y: 0 },
+      { x: 50, y: 500 },
+    ];
+    const r = snapPosition(52, 250, others, W, H);
+    expect(r.guides).toEqual([{ axis: 'x', at: 100, from: 0, to: 540 }]);
   });
 });

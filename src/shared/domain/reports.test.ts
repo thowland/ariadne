@@ -428,17 +428,106 @@ describe('deferredReport (D23)', () => {
     expect(low.rows).toHaveLength(2);
     expect(high.rows).toHaveLength(1);
     expect(low.analytics.totalDeferrals).toBe(high.analytics.totalDeferrals);
-    expect(low.analytics.totalDaysSlipped).toBe(high.analytics.totalDaysSlipped);
+    expect(low.analytics.medianDeferrals).toBe(high.analytics.medianDeferrals);
   });
 
-  it('totals the days each push-out added, and averages them', () => {
+  it('totals the days each push-out added, per row', () => {
     const ws2 = withDeferrals([{ taskId: 't1', count: 3, days: 4 }]);
     const result = deferredReport(ws2, 'all', 1, TODAY);
     expect(result.rows[0]?.totalDays).toBe(12);
     expect(result.rows[0]?.slipDays).toBe(12);
-    expect(result.analytics.totalDaysSlipped).toBe(12);
-    expect(result.analytics.avgDaysPerDeferral).toBe(4);
     expect(result.analytics.medianDeferrals).toBe(3);
+  });
+
+  it('counts a run of same-day edits as one reschedule (D43)', () => {
+    // Ten one-month steps through a date field in one sitting: one decision.
+    const steps = Array.from({ length: 10 }, (_, i) => ({
+      from: isoAdd('2026-08-01', i * 30),
+      to: isoAdd('2026-08-01', (i + 1) * 30),
+      on: '2026-07-20',
+    }));
+    const ws2 = {
+      ...base,
+      tasks: base.tasks.map((t) =>
+        t.id === 't2' ? { ...t, deferrals: steps, dueDate: isoAdd('2026-08-01', 300) } : t,
+      ),
+    };
+    const result = deferredReport(ws2, 'all', 1, TODAY);
+    expect(result.rows[0]?.count).toBe(1);
+    expect(result.rows[0]?.first).toEqual({
+      from: '2026-08-01',
+      to: isoAdd('2026-08-01', 300),
+      on: '2026-07-20',
+    });
+    // How far it went is still reported; it just is not the ranking.
+    expect(result.rows[0]?.totalDays).toBe(300);
+    expect(result.analytics.totalDeferrals).toBe(1);
+  });
+
+  it('can leave completed work out entirely, analytics included', () => {
+    const ws2 = withDeferrals([
+      { taskId: 't1', count: 4, days: 1 },
+      { taskId: 't2', count: 3, days: 1 },
+    ]);
+    const done = {
+      ...ws2,
+      tasks: ws2.tasks.map((t) =>
+        t.id === 't1' ? { ...t, status: 'Done' as const, completedAt: TODAY } : t,
+      ),
+    };
+    const all = deferredReport(done, 'all', 1, TODAY);
+    expect(all.rows.map((r) => r.task.id)).toEqual(['t1', 't2']);
+    expect(all.openOnly).toBe(false);
+
+    const open = deferredReport(done, 'all', 1, TODAY, { openOnly: true });
+    expect(open.rows.map((r) => r.task.id)).toEqual(['t2']);
+    expect(open.openOnly).toBe(true);
+    expect(open.analytics.tasksEverDeferred).toBe(1);
+    expect(open.analytics.totalDeferrals).toBe(3);
+    expect(open.analytics.completedAnyway).toBe(0);
+    expect(deferredText(open, TODAY)).toContain('Incomplete tasks only');
+    expect(deferredText(all, TODAY)).not.toContain('Incomplete tasks only');
+  });
+
+  it('the seeded one-sitting run reads as a single reschedule', () => {
+    const seeded = seedWorkspace(TODAY);
+    const row = deferredReport(seeded, 'all', 1, TODAY).rows.find(
+      (r) => r.task.title === 'Second coat + light sand',
+    );
+    expect(row?.task.deferrals).toHaveLength(3);
+    expect(row?.count).toBe(1);
+  });
+
+  it('ranks the task moved on many days above the one moved far on one day', () => {
+    const ws2 = {
+      ...base,
+      tasks: base.tasks.map((t) => {
+        if (t.id === 't2')
+          return {
+            ...t,
+            deferrals: Array.from({ length: 6 }, (_, i) => ({
+              from: isoAdd('2026-08-01', i * 30),
+              to: isoAdd('2026-08-01', (i + 1) * 30),
+              on: '2026-07-20',
+            })),
+          };
+        if (t.id === 't4')
+          return {
+            ...t,
+            deferrals: Array.from({ length: 3 }, (_, i) => ({
+              from: isoAdd('2026-07-01', i),
+              to: isoAdd('2026-07-01', i + 1),
+              on: isoAdd('2026-06-20', i * 3),
+            })),
+          };
+        return t;
+      }),
+    };
+    const result = deferredReport(ws2, 'all', 1, TODAY);
+    expect(result.rows.map((r) => [r.task.id, r.count])).toEqual([
+      ['t4', 3],
+      ['t2', 1],
+    ]);
   });
 
   it('flags rows that are still open and already overdue', () => {

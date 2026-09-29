@@ -229,6 +229,35 @@ describe('Reports — deferred (D23)', () => {
     expect(screen.getByTestId('defer-clear')).toBeInTheDocument();
   });
 
+  it('narrows to incomplete tasks without changing the project scope', async () => {
+    seedDeferrals('t2', 5, '2026-07-01');
+    seedDeferrals('t4', 4, '2026-08-01');
+    const w = useStore.getState().workspace!;
+    useStore.setState({
+      workspace: {
+        ...w,
+        tasks: w.tasks.map((t) =>
+          t.id === 't4' ? { ...t, status: 'Done' as const, completedAt: '2026-07-05' } : t,
+        ),
+      },
+    });
+    await openDeferred();
+    const titles = () =>
+      within(screen.getByTestId('defer-rows'))
+        .getAllByRole('button')
+        .map((b) => b.textContent);
+    // A report defaults to everything, completed work included.
+    expect(screen.getByLabelText('Completed tasks')).toHaveValue('all');
+    expect(titles()).toHaveLength(2);
+    expect(stat('eventually done')).toBe('1');
+
+    await userEvent.selectOptions(screen.getByLabelText('Completed tasks'), 'open');
+    expect(titles()).toHaveLength(1);
+    expect(stat('ever deferred')).toBe('1');
+    expect(screen.queryByText('eventually done')).toBeNull();
+    expect(screen.getByLabelText('Report scope')).toHaveValue('all');
+  });
+
   it('ranks deferred tasks worst-first with their analytics', async () => {
     seedDeferrals('t2', 5, '2026-07-01');
     seedDeferrals('t4', 2, '2026-08-01');
@@ -236,7 +265,6 @@ describe('Reports — deferred (D23)', () => {
 
     expect(stat('ever deferred')).toBe('2');
     expect(stat('reschedules total')).toBe('7');
-    expect(stat('days pushed out')).toBe('14d');
     expect(stat('at 3+ reschedules')).toBe('1');
     expect(stat('still open & overdue')).toBe('1');
 

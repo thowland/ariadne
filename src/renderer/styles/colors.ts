@@ -67,3 +67,6 @@ export const REPORT_COLORS = {
   overdue: 'var(--danger-text)',
   retroBar: 'var(--ok-dot)',
 } as const;
+
+/** Initials ink for a pale custom avatar colour (D44); white is the default. */
+export const AVATAR_INK_DARK = 'var(--avatar-ink-dark)';

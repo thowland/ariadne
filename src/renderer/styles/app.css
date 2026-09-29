@@ -1109,6 +1109,37 @@ input.inp.full {
   line-height: 1;
   padding: 0 4px;
 }
+/* Read mode of a project's links: each one a link, not an input. */
+.link-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.link-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  font-size: 13px;
+  color: var(--accent);
+  text-align: left;
+  padding: 0;
+}
+.link-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.link-item:hover .link-item-label {
+  text-decoration: underline;
+}
+.link-item-arrow {
+  font-size: 11px;
+}
+.link-item.dead {
+  color: var(--muted);
+}
 .link-add {
   font-size: 12.5px;
   color: var(--accent);
@@ -1480,6 +1511,15 @@ input.inp.full {
 }
 
 /* Drag-to-resize strip under the dependency canvas. */
+.node-map-guide {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+.node-map-grid {
+  pointer-events: none;
+}
 .node-map-resize {
   height: 14px;
   margin-top: 2px;
@@ -3219,6 +3259,62 @@ input.inp.full {
   flex: none;
   line-height: 1;
   user-select: none;
+}
+
+/* Avatar colour (D44): the hero avatar cycles on click, and the swatch row
+   under Details is the ordinary route. */
+.contact-hero-avatar {
+  padding: 0;
+  border-radius: 50%;
+  line-height: 0;
+}
+.contact-hero-avatar:hover {
+  box-shadow: 0 0 0 3px var(--ink-12);
+}
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.color-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--on-accent);
+  cursor: pointer;
+}
+.color-swatch.selected {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--text);
+}
+.color-swatch.custom {
+  border: 1px dashed var(--ink-42);
+  color: var(--muted);
+  font-size: 13px;
+}
+.color-swatch.custom.selected {
+  border: none;
+}
+/* The native input is the whole swatch, invisibly, so a click opens the OS
+   picker without a second styled button to keep in step with it. */
+.color-swatch.custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  border: none;
 }
 
 /* Click-to-copy. The whole control is the target — the point is to hit it

@@ -228,14 +228,55 @@ describe('updateTask', () => {
       { from: '2026-07-10', to: '2026-07-15', on: TODAY },
     ]);
 
-    // Each further push-out appends, oldest first.
-    const second = updateTask(first.workspace, 't1', { dueDate: '2026-07-20' }, ctx());
+    // A push-out on a later day appends, oldest first.
+    const later = { ...ctx(), today: '2026-07-09' };
+    const second = updateTask(first.workspace, 't1', { dueDate: '2026-07-20' }, later);
     expect(second.workspace.tasks[0]?.deferrals).toHaveLength(2);
     expect(second.workspace.tasks[0]?.deferrals?.[1]).toEqual({
       from: '2026-07-15',
       to: '2026-07-20',
-      on: TODAY,
+      on: '2026-07-09',
     });
+  });
+
+  it('folds further pushes on the same day into that day’s record (D43)', () => {
+    // Stepping a date field a month at a time is one decision, not three.
+    let w = ws({ tasks: [task({ dueDate: '2026-07-10' })] });
+    for (const due of ['2026-08-10', '2026-09-10', '2026-10-10']) {
+      w = updateTask(w, 't1', { dueDate: due }, ctx()).workspace;
+    }
+    expect(w.tasks[0]?.deferrals).toEqual([{ from: '2026-07-10', to: '2026-10-10', on: TODAY }]);
+
+    // Stepping back part of the way amends it again rather than vanishing.
+    w = updateTask(w, 't1', { dueDate: '2026-08-10' }, ctx()).workspace;
+    expect(w.tasks[0]?.deferrals).toEqual([{ from: '2026-07-10', to: '2026-08-10', on: TODAY }]);
+  });
+
+  it('forgets a same-day push that is taken back or cleared (D43)', () => {
+    const earlier = { from: '2026-06-01', to: '2026-07-10', on: '2026-05-30' };
+    const w = ws({ tasks: [task({ dueDate: '2026-07-10', deferrals: [earlier] })] });
+    const pushed = updateTask(w, 't1', { dueDate: '2026-07-20' }, ctx()).workspace;
+    expect(pushed.tasks[0]?.deferrals).toHaveLength(2);
+
+    const back = updateTask(pushed, 't1', { dueDate: '2026-07-10' }, ctx()).workspace;
+    expect(back.tasks[0]?.deferrals).toEqual([earlier]);
+    const cleared = updateTask(pushed, 't1', { dueDate: null }, ctx()).workspace;
+    expect(cleared.tasks[0]?.deferrals).toEqual([earlier]);
+  });
+
+  it('leaves an older record alone once the date has moved on from it', () => {
+    // The last push was today, but the date has since been set elsewhere by a
+    // path that recorded nothing — the record no longer describes this edit.
+    const w = ws({
+      tasks: [
+        task({
+          dueDate: '2026-07-05',
+          deferrals: [{ from: '2026-07-01', to: '2026-07-10', on: TODAY }],
+        }),
+      ],
+    });
+    const r = updateTask(w, 't1', { dueDate: '2026-07-06' }, ctx());
+    expect(r.workspace.tasks[0]?.deferrals).toHaveLength(2);
   });
 
   it('does not count pull-ins, first due dates, unchanged dates, or clearing', () => {

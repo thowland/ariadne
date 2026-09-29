@@ -441,7 +441,7 @@ export const DEFER_THRESHOLD_DEFAULT = 3;
 export interface DeferralRow {
   task: Task;
   project: Project;
-  /** Recorded push-outs. */
+  /** Days on which the due date was pushed out (D43), not raw edits. */
   count: number;
   /** Days added across every push-out (the cost of the churn). */
   totalDays: number;
@@ -469,10 +469,6 @@ export interface DeferralAnalytics {
   tasksOverThreshold: number;
   /** Push-outs across every deferred task in scope (not just the rows). */
   totalDeferrals: number;
-  /** Days added across every push-out in scope. */
-  totalDaysSlipped: number;
-  /** Mean days added per push-out, one decimal. */
-  avgDaysPerDeferral: number;
   /** Median push-out count among tasks that have ever been deferred. */
   medianDeferrals: number;
   /** Of the over-threshold rows, how many are still open and overdue. */
@@ -489,6 +485,8 @@ export interface DeferralResult {
   rows: DeferralRow[];
   analytics: DeferralAnalytics;
   threshold: number;
+  /** Completed tasks left out of rows and analytics alike. */
+  openOnly: boolean;
 }
 
 function median(values: readonly number[]): number {
@@ -497,6 +495,22 @@ function median(values: readonly number[]): number {
   const mid = Math.floor(sorted.length / 2);
   if (sorted.length % 2 === 1) return sorted[mid] ?? 0;
   return ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
+}
+
+/**
+ * One entry per day the date was pushed (D43). Records written before 2.6
+ * logged every step of a date field separately — ten one-month clicks in one
+ * sitting read as ten reschedules — so consecutive same-day entries collapse
+ * into the single decision they were. The stored history is left alone.
+ */
+export function rescheduleEvents(list: readonly Deferral[]): Deferral[] {
+  const out: Deferral[] = [];
+  for (const d of list) {
+    const prev = out[out.length - 1];
+    if (prev?.on === d.on) out[out.length - 1] = { ...prev, to: d.to };
+    else out.push(d);
+  }
+  return out;
 }
 
 function deferralDays(list: readonly Deferral[]): number {
@@ -510,14 +524,16 @@ function deferralDays(list: readonly Deferral[]): number {
  * move when the user changes the threshold.
  *
  * Dropped tasks are excluded (abandoned work is not deferred work); Done
- * tasks stay in, since a task that shipped after eight reschedules is exactly
- * what this report exists to surface.
+ * tasks stay in by default, since a task that shipped after eight reschedules
+ * is exactly what this report exists to surface. `openOnly` drops them too,
+ * from the analytics as well as the rows, for a view of what is still live.
  */
 export function deferredReport(
   ws: Workspace,
   filter: ReportFilter,
   minCount: number,
   today: IsoDate,
+  { openOnly = false }: { openOnly?: boolean } = {},
 ): DeferralResult {
   const projects = filterProjects(ws.projects, filter);
   const byProjectId = new Map(projects.map((p) => [p.id, p]));
@@ -526,7 +542,8 @@ export function deferredReport(
   for (const task of ws.tasks) {
     const project = byProjectId.get(task.projectId);
     if (project === undefined || task.status === 'Dropped') continue;
-    const list = task.deferrals ?? [];
+    if (openOnly && task.status === 'Done') continue;
+    const list = rescheduleEvents(task.deferrals ?? []);
     const first = list[0];
     const last = list[list.length - 1];
     if (first === undefined || last === undefined) continue;
@@ -568,18 +585,15 @@ export function deferredReport(
   }
 
   const totalDeferrals = all.reduce((sum, r) => sum + r.count, 0);
-  const totalDaysSlipped = all.reduce((sum, r) => sum + r.totalDays, 0);
 
   return {
     threshold: minCount,
+    openOnly,
     rows,
     analytics: {
       tasksEverDeferred: all.length,
       tasksOverThreshold: rows.length,
       totalDeferrals,
-      totalDaysSlipped,
-      avgDaysPerDeferral:
-        totalDeferrals === 0 ? 0 : Math.round((totalDaysSlipped / totalDeferrals) * 10) / 10,
       medianDeferrals: median(all.map((r) => r.count)),
       chronicOverdue: rows.filter((r) => r.overdueNow).length,
       completedAnyway: rows.filter((r) => r.task.status === 'Done').length,
@@ -599,10 +613,11 @@ export function deferredReport(
 export function deferredText(result: DeferralResult, today: IsoDate): string {
   const a = result.analytics;
   let out = `REPEATEDLY DEFERRED — ${fmtLong(today)}\n`;
-  out += `Threshold: ${result.threshold}+ reschedules\n\n`;
+  out += `Threshold: ${result.threshold}+ reschedules\n`;
+  if (result.openOnly) out += 'Incomplete tasks only\n';
+  out += '\n';
   out += `${a.tasksOverThreshold} task(s) over threshold of ${a.tasksEverDeferred} ever deferred; `;
-  out += `${a.totalDeferrals} reschedule(s) costing ${a.totalDaysSlipped} day(s) `;
-  out += `(avg ${a.avgDaysPerDeferral} days each, median ${a.medianDeferrals} per task).\n`;
+  out += `${a.totalDeferrals} reschedule(s), median ${a.medianDeferrals} per task.\n`;
   out += `${a.chronicOverdue} still open and overdue; ${a.completedAnyway} eventually completed.\n\n`;
   for (const r of result.rows) {
     out += `- ${r.project.name}: ${r.task.title || 'Untitled task'} — ${r.count}× deferred, `;
