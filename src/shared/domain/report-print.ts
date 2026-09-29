@@ -51,6 +51,7 @@ export const REPORT_PRINT_CSS = `
     --map-node-fill: #ffffff;      --map-edge: #d6d6ce;            --map-arrow: #c8c8c0;
     --spark-accent: #8f99e8;       --spark-soft: #c9cef4;          --spark-warn: #e8c88a;
     --file-md: #7c4dd6;            --on-accent: #ffffff;
+    --avatar-ink-dark: #1b1b18;
   }
   * { box-sizing: border-box; }
   body {

@@ -282,6 +282,13 @@ describe('contactSchema (D31)', () => {
 
   it('still insists on an id and a real date', () => {
     expect(contactSchema.safeParse({ id: '', createdAt: '2026-07-08' }).success).toBe(false);
+  });
+
+  it('keeps a picked avatar colour and drops a malformed one (D44)', () => {
+    const base = { id: 'c1', createdAt: '2026-07-08' };
+    expect(contactSchema.parse({ ...base, color: '#a1b2c3' }).color).toBe('#a1b2c3');
+    expect(contactSchema.parse({ ...base, color: 'teal' }).color).toBeUndefined();
+    expect(contactSchema.parse(base).color).toBeUndefined();
     expect(contactSchema.safeParse({ id: 'c1', createdAt: '2026-02-30' }).success).toBe(false);
   });
 });

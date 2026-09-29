@@ -482,6 +482,9 @@ export function seedWorkspace(today: IsoDate): Workspace {
       phone: '(555) 330-9915',
       notes: 'Running the senior engineer pipeline. Sends the loop schedule Fridays.',
       tags: ['team', 'hiring'],
+      // A hand-picked avatar colour (D44), pale enough to need dark initials,
+      // so the demo and the screenshots exercise both halves of the picker.
+      color: '#e8c35a',
       createdAt: d(-45),
     },
     {

@@ -47,6 +47,8 @@
   --faint: #9a9a92;
   /* Text on a saturated fill (avatars, primary buttons). */
   --on-accent: #ffffff;
+  /* Initials on a pale custom avatar colour (D44); the fill is not themed. */
+  --avatar-ink-dark: #1b1b18;
 
   /* Accent / brand */
   --accent: #4f5bd5;
@@ -150,6 +152,7 @@
   --muted: #a0a09a;
   --faint: #74746e;
   --on-accent: #ffffff;
+  --avatar-ink-dark: #1b1b18;
 
   --accent: #8b95f0;
   --accent-soft: rgba(139, 149, 240, 0.16);

@@ -1,4 +1,4 @@
-import { contactColor, contactInitials, contactName } from '@shared/domain/contacts';
+import { contactColor, contactInitials, contactName, needsDarkInk } from '@shared/domain/contacts';
 import type { MapPositions } from '@shared/domain/node-map';
 import { layoutOrgChart, ORG_NODE_H, ORG_NODE_W } from '@shared/domain/org-chart';
 import type { OrgRelation } from '@shared/domain/org-chart';
@@ -6,6 +6,7 @@ import type { Contact, Workspace } from '@shared/types';
 import { ORG_MAP_MAX_H, ORG_MAP_MIN_H, PROJECT_PALETTE } from '@shared/types';
 
 import { useStore } from '../app/store';
+import { AVATAR_INK_DARK } from '../styles/colors';
 
 import { NodeMap, truncate } from './NodeMap';
 
@@ -70,6 +71,7 @@ export function OrgMap({
       renderNode={({ contact: c, relation, x, y }) => {
         const style = RELATION[relation];
         const self = relation === 'self';
+        const fill = contactColor(c, PROJECT_PALETTE);
         return (
           <>
             <rect
@@ -84,13 +86,13 @@ export function OrgMap({
             />
             {/* The avatar is the same colour it is everywhere else, so a face
                 found on the map is recognisable in the list. */}
-            <circle cx={x + 21} cy={y + 30} r={11} fill={contactColor(c, PROJECT_PALETTE)} />
+            <circle cx={x + 21} cy={y + 30} r={11} fill={fill} />
             <text
               x={x + 21}
               y={y + 34}
               fontSize={9.5}
               fontWeight={700}
-              fill="var(--map-node-fill)"
+              fill={needsDarkInk(fill) ? AVATAR_INK_DARK : 'var(--map-node-fill)'}
               textAnchor="middle"
             >
               {contactInitials(c)}

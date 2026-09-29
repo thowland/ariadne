@@ -40,11 +40,40 @@ export function contactInitials(c: Contact): string {
   return (contactName(c)[0] ?? '?').toUpperCase();
 }
 
-/** Stable palette slot for a contact's avatar, derived from its id. */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * A contact's avatar colour: the one the user picked (D44), else a stable
+ * palette slot derived from its id. The derived slot is also what "Automatic"
+ * shows in the picker, so it is exposed on its own.
+ */
 export function contactColor(c: Contact, palette: readonly string[]): string {
+  if (c.color !== undefined && HEX_COLOR.test(c.color)) return c.color;
+  return autoContactColor(c, palette);
+}
+
+/** The hashed palette slot, ignoring any colour the user picked. */
+export function autoContactColor(c: Contact, palette: readonly string[]): string {
   let hash = 0;
   for (const ch of c.id) hash = (hash * 31 + ch.charCodeAt(0)) % 100_000;
   return palette[hash % palette.length] ?? '#4f5bd5';
+}
+
+/**
+ * Whether initials on `hex` need dark ink rather than the usual white (D44).
+ * Every palette colour takes white, and must keep doing so; a custom pick
+ * can be pale enough that white initials vanish. WCAG relative luminance,
+ * with the cut set well above the textbook 0.18 crossover — that would flip
+ * the palette's teal and green, changing avatars nobody asked to change.
+ */
+export function needsDarkInk(hex: string): boolean {
+  if (!HEX_COLOR.test(hex)) return false;
+  const channel = (i: number): number => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return lum > 0.4;
 }
 
 export function contactById(ws: Workspace, id: string): Contact | undefined {

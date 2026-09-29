@@ -269,3 +269,34 @@ describe('ContactDetail', () => {
     expect(screen.getByLabelText('Company')).not.toHaveAttribute('placeholder');
   });
 });
+
+describe('ContactDetail avatar colour (D44)', () => {
+  const colorOf = () => ws().contacts.find((c) => c.id === 'c1')?.color;
+
+  it('picks a palette colour, and Automatic clears it', async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole('radio', { name: 'Colour #c23b2b' }));
+    expect(colorOf()).toBe('#c23b2b');
+    expect(screen.getByRole('radio', { name: 'Colour #c23b2b' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Automatic colour' }));
+    expect(colorOf()).toBeUndefined();
+  });
+
+  it('takes any colour from the OS picker', () => {
+    renderDetail();
+    fireEvent.change(screen.getByLabelText('Custom colour'), { target: { value: '#F5E6A8' } });
+    expect(colorOf()).toBe('#f5e6a8');
+  });
+
+  it('cycles through the palette when the big avatar is clicked', async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Next avatar colour' }));
+    const first = colorOf();
+    expect(first).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Next avatar colour' }));
+    expect(colorOf()).not.toBe(first);
+  });
+});
