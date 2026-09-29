@@ -1109,6 +1109,37 @@ input.inp.full {
   line-height: 1;
   padding: 0 4px;
 }
+/* Read mode of a project's links: each one a link, not an input. */
+.link-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.link-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  font-size: 13px;
+  color: var(--accent);
+  text-align: left;
+  padding: 0;
+}
+.link-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.link-item:hover .link-item-label {
+  text-decoration: underline;
+}
+.link-item-arrow {
+  font-size: 11px;
+}
+.link-item.dead {
+  color: var(--muted);
+}
 .link-add {
   font-size: 12.5px;
   color: var(--accent);
