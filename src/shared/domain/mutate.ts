@@ -199,16 +199,27 @@ export function updateTask(
     // are not — they say nothing about work being repeatedly put off.
     if (
       patch.dueDate !== undefined &&
-      patch.dueDate !== null &&
       t.dueDate !== null &&
-      patch.dueDate > t.dueDate &&
       t.status !== 'Done' &&
       t.status !== 'Dropped'
     ) {
-      next.deferrals = [
-        ...(t.deferrals ?? []),
-        { from: t.dueDate, to: patch.dueDate, on: ctx.today },
-      ];
+      const history = t.deferrals ?? [];
+      const last = history[history.length - 1];
+      // D43: a reschedule is a sitting, not a keystroke. Stepping a date
+      // field a month at a time fires one edit per step; while the date is
+      // still the one today's push-out left, a further edit amends that
+      // record — and undoes it entirely if the date comes back to where it
+      // started the day.
+      if (last !== undefined && last.on === ctx.today && last.to === t.dueDate) {
+        const earlier = history.slice(0, -1);
+        if (patch.dueDate !== null && patch.dueDate > last.from) {
+          next.deferrals = [...earlier, { ...last, to: patch.dueDate }];
+        } else {
+          next.deferrals = earlier;
+        }
+      } else if (patch.dueDate !== null && patch.dueDate > t.dueDate) {
+        next.deferrals = [...history, { from: t.dueDate, to: patch.dueDate, on: ctx.today }];
+      }
     }
     if (patch.status !== undefined) {
       if (patch.status === 'Done') {

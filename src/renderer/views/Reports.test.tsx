@@ -236,7 +236,6 @@ describe('Reports — deferred (D23)', () => {
 
     expect(stat('ever deferred')).toBe('2');
     expect(stat('reschedules total')).toBe('7');
-    expect(stat('days pushed out')).toBe('14d');
     expect(stat('at 3+ reschedules')).toBe('1');
     expect(stat('still open & overdue')).toBe('1');
 

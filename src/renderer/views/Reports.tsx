@@ -383,9 +383,10 @@ function Stat({
 
 /**
  * Repeatedly-deferred report (D23): the ranked list of tasks whose due date
- * keeps moving, plus the analytics that make the list actionable — what the
- * churn costs in days, which projects generate it, and whether the deferred
- * work is low-priority (fine) or Critical (not fine).
+ * keeps moving, plus the analytics that make the list actionable — which
+ * projects generate the churn, and whether the deferred work is low-priority
+ * (fine) or Critical (not fine). It counts how often, not how far (D43): one
+ * big push is a decision, the same task moved every few days is a signal.
  */
 function DeferredReport({
   result,
@@ -413,8 +414,6 @@ function DeferredReport({
         <Stat value={a.tasksOverThreshold} label={`at ${result.threshold}+ reschedules`} />
         <Stat value={a.tasksEverDeferred} label="ever deferred" />
         <Stat value={a.totalDeferrals} label="reschedules total" />
-        <Stat value={`${String(a.totalDaysSlipped)}d`} label="days pushed out" />
-        <Stat value={a.avgDaysPerDeferral} label="avg days per push" />
         <Stat value={a.medianDeferrals} label="median per task" />
         <Stat
           value={a.chronicOverdue}

@@ -276,6 +276,13 @@ export function seedWorkspace(today: IsoDate): Workspace {
     priority: 'Low',
     dueDate: d(6),
     dependsOn: [s3],
+    // Three steps through the date field in one sitting (D43): the report
+    // must read this as one reschedule, not three.
+    deferrals: [
+      { from: d(-1), to: d(2), on: d(-2) },
+      { from: d(2), to: d(4), on: d(-2) },
+      { from: d(4), to: d(6), on: d(-2) },
+    ],
   });
   mk('p3', {
     title: 'Third coat & reattach to boat',
