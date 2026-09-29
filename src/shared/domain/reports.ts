@@ -485,6 +485,8 @@ export interface DeferralResult {
   rows: DeferralRow[];
   analytics: DeferralAnalytics;
   threshold: number;
+  /** Completed tasks left out of rows and analytics alike. */
+  openOnly: boolean;
 }
 
 function median(values: readonly number[]): number {
@@ -522,14 +524,16 @@ function deferralDays(list: readonly Deferral[]): number {
  * move when the user changes the threshold.
  *
  * Dropped tasks are excluded (abandoned work is not deferred work); Done
- * tasks stay in, since a task that shipped after eight reschedules is exactly
- * what this report exists to surface.
+ * tasks stay in by default, since a task that shipped after eight reschedules
+ * is exactly what this report exists to surface. `openOnly` drops them too,
+ * from the analytics as well as the rows, for a view of what is still live.
  */
 export function deferredReport(
   ws: Workspace,
   filter: ReportFilter,
   minCount: number,
   today: IsoDate,
+  { openOnly = false }: { openOnly?: boolean } = {},
 ): DeferralResult {
   const projects = filterProjects(ws.projects, filter);
   const byProjectId = new Map(projects.map((p) => [p.id, p]));
@@ -538,6 +542,7 @@ export function deferredReport(
   for (const task of ws.tasks) {
     const project = byProjectId.get(task.projectId);
     if (project === undefined || task.status === 'Dropped') continue;
+    if (openOnly && task.status === 'Done') continue;
     const list = rescheduleEvents(task.deferrals ?? []);
     const first = list[0];
     const last = list[list.length - 1];
@@ -583,6 +588,7 @@ export function deferredReport(
 
   return {
     threshold: minCount,
+    openOnly,
     rows,
     analytics: {
       tasksEverDeferred: all.length,
@@ -607,7 +613,9 @@ export function deferredReport(
 export function deferredText(result: DeferralResult, today: IsoDate): string {
   const a = result.analytics;
   let out = `REPEATEDLY DEFERRED — ${fmtLong(today)}\n`;
-  out += `Threshold: ${result.threshold}+ reschedules\n\n`;
+  out += `Threshold: ${result.threshold}+ reschedules\n`;
+  if (result.openOnly) out += 'Incomplete tasks only\n';
+  out += '\n';
   out += `${a.tasksOverThreshold} task(s) over threshold of ${a.tasksEverDeferred} ever deferred; `;
   out += `${a.totalDeferrals} reschedule(s), median ${a.medianDeferrals} per task.\n`;
   out += `${a.chronicOverdue} still open and overdue; ${a.completedAnyway} eventually completed.\n\n`;

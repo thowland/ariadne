@@ -19,6 +19,10 @@
   — and this applies to your existing history too, so the report is corrected
   the moment you upgrade. The "days pushed out" figures are gone from the top
   of the report; how far each task moved is still on its row.
+- **Deferred report: incomplete only.** A new menu beside the reschedule
+  threshold switches the report from all tasks to incomplete ones, so you can
+  focus on what you are still putting off. It combines with the project
+  menu — "Work only" plus "Incomplete only" works — and starts on all tasks.
 - **Choose a contact's colour.** The coloured circle behind a person's
   initials can now be set by hand: pick from the palette in the contact's
   details, choose any colour at all, or go back to automatic. Clicking the big

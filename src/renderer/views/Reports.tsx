@@ -401,7 +401,9 @@ function DeferredReport({
   if (a.tasksEverDeferred === 0) {
     return (
       <div className="report-block risk-clear" data-testid="defer-clear">
-        No task in this filter has ever had its due date pushed back. ✓
+        {result.openOnly
+          ? 'No incomplete task in this filter has ever had its due date pushed back. ✓'
+          : 'No task in this filter has ever had its due date pushed back. ✓'}
       </div>
     );
   }
@@ -420,7 +422,10 @@ function DeferredReport({
           label="still open & overdue"
           tone={a.chronicOverdue > 0 ? 'var(--danger-text)' : undefined}
         />
-        <Stat value={a.completedAnyway} label="eventually done" tone="var(--ok-text)" />
+        {/* Always zero with completed work filtered out, so not shown. */}
+        {!result.openOnly && (
+          <Stat value={a.completedAnyway} label="eventually done" tone="var(--ok-text)" />
+        )}
       </div>
 
       {result.rows.length === 0 ? (
@@ -665,6 +670,9 @@ export function Reports(): React.JSX.Element {
   const [from, setFrom] = useState(isoAdd(today, -30));
   const [to, setTo] = useState(today);
   const [deferMin, setDeferMin] = useState<number>(DEFER_THRESHOLD_DEFAULT);
+  // A report looks back, so it defaults to everything; this narrows it to
+  // what is still live without touching the project scope.
+  const [deferOpenOnly, setDeferOpenOnly] = useState(false);
   // The printed source of truth: whatever the report body is currently showing.
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -680,6 +688,8 @@ export function Reports(): React.JSX.Element {
   if (workspace === null) return <div className="stub-view">Loading…</div>;
 
   const tags = allProjectTags(workspace.projects);
+  const deferred = (): DeferralResult =>
+    deferredReport(workspace, filter, deferMin, today, { openOnly: deferOpenOnly });
 
   const copy = (): void => {
     let text: string;
@@ -688,8 +698,7 @@ export function Reports(): React.JSX.Element {
       text = portfolioText(portfolioRollup(workspace, filter, today), today);
     else if (type === 'retro')
       text = retrospectiveText(retrospective(workspace, filter, from, to), from, to);
-    else if (type === 'deferred')
-      text = deferredText(deferredReport(workspace, filter, deferMin, today), today);
+    else if (type === 'deferred') text = deferredText(deferred(), today);
     else if (type === 'contacts')
       text = contactActivityText(contactActivity(workspace, filter, from, to, today), from, to);
     else text = atRiskText(atRiskReport(workspace, filter, today), today);
@@ -711,6 +720,8 @@ export function Reports(): React.JSX.Element {
       : filter.startsWith('tag:')
         ? `#${filter.slice(4)}`
         : `${filter[0]?.toUpperCase() ?? ''}${filter.slice(1)} only`;
+  const scopeLine =
+    type === 'deferred' && deferOpenOnly ? `${scopeLabel} · incomplete only` : scopeLabel;
   // Two reports describe a range rather than a moment.
   const periodLabel = RANGED.has(type) ? `${fmtShort(from)} – ${fmtShort(to)}` : fmtLong(today);
 
@@ -725,7 +736,7 @@ export function Reports(): React.JSX.Element {
     if (node === null) return;
     const html = buildReportDocument({
       title: `Ariadne — ${typeLabel}`,
-      subtitle: `${scopeLabel} · ${periodLabel}`,
+      subtitle: `${scopeLine} · ${periodLabel}`,
       bodyHtml: node.innerHTML,
     });
     void getApi()
@@ -791,9 +802,7 @@ export function Reports(): React.JSX.Element {
   } else if (type === 'contacts') {
     body = <ContactActivityReport result={contactActivity(workspace, filter, from, to, today)} />;
   } else if (type === 'deferred') {
-    body = (
-      <DeferredReport result={deferredReport(workspace, filter, deferMin, today)} today={today} />
-    );
+    body = <DeferredReport result={deferred()} today={today} />;
   } else body = <RiskReport rows={atRiskReport(workspace, filter, today)} />;
 
   return (
@@ -841,20 +850,35 @@ export function Reports(): React.JSX.Element {
           </div>
         )}
         {type === 'deferred' && (
-          <select
-            className="inp select"
-            value={deferMin}
-            aria-label="Minimum reschedules"
-            onChange={(e) => {
-              setDeferMin(Number(e.target.value));
-            }}
-          >
-            {DEFER_THRESHOLDS.map((n) => (
-              <option key={n} value={n}>
-                {n}+ reschedules
-              </option>
-            ))}
-          </select>
+          // Grouped like the actions below, so the two deferred-only menus
+          // wrap as a pair instead of landing on different lines.
+          <div className="report-actions">
+            <select
+              className="inp select"
+              value={deferMin}
+              aria-label="Minimum reschedules"
+              onChange={(e) => {
+                setDeferMin(Number(e.target.value));
+              }}
+            >
+              {DEFER_THRESHOLDS.map((n) => (
+                <option key={n} value={n}>
+                  {n}+ reschedules
+                </option>
+              ))}
+            </select>
+            <select
+              className="inp select"
+              value={deferOpenOnly ? 'open' : 'all'}
+              aria-label="Completed tasks"
+              onChange={(e) => {
+                setDeferOpenOnly(e.target.value === 'open');
+              }}
+            >
+              <option value="all">All tasks</option>
+              <option value="open">Incomplete only</option>
+            </select>
+          </div>
         )}
         <select
           className="inp select"

@@ -464,6 +464,31 @@ describe('deferredReport (D23)', () => {
     expect(result.analytics.totalDeferrals).toBe(1);
   });
 
+  it('can leave completed work out entirely, analytics included', () => {
+    const ws2 = withDeferrals([
+      { taskId: 't1', count: 4, days: 1 },
+      { taskId: 't2', count: 3, days: 1 },
+    ]);
+    const done = {
+      ...ws2,
+      tasks: ws2.tasks.map((t) =>
+        t.id === 't1' ? { ...t, status: 'Done' as const, completedAt: TODAY } : t,
+      ),
+    };
+    const all = deferredReport(done, 'all', 1, TODAY);
+    expect(all.rows.map((r) => r.task.id)).toEqual(['t1', 't2']);
+    expect(all.openOnly).toBe(false);
+
+    const open = deferredReport(done, 'all', 1, TODAY, { openOnly: true });
+    expect(open.rows.map((r) => r.task.id)).toEqual(['t2']);
+    expect(open.openOnly).toBe(true);
+    expect(open.analytics.tasksEverDeferred).toBe(1);
+    expect(open.analytics.totalDeferrals).toBe(3);
+    expect(open.analytics.completedAnyway).toBe(0);
+    expect(deferredText(open, TODAY)).toContain('Incomplete tasks only');
+    expect(deferredText(all, TODAY)).not.toContain('Incomplete tasks only');
+  });
+
   it('the seeded one-sitting run reads as a single reschedule', () => {
     const seeded = seedWorkspace(TODAY);
     const row = deferredReport(seeded, 'all', 1, TODAY).rows.find(

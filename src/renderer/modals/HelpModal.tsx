@@ -289,6 +289,8 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
               times they have been rescheduled. It counts how often, not how far: one big push is a
               decision, but a task moved again every few days usually has a step in front of it
               nobody has written down. Several changes to a date on the same day count once.
+              Finished tasks are included by default; choose <strong>Incomplete only</strong> to see
+              just what is still live.
             </li>
             <li>
               <strong>Contact activity</strong> — who you have actually been working with over a
