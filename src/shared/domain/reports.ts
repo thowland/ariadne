@@ -505,7 +505,7 @@ export function rescheduleEvents(list: readonly Deferral[]): Deferral[] {
   const out: Deferral[] = [];
   for (const d of list) {
     const prev = out[out.length - 1];
-    if (prev !== undefined && prev.on === d.on) out[out.length - 1] = { ...prev, to: d.to };
+    if (prev?.on === d.on) out[out.length - 1] = { ...prev, to: d.to };
     else out.push(d);
   }
   return out;

@@ -210,7 +210,7 @@ export function updateTask(
       // still the one today's push-out left, a further edit amends that
       // record — and undoes it entirely if the date comes back to where it
       // started the day.
-      if (last !== undefined && last.on === ctx.today && last.to === t.dueDate) {
+      if (last?.on === ctx.today && last.to === t.dueDate) {
         const earlier = history.slice(0, -1);
         if (patch.dueDate !== null && patch.dueDate > last.from) {
           next.deferrals = [...earlier, { ...last, to: patch.dueDate }];

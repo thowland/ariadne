@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from 'react';
  */
 
 /** The key that turns snapping off mid-drag, as the keyboard labels it. */
-export const FREE_PLACE_KEY = /Mac/.test(navigator.userAgent) ? '⌥' : 'Alt';
+export const FREE_PLACE_KEY = navigator.userAgent.includes('Mac') ? '⌥' : 'Alt';
 
 /** Pointer travel (px) that turns a click on a node into a drag. */
 const DRAG_SLOP = 4;

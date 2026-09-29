@@ -140,7 +140,7 @@ export function LinksCard({
                   </span>
                 </button>
               ) : (
-                <span key={i} className="link-item dead" title={url || undefined}>
+                <span key={i} className="link-item dead" title={link.url.trim() || undefined}>
                   <span className="link-item-label">{label}</span>
                 </span>
               );

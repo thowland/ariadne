@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.6.0 — 2026-09-29
+
+- **Project links are links.** A project's Links card now shows each link as
+  something you click to open in your browser, instead of a pair of text
+  boxes. Press **Edit** to change them; **Done** puts them back. An address
+  that could not be opened (a typo, no `https://`) shows as plain text rather
+  than a link that does nothing.
+- **Map boxes snap into line.** On the dependency map and the organization
+  map, a box you drag locks onto the row or column of any box it comes close
+  to, with a dashed guide showing what it lined up with; anywhere else it
+  settles onto a fine grid. Hold Option (Alt on Windows and Linux) to place a
+  box exactly where you let go.
+- **The Deferred report counts how often, not how far.** Clicking a due date
+  forward a month at a time used to record every click as a separate
+  reschedule, so one decision could top the list above the tasks you really
+  do keep putting off. Changes made to a date on the same day now count once
+  — and this applies to your existing history too, so the report is corrected
+  the moment you upgrade. The "days pushed out" figures are gone from the top
+  of the report; how far each task moved is still on its row.
+- **Choose a contact's colour.** The coloured circle behind a person's
+  initials can now be set by hand: pick from the palette in the contact's
+  details, choose any colour at all, or go back to automatic. Clicking the big
+  avatar at the top of their page steps through the palette. Pale colours get
+  dark initials so they stay readable.
+- In-app help covers all four.
+
 ## 2.5.0 — 2026-09-04
 
 - **Tag a task while you are typing it.** Type `#` in a task title — the
