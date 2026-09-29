@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Ariadne — a **shipped, in-use** single-user, local-first project & task tracker
-(Electron + React 18 + TypeScript, electron-vite). The app is at **v2.4.0**
-(`package.json`/`CHANGELOG.md` are authoritative).
+(Electron + React 18 + TypeScript, electron-vite). `package.json` and
+`CHANGELOG.md` say which version is current; don't trust a number written here.
 
 **Mode: backlog and extension.** The greenfield build is long done. Work now
 arrives as a bug the user hit, a small feature off the backlog, or dependency
@@ -20,10 +20,18 @@ Mac too. A Linux arm64 VM is still available and has its own gotchas — see
 
 Read `README.md` first — it holds the architecture, the module map, and the
 step-by-step recipe for adding a feature. `docs/TECHNICAL_SPEC.md` remains the
-source of truth for domain semantics and the decision table (**D1–D42**); record
-any deliberate behavior change as a new decision row there. `CHANGELOG.md`
-tracks releases and is written for the user, not for developers — describe what
-changed for someone using the app, not which module moved.
+source of truth for domain semantics and the numbered decision table (D1, D2,
+…); record any deliberate behavior change as a new row after the last one.
+`CHANGELOG.md` tracks releases and is written for the user, not for developers —
+describe what changed for someone using the app, not which module moved.
+
+**Writing documentation.** Before writing or revising prose a person will read —
+`CHANGELOG.md`, `README.md`, anything under `docs/`, the in-app help, release
+notes, PR descriptions — load the user's editorial-voice skill (`howland-voice`)
+if this session has it, and write in that voice. It will not always be there (a
+contributor's session, a CI bot); without it, match the plain, specific register
+of the surrounding docs. Code comments and commit messages follow the code's own
+conventions instead.
 
 `docs/CODE_REVIEW_2026-07-18.md` is a standing best-practices review: its P1
 robustness items are done (status notes inline); the remaining P2–P5 sections
@@ -41,11 +49,10 @@ opens a window (`dev`, `test:e2e`, `screenshots`, any packaged-app run) needs an
 - `npm test` / `npx vitest run <path>` / `npx vitest -t "name"` — unit suite
 - `npm run verify` — typecheck + lint + format:check + coverage (≥80% enforced,
   never lowered); run `npm run format` first, since Prettier-clean is part of it
-- `npm run test:e2e` — Playwright against the built app (35 specs, ~50s). It
-  runs the **full** `build`, not just `electron-vite build`: `e2e/mcp.spec.ts`
-  spawns `out/mcp/server.mjs`, so an app-only build leaves those three specs
-  failing on any clean checkout — which is exactly how CI stayed red from
-  v2.4.0 to v2.5.0 while every local run passed on a stale `out/`
+- `npm run test:e2e` — Playwright against the built app (~1 min). It runs the
+  **full** `build`, not just `electron-vite build`: `e2e/mcp.spec.ts` spawns
+  `out/mcp/server.mjs`, so an app-only build passes locally on a stale `out/`
+  and fails on every clean checkout, CI included
 - `npm run screenshots` — regenerate `docs/screenshots/` from the seeded demo state
 - `npm run package:mac` (arm64 only) / `package:mac:universal` (what the release
   builds) / `package:linux` / `package:win` (cross-builds on the VM: needs `apt`
@@ -62,10 +69,12 @@ opens a window (`dev`, `test:e2e`, `screenshots`, any packaged-app run) needs an
 
 Entire suite green (not just new tests) → coverage ≥80% → lint/format/typecheck
 clean → E2E green → commit. Obsolete tests are deleted, never skipped. For
-user-visible changes: update `CHANGELOG.md`, bump `package.json` **and
-`package-lock.json`** version, tag `vX.Y.Z` (`npm run release:tag` once the
-branch is pushed). Fixes ship as plain commits; features get a `[vX.Y.0]`
-commit + tag.
+user-visible changes: update `CHANGELOG.md` and the in-app help
+(`renderer/modals/HelpModal.tsx`), regenerate screenshots if the change is
+visible in them, bump `package.json` **and `package-lock.json`** version, tag
+`vX.Y.Z` (`npm run release:tag` once the branch is pushed). Fixes ship as plain
+commits; features get a `[vX.Y.0]` commit + tag. Merges to `master` are
+`--no-ff`, titled `Merge branch '<name>' — vX.Y.Z (Dnn–Dmm)`.
 
 For a batch of unrelated backlog items, prefer **one branch, one commit per
 item**, cheapest first. A single feature release at the end beats six tags, and
@@ -167,7 +176,7 @@ logic, check whether it is already there:
   (`main/services/report-pdf-service.ts`), never pdf.js — that library reads
   PDFs, it cannot write them (D26). The renderer captures the live report
   markup and wraps it with `shared/domain/report-print.ts`, so one path serves
-  all five reports. **The print document does not load `app.css`**, so every
+  every report. **The print document does not load `app.css`**, so every
   layout class the reports render needs its own rule in `REPORT_PRINT_CSS`; an
   unstyled class silently degrades to a block, which is how an 8-cell grid
   became 16 stacked lines. A test in `report-print.test.ts` enforces the class
@@ -219,8 +228,9 @@ logic, check whether it is already there:
 - **Colour is never a literal** (D38). Every colour lives in
   `styles/tokens.css` with a light and a dark value; `styles/colors.ts` is
   nothing but `var(--…)` strings, which work because every consumer passes
-  them to a `style` or an SVG `fill`. Two exceptions, both deliberate:
-  `PROJECT_PALETTE` (stored data, must mean the same in an export) and
+  them to a `style` or an SVG `fill`. The exceptions are deliberate: stored
+  colours — `PROJECT_PALETTE`, a project's `color`, a contact's picked `color`
+  (D44) — which are data and must mean the same in an export; and
   `REPORT_PRINT_CSS`, which redeclares the light palette because the print
   document never loads `tokens.css` — add a token, add it there too.
   `tokens.node.test.ts` fails the build if any of that slips. It is a
@@ -260,8 +270,11 @@ logic, check whether it is already there:
   sole report that still counts them (D19), and the Projects inventory is the
   one screen that will show them, behind an explicit opt-in toggle;
   dependency-map node positions and card height are hand-placed, per-project,
-  optional-additive fields (D20); deleting a contact scrubs its links but never
-  deletes a task or project (D31); the dock badge (D28) counts the **whole**
+  optional-additive fields (D20); a deferral is one per **day** — a second
+  push on the same day amends that day's record, and the report collapses
+  same-day runs in older history (D43), so never count raw `deferrals`
+  entries; deleting a contact scrubs its links but never deletes a task or
+  project (D31); the dock badge (D28) counts the **whole**
   workspace and deliberately ignores the Work/Home filter, because it is what
   you see when the app is not in front of you.
 
@@ -304,7 +317,7 @@ those, drive the real app under Playwright rather than asserting on intent:
   When bumping Electron, still re-test blob previews: Chromium keeps
   tightening custom-scheme fetch (the 39 bump needed `corsEnabled` + ACAO
   headers on `ariadne-blob://`; verified again on 43/Chromium 150).
-- **Toolchain ceilings** (checked 2026-08-06) — these are peer-dependency
+- **Toolchain ceilings** (re-checked 2026-09-29) — these are peer-dependency
   limits, not Node limits, so don't retry them on the next Node bump:
   - **Vite is capped at 7**: `electron-vite@5` peers `vite ^5||^6||^7`. Vite 8
     needs electron-vite to move first, and `@vitejs/plugin-react` must stay on
@@ -403,7 +416,11 @@ The user likes screenshot-based reviews. Capture via Playwright
 (`ARIADNE_FAKE_TODAY=2026-07-08` + a temp `ARIADNE_TEST_USER_DATA` for the seeded
 demo state), **inspect the PNGs yourself first**, then send them to the user
 directly. Before/after pairs are worth the extra capture when fixing a visual
-bug — they show the fix rather than asserting it.
+bug — they show the fix rather than asserting it. For a one-off capture, a
+throwaway `.cjs` script in the scratchpad can load Playwright's `_electron`
+through `createRequire('<repo>/package.json')` and launch with `args: ['.']`,
+`cwd: <repo>` — the E2E suite's `launch()` is the model. It drives `out/`, so
+rebuild first.
 
 Launching a packaged build while the user's own copy is running will hand the
 `open` to their instance instead; use a temp `ARIADNE_TEST_USER_DATA` and run the
