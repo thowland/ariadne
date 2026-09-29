@@ -1511,6 +1511,15 @@ button.link-item:hover .link-item-label {
 }
 
 /* Drag-to-resize strip under the dependency canvas. */
+.node-map-guide {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+.node-map-grid {
+  pointer-events: none;
+}
 .node-map-resize {
   height: 14px;
   margin-top: 2px;

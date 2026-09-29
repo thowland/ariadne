@@ -20,6 +20,7 @@ import {
   CopyValue,
   nextContactColor,
 } from '../components/ContactBits';
+import { FREE_PLACE_KEY } from '../components/NodeMap';
 import { OrgMap } from '../components/OrgMap';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
@@ -235,7 +236,9 @@ export function ContactDetail(): React.JSX.Element {
                     Reset layout
                   </button>
                 )}
-                <span className="card-hint">drag to arrange · click to open</span>
+                <span className="card-hint">
+                  drag to arrange · hold {FREE_PLACE_KEY} to place freely · click to open
+                </span>
               </div>
             }
           >

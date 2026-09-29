@@ -104,6 +104,7 @@
   --map-node-fill: #ffffff;
   --map-edge: #d6d6ce;
   --map-arrow: #c8c8c0;
+  --map-grid: #d6d6ce;
   --map-node-stroke: #c8c8c0;
   --track: #e6e6de;
   /* Project-card sparkline and the markdown file badge. */
@@ -203,6 +204,7 @@
   --map-node-fill: #232329;
   --map-edge: #4a4a52;
   --map-arrow: #5a5a62;
+  --map-grid: #3a3a40;
   --map-node-stroke: #4a4a52;
   --track: #33333b;
   --spark-accent: #8b95f0;

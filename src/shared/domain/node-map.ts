@@ -112,3 +112,130 @@ export function mapBounds(
   }
   return { width: right + pad, height: bottom + pad };
 }
+
+// ---------- Snapping ----------
+
+/** Grid pitch (px) a dragged box falls onto when no other box is near. */
+export const SNAP_GRID = 10;
+/** How close (px) an edge or centre must come to another box's to lock on. */
+export const SNAP_THRESHOLD = 6;
+
+/**
+ * An alignment line to draw while dragging. `axis: 'x'` is a vertical line
+ * at x = `at` running from y = `from` to `to`; `'y'` is the horizontal twin.
+ */
+export interface SnapGuide {
+  axis: 'x' | 'y';
+  at: number;
+  from: number;
+  to: number;
+}
+
+export interface SnapResult {
+  x: number;
+  y: number;
+  guides: SnapGuide[];
+}
+
+/** Left/centre/right (or top/middle/bottom) of a box along one axis. */
+function lines(start: number, size: number): number[] {
+  return [start, start + size / 2, start + size];
+}
+
+/**
+ * Centre first, so when a box's edges and centre all line up at once — which
+ * is always, for two boxes the same size — the one guide drawn is the centre.
+ */
+const LINE_ORDER = [1, 0, 2] as const;
+
+/**
+ * The nearest same-kind alignment along one axis — left to left, centre to
+ * centre, right to right — or null when nothing is within the threshold.
+ * Cross-kind pairs (my left to your right) are left out on purpose: they
+ * snap boxes into touching, which is never the arrangement anyone wants.
+ */
+function nearestAlignment(
+  start: number,
+  size: number,
+  others: readonly number[],
+  threshold: number,
+): { delta: number; line: number } | null {
+  const mine = lines(start, size);
+  let best: { delta: number; line: number } | null = null;
+  for (const o of others) {
+    const theirs = lines(o, size);
+    for (const k of LINE_ORDER) {
+      const delta = (theirs[k] ?? 0) - (mine[k] ?? 0);
+      if (
+        Math.abs(delta) <= threshold &&
+        (best === null || Math.abs(delta) < Math.abs(best.delta))
+      ) {
+        best = { delta, line: k };
+      }
+    }
+  }
+  return best;
+}
+
+/** The guide for one locked axis, spanning every box that shares the line. */
+function guideFor(
+  axis: 'x' | 'y',
+  at: number,
+  line: number,
+  size: number,
+  crossSize: number,
+  cross: number,
+  others: readonly { along: number; cross: number }[],
+): SnapGuide {
+  const hits = others.filter((o) => Math.abs((lines(o.along, size)[line] ?? 0) - at) < 0.5);
+  const span = [cross, ...hits.map((o) => o.cross)];
+  return { axis, at, from: Math.min(...span), to: Math.max(...span) + crossSize };
+}
+
+/**
+ * Where a dragged box should land, and the guides that explain why.
+ *
+ * Each axis is decided on its own: if an edge or the centre comes within
+ * `threshold` of the same line on another box, it locks to it and a guide is
+ * drawn spanning every box on that line; otherwise it falls onto the grid.
+ * Alignment wins over the grid because the layout's own rows and columns are
+ * not on any grid, and lining up with them is the point.
+ *
+ * Pure, so every map built on `NodeMap` snaps identically.
+ */
+export function snapPosition(
+  x: number,
+  y: number,
+  others: readonly { x: number; y: number }[],
+  nodeW: number,
+  nodeH: number,
+  { grid = SNAP_GRID, threshold = SNAP_THRESHOLD }: { grid?: number; threshold?: number } = {},
+): SnapResult {
+  const ax = nearestAlignment(
+    x,
+    nodeW,
+    others.map((o) => o.x),
+    threshold,
+  );
+  const ay = nearestAlignment(
+    y,
+    nodeH,
+    others.map((o) => o.y),
+    threshold,
+  );
+  const sx = Math.max(0, ax === null ? Math.round(x / grid) * grid : x + ax.delta);
+  const sy = Math.max(0, ay === null ? Math.round(y / grid) * grid : y + ay.delta);
+
+  const guides: SnapGuide[] = [];
+  if (ax !== null) {
+    const at = lines(sx, nodeW)[ax.line] ?? sx;
+    const byX = others.map((o) => ({ along: o.x, cross: o.y }));
+    guides.push(guideFor('x', at, ax.line, nodeW, nodeH, sy, byX));
+  }
+  if (ay !== null) {
+    const at = lines(sy, nodeH)[ay.line] ?? sy;
+    const byY = others.map((o) => ({ along: o.y, cross: o.x }));
+    guides.push(guideFor('y', at, ay.line, nodeH, nodeW, sx, byY));
+  }
+  return { x: sx, y: sy, guides };
+}

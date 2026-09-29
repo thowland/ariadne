@@ -24,6 +24,7 @@ import { ContactsCard } from '../components/ContactsCard';
 import { DependencyMap } from '../components/DependencyMap';
 import { FileRow } from '../components/FileRow';
 import { LinksCard } from '../components/LinkListEditor';
+import { FREE_PLACE_KEY } from '../components/NodeMap';
 import { NlDateField } from '../components/NlDateField';
 import { Card, Dot } from '../components/primitives';
 import { TagEditor } from '../components/TagEditor';
@@ -429,7 +430,9 @@ export function ProjectDetail(): React.JSX.Element {
                     Reset layout
                   </button>
                 )}
-                <span className="card-hint">drag to arrange · click to edit</span>
+                <span className="card-hint">
+                  drag to arrange · hold {FREE_PLACE_KEY} to place freely · click to edit
+                </span>
               </div>
             }
           >

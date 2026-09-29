@@ -216,7 +216,10 @@ describe('ContactDetail', () => {
       node,
       new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 0, clientY: 0 }),
     );
-    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60 }));
+    fireEvent(
+      window,
+      new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 60, altKey: true }),
+    );
     fireEvent(window, new MouseEvent('pointerup', { bubbles: true, clientX: 120, clientY: 60 }));
 
     // Saved against the contact whose map it is, not globally.
