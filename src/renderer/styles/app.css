@@ -3683,6 +3683,25 @@ button.link-item:hover .link-item-label {
 .contact-form-row .contact-action {
   margin-bottom: 3px;
 }
+/* Details card, read side (D47): text rather than boxes. */
+.contact-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contact-fact-value {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+.contact-fact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.contact-fact-row .contact-fact-value {
+  flex: 1;
+  min-width: 0;
+}
 
 /* Organization card */
 .contact-org {

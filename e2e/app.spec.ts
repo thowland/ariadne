@@ -1033,7 +1033,10 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
   await expect(win.getByTestId('contact-headline')).toHaveText('Tom Whitaker');
   await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
 
-  // Edit a field on the detail page; it must come back after a restart.
+  // Edit a field on the detail page; it must come back after a restart. An
+  // established contact reads as text until Edit opens the form (D47).
+  await expect(win.getByTestId('contact-facts')).toBeVisible();
+  await win.getByRole('button', { name: 'Edit', exact: true }).click();
   await win.getByLabel('Role').fill('Owner, Harborline Marine');
   await first.close();
 
