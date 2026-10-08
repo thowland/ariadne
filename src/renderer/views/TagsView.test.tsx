@@ -1,5 +1,6 @@
+import { updateTask } from '@shared/domain/mutate';
 import { emptyWorkspace } from '@shared/types';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +49,45 @@ describe('TagsView', () => {
     const cloud = screen.getByTestId('tags-cloud');
     await userEvent.click(within(cloud).getByText('#woodworking'));
     expect(useStore.getState().q).toBe('woodworking');
+  });
+
+  it('opens what a tag is on under its row, and every line goes there (D48)', async () => {
+    renderTags();
+    const list = screen.getByTestId('tag-manage-list');
+    const chip = within(list).getByRole('button', { name: /#woodworking/ });
+    expect(chip).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(chip);
+    expect(chip).toHaveAttribute('aria-expanded', 'true');
+    const panel = screen.getByTestId('tag-items-woodworking');
+    expect(within(panel).getByText('PROJECTS')).toBeInTheDocument();
+    // Opening it is not a search.
+    expect(useStore.getState().q).toBe('');
+    const project = ws().projects.find((p) => p.tags.includes('woodworking'));
+    await userEvent.click(within(panel).getByText(project!.name));
+    expect(useStore.getState().activeProjectId).toBe(project!.id);
+
+    // A second click closes it again.
+    await userEvent.click(chip);
+    expect(screen.queryByTestId('tag-items-woodworking')).not.toBeInTheDocument();
+  });
+
+  it('lists tagged tasks and contacts, each opening its own page', async () => {
+    renderTags();
+    const list = screen.getByTestId('tag-manage-list');
+    await userEvent.click(within(list).getByRole('button', { name: /#vendor/ }));
+    const panel = screen.getByTestId('tag-items-vendor');
+    await userEvent.click(within(panel).getByText('Dana Reyes'));
+    expect(useStore.getState().view).toBe('contact');
+    expect(useStore.getState().activeContactId).toBe('c1');
+
+    // Tagged after rendering, so the list re-renders with the new tag.
+    const task = ws().tasks[0]!;
+    act(() => {
+      useStore.getState().apply((w, ctx) => updateTask(w, task.id, { tags: ['kayak'] }, ctx));
+    });
+    await userEvent.click(within(list).getByRole('button', { name: /#kayak/ }));
+    await userEvent.click(within(screen.getByTestId('tag-items-kayak')).getByText(task.title));
+    expect(useStore.getState().modal).toMatchObject({ type: 'task' });
   });
 
   it('shows an empty state without tags', () => {

@@ -1,4 +1,4 @@
-import type { CollectionName, Workspace } from '../types';
+import type { CollectionName, Contact, Project, Task, Workspace } from '../types';
 
 import type { MutationResult } from './mutate';
 
@@ -31,6 +31,29 @@ export function tagUsage(ws: Workspace): TagUsage[] {
   for (const t of ws.tasks) for (const tag of new Set(t.tags)) bump(tag, 'tasks');
   for (const c of ws.contacts) for (const tag of new Set(c.tags)) bump(tag, 'contacts');
   return [...byLower.values()].sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
+/** Everything carrying one tag (D48). */
+export interface TaggedItems {
+  projects: Project[];
+  tasks: Task[];
+  contacts: Contact[];
+}
+
+/**
+ * Every project, task and contact carrying `tag`, matched case-insensitively —
+ * the same key `tagUsage` counts by, so the list under a tag always agrees
+ * with the number beside it. Collections keep their stored order; the caller
+ * decides how to sort and group.
+ */
+export function taggedWith(ws: Workspace, tag: string): TaggedItems {
+  const key = tag.toLowerCase();
+  const has = (tags: readonly string[]): boolean => tags.some((t) => t.toLowerCase() === key);
+  return {
+    projects: ws.projects.filter((p) => has(p.tags)),
+    tasks: ws.tasks.filter((t) => has(t.tags)),
+    contacts: ws.contacts.filter((c) => has(c.tags)),
+  };
 }
 
 /** Distinct known tags (projects + tasks + contacts), sorted. */

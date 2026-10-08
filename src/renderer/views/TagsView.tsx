@@ -1,13 +1,90 @@
-import { deleteTag, renameTag, tagUsage } from '@shared/domain/tags';
+import { contactName } from '@shared/domain/contacts';
+import { isArchived } from '@shared/domain/derive';
+import { byProjectListOrder } from '@shared/domain/sort';
+import { deleteTag, renameTag, taggedWith, tagUsage } from '@shared/domain/tags';
+import type { Workspace } from '@shared/types';
 import { useState } from 'react';
 
 import { useStore } from '../app/store';
-import { Card } from '../components/primitives';
+import { ContactAvatar } from '../components/ContactBits';
+import { Card, Dot } from '../components/primitives';
+import { TaskRow } from '../components/TaskRow';
+
+/**
+ * What one tag is on (D48), opened under its row in the Manage list. The
+ * cloud above still runs a search; this is the answer without leaving the
+ * page, grouped by kind, and every line opens the thing it names.
+ */
+function TaggedItemsPanel({
+  workspace,
+  tag,
+}: {
+  workspace: Workspace;
+  tag: string;
+}): React.JSX.Element {
+  const { openProject, openContact } = useStore();
+  const { projects, tasks, contacts } = taggedWith(workspace, tag);
+  const projectOrder = new Map(workspace.projects.map((p, i) => [p.id, i]));
+  // Tasks grouped by project in sidebar order, then in each project's own order.
+  const sortedTasks = [...tasks].sort(
+    (a, b) =>
+      (projectOrder.get(a.projectId) ?? 0) - (projectOrder.get(b.projectId) ?? 0) ||
+      byProjectListOrder(a, b),
+  );
+  return (
+    <div className="tag-items" data-testid={`tag-items-${tag}`}>
+      {projects.length > 0 && (
+        <div className="tag-items-group">
+          <div className="field-label">PROJECTS</div>
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              className="report-line tag-items-line"
+              onClick={() => {
+                openProject(p.id);
+              }}
+            >
+              <Dot color={p.color} size={8} />
+              <span className="report-line-title">{p.name}</span>
+              {isArchived(p) && <span className="report-line-due muted">archived</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      {sortedTasks.length > 0 && (
+        <div className="tag-items-group">
+          <div className="field-label">TASKS</div>
+          {sortedTasks.map((t) => (
+            <TaskRow key={t.id} task={t} showProject />
+          ))}
+        </div>
+      )}
+      {contacts.length > 0 && (
+        <div className="tag-items-group">
+          <div className="field-label">CONTACTS</div>
+          {contacts.map((c) => (
+            <button
+              key={c.id}
+              className="report-line tag-items-line"
+              onClick={() => {
+                openContact(c.id);
+              }}
+            >
+              <ContactAvatar contact={c} size={20} />
+              <span className="report-line-title">{contactName(c)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * All tags in the workspace. The cloud searches on click — the same behavior
- * as clicking a tag chip on a project, task, or contact — and the management
- * list below renames (renaming onto an existing tag merges after a confirm) or
+ * as clicking a tag chip on a project, task, or contact. In the management
+ * list below, clicking a tag opens what carries it (D48), and the row
+ * renames (renaming onto an existing tag merges after a confirm) or
  * deletes a tag everywhere, contacts included (D31). Management moved here from Settings in v1.11: the list
  * grows with the workspace and was burying the actual settings.
  */
@@ -15,6 +92,8 @@ export function TagsView(): React.JSX.Element {
   const { workspace, setQuery, apply, askConfirm, showToast } = useStore();
   const [renaming, setRenaming] = useState<{ tag: string; value: string } | null>(null);
   const [filter, setFilter] = useState('');
+  // The one tag whose items are open under its row, compared lower-cased.
+  const [openTag, setOpenTag] = useState<string | null>(null);
   const usage = workspace !== null ? tagUsage(workspace) : [];
 
   const needle = filter.trim().replace(/^#/, '').toLowerCase();
@@ -93,55 +172,74 @@ export function TagsView(): React.JSX.Element {
                 }}
               />
               <div className="tag-manage-list" data-testid="tag-manage-list">
-                {managed.map((u) => (
-                  <div key={u.tag} className="tag-manage-row">
-                    {renaming?.tag === u.tag ? (
-                      <input
-                        className="inp tag-rename-input"
-                        value={renaming.value}
-                        aria-label={`New name for ${u.tag}`}
-                        autoFocus
-                        onChange={(e) => {
-                          setRenaming({ tag: u.tag, value: e.target.value });
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') commitRename();
-                          if (e.key === 'Escape') setRenaming(null);
-                        }}
-                        onBlur={commitRename}
-                      />
-                    ) : (
-                      <span className="tag-chip tag-manage-chip">#{u.tag}</span>
-                    )}
-                    <span className="tag-manage-counts">
-                      {[
-                        u.projects > 0 && `${u.projects} project${u.projects === 1 ? '' : 's'}`,
-                        u.tasks > 0 && `${u.tasks} task${u.tasks === 1 ? '' : 's'}`,
-                        u.contacts > 0 && `${u.contacts} contact${u.contacts === 1 ? '' : 's'}`,
-                      ]
-                        .filter((x) => x !== false)
-                        .join(' · ')}
-                    </span>
-                    <div className="spacer" />
-                    <button
-                      className="btn subtle"
-                      onClick={() => {
-                        setRenaming({ tag: u.tag, value: u.tag });
-                      }}
-                    >
-                      Rename…
-                    </button>
-                    <button
-                      className="btn subtle tag-delete"
-                      aria-label={`Delete tag ${u.tag}`}
-                      onClick={() => {
-                        removeTag(u.tag, u.projects + u.tasks + u.contacts);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))}
+                {managed.map((u) => {
+                  const open = openTag === u.tag.toLowerCase();
+                  return (
+                    <div key={u.tag} className="tag-manage-item">
+                      <div className="tag-manage-row">
+                        {renaming?.tag === u.tag ? (
+                          <input
+                            className="inp tag-rename-input"
+                            value={renaming.value}
+                            aria-label={`New name for ${u.tag}`}
+                            autoFocus
+                            onChange={(e) => {
+                              setRenaming({ tag: u.tag, value: e.target.value });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitRename();
+                              if (e.key === 'Escape') setRenaming(null);
+                            }}
+                            onBlur={commitRename}
+                          />
+                        ) : (
+                          <button
+                            className="tag-chip tag-manage-chip"
+                            aria-expanded={open}
+                            title={
+                              open ? 'Hide what carries this tag' : 'Show what carries this tag'
+                            }
+                            onClick={() => {
+                              setOpenTag(open ? null : u.tag.toLowerCase());
+                            }}
+                          >
+                            #{u.tag} <span className="tag-manage-twisty">{open ? '▾' : '▸'}</span>
+                          </button>
+                        )}
+                        <span className="tag-manage-counts">
+                          {[
+                            u.projects > 0 && `${u.projects} project${u.projects === 1 ? '' : 's'}`,
+                            u.tasks > 0 && `${u.tasks} task${u.tasks === 1 ? '' : 's'}`,
+                            u.contacts > 0 && `${u.contacts} contact${u.contacts === 1 ? '' : 's'}`,
+                          ]
+                            .filter((x) => x !== false)
+                            .join(' · ')}
+                        </span>
+                        <div className="spacer" />
+                        <button
+                          className="btn subtle"
+                          onClick={() => {
+                            setRenaming({ tag: u.tag, value: u.tag });
+                          }}
+                        >
+                          Rename…
+                        </button>
+                        <button
+                          className="btn subtle tag-delete"
+                          aria-label={`Delete tag ${u.tag}`}
+                          onClick={() => {
+                            removeTag(u.tag, u.projects + u.tasks + u.contacts);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      {open && workspace !== null && (
+                        <TaggedItemsPanel workspace={workspace} tag={u.tag} />
+                      )}
+                    </div>
+                  );
+                })}
                 {managed.length === 0 && (
                   <div className="card-empty">No tags match “{filter.trim()}”.</div>
                 )}

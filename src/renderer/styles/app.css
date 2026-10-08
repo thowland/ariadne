@@ -2373,15 +2373,36 @@ button.link-item:hover .link-item-label {
   display: flex;
   flex-direction: column;
 }
+.tag-manage-item {
+  border-bottom: 1px solid var(--border2);
+}
+.tag-manage-item:last-child {
+  border-bottom: none;
+}
 .tag-manage-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 2px;
-  border-bottom: 1px solid var(--border2);
 }
-.tag-manage-row:last-child {
-  border-bottom: none;
+.tag-manage-chip:hover {
+  color: var(--accent);
+}
+.tag-manage-twisty {
+  font-size: 10px;
+  color: var(--faint);
+}
+/* What one tag is on (D48), opened under its row. */
+.tag-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 12px 14px;
+}
+.tag-items-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .tag-manage-chip {
   font-size: 12.5px;
