@@ -160,6 +160,13 @@ function createFlyoutWindow(size: { width: number; height: number }): BrowserWin
     },
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // Follow the user across Spaces, so the flyout opens on the desktop they are
+  // looking at. skipTransformProcessType is load-bearing: without it, macOS
+  // Electron turns the whole app into a menu-bar-only accessory process, and
+  // the dock icon disappears until relaunch. That also rules out
+  // visibleOnFullScreen, which needs the transform, so the flyout does not
+  // open over a full-screen app.
+  if (isMac) win.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
   loadRenderer(win, 'quick-add');
   return win;
 }

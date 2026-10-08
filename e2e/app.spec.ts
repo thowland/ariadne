@@ -1396,6 +1396,17 @@ test('menu-bar quick add: the flyout files a task into the chosen project (D51)'
   // test drives the flyout's page directly.
   const flyout = await flyoutOpened;
   await expect(flyout.getByTestId('quick-add-flyout')).toBeAttached();
+  // The flyout must not cost Ariadne its dock icon. Making a window follow
+  // every Space can silently turn the whole app into a menu-bar-only process
+  // on macOS; there is no dock anywhere else, so the check is Mac-only.
+  if (process.platform === 'darwin') {
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes('quick-add'))
+        ?.show();
+    });
+    await expect.poll(() => app.evaluate(({ app }) => app.dock?.isVisible())).toBe(true);
+  }
   await expect(flyout.getByLabel('Project')).toHaveValue('p1');
 
   await flyout.getByLabel('Project').selectOption({ label: 'Refinish boat table' });

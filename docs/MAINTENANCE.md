@@ -83,6 +83,13 @@ to custom schemes: the 39 bump needed `corsEnabled` plus
 `Access-Control-Allow-Origin` headers on `ariadne-blob://`, verified again on
 43 (Chromium 150).
 
+On macOS, `BrowserWindow.setVisibleOnAllWorkspaces` changes the activation
+policy of the whole app unless it is passed `skipTransformProcessType: true`:
+the app becomes a menu-bar-only accessory and its dock icon disappears until
+relaunch. `visibleOnFullScreen` needs that transform, so it cannot be used
+either. The menu-bar flyout (D51) shipped this bug once; the E2E checks
+`app.dock.isVisible()` on macOS.
+
 ## pdf.js
 
 pdf.js 6 evaluates `DOMMatrix`, `Path2D` and `ImageData` at import time, and

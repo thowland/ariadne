@@ -146,7 +146,6 @@ export class QuickAddTray {
     );
     const { x, y } = flyoutPosition(icon, FLYOUT_SIZE, display.workArea, cursor);
     win.setPosition(x, y, false);
-    if (this.opts.isMac) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.show();
     win.focus();
     win.webContents.send(IPC.quickAddShown);
