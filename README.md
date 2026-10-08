@@ -265,7 +265,7 @@ Three strictly isolated Electron layers:
 │   menu.ts        application-menu template (pure; type-only      │
 │                  electron import, so it is unit-tested)          │
 │   ipc.ts         ipcMain.handle registrations → services (glue)  │
-│   quick-add-tray.ts  menu-bar icon + quick-add flyout window      │
+│   quick-add-tray.ts  menu-bar icon + quick-add flyout window     │
 │                  (D51); it holds no data of its own              │
 │   services/      Config, Storage, Blob, Backup, ImportExport,    │
 │                  Archive (zip), Todoist (+push), Logger,         │
