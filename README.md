@@ -437,8 +437,8 @@ pinned to ad-hoc (`"identity": "-"` with `hardenedRuntime: false`). That pin is
 deliberate: letting electron-builder auto-discover a keychain certificate is what
 used to hang the build, because `codesign` blocks silently waiting on a keychain
 permission dialog, and a Development certificate buys nothing for distribution
-anyway. `npm overrides` pins `@noble/hashes` to 1.x for electron-builder; keep it
-when updating dependencies.
+anyway. `docs/MAINTENANCE.md` covers the dependency pins and the build traps,
+including why the universal macOS build excludes `@napi-rs/canvas`.
 
 The Windows installer cross-builds on Linux, including on an arm64 VM, but that
 path needs the system NSIS (`sudo apt-get install nsis`) plus two shims wired up
@@ -535,14 +535,17 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D42. Record any deliberate behavior change as a new row
+  numbered decision table (D1 onward, newest last). Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
+- `docs/MAINTENANCE.md` — dependency upkeep: the Node floor, toolchain
+  ceilings, the multi-platform lockfile, and the Electron, pdf.js, packaging
+  and platform traps a version bump can reopen.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
 - `docs/CLAUDE_MCP.md` — setting up the read-only MCP server in Claude Code and
   Claude Desktop, what the five tools return, and why there is no write path.
 - `docs/CODE_REVIEW_2026-07-18.md` — a standing best-practices review. The P1
-  robustness items are done and annotated inline; the remaining P2–P4 sections
+  robustness items are done and annotated inline; the remaining P2–P5 sections
   are agreed future work, so read it before starting a refactor in those areas.
 - `docs/IMPLEMENTATION_PLAN.md` — the original nine-sprint delivery plan and its
   exit gates. History now, though the gates still apply to every change.
