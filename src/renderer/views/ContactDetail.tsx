@@ -9,9 +9,11 @@ import {
 import { isOpen } from '@shared/domain/derive';
 import { deleteContact, setContactManager, updateContact } from '@shared/domain/mutate';
 import { byProjectListOrder } from '@shared/domain/sort';
+import { toVCard, vCardFileName } from '@shared/domain/vcard';
 import type { Contact } from '@shared/types';
 import { useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 import {
   ContactActionLink,
@@ -317,6 +319,17 @@ export function ContactDetail(): React.JSX.Element {
     apply((ws) => updateContact(ws, contact.id, fields));
   };
 
+  // A .vcf through the ordinary save dialog (D49): the address book on the
+  // other end does the importing.
+  const exportCard = (): void => {
+    void getApi()
+      .downloadFile({ content: toVCard(contact), suggestedName: vCardFileName(contact) })
+      .then((res) => {
+        if (res.error !== undefined) showToast(`Export failed: ${res.error}`);
+        else if (res.savedPath !== null) showToast(`Saved ${name}'s card`);
+      });
+  };
+
   const remove = (): void => {
     void askConfirm(
       tasks.length > 0
@@ -344,6 +357,13 @@ export function ContactDetail(): React.JSX.Element {
           ← All contacts
         </button>
         <div className="spacer" />
+        <button
+          className="btn ghost"
+          title="Save as a card for iOS, macOS or Outlook"
+          onClick={exportCard}
+        >
+          Export vCard
+        </button>
         <button className="btn danger" onClick={remove}>
           Delete
         </button>

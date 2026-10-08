@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-
 import { useStore } from '../app/store';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { loadTestWorkspace, setupTestApp } from '../test-utils';
@@ -284,6 +283,35 @@ describe('ContactDetail', () => {
   });
 });
 
+describe('ContactDetail vCard export (D49)', () => {
+  it('saves the contact as a .vcf through the save dialog', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'contact', activeContactId: 'c1' });
+    vi.mocked(api.downloadFile).mockResolvedValue({ savedPath: '/tmp/Dana Reyes.vcf' });
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Export vCard' }));
+    const request = vi.mocked(api.downloadFile).mock.calls[0]![0];
+    expect(request.suggestedName).toBe('Dana Reyes.vcf');
+    expect(request.content).toContain('FN:Dana Reyes\r\n');
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe("Saved Dana Reyes's card");
+    });
+  });
+
+  it('says so when the file could not be written', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'contact', activeContactId: 'c1' });
+    vi.mocked(api.downloadFile).mockResolvedValue({ savedPath: null, error: 'Disk full' });
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Export vCard' }));
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe('Export failed: Disk full');
+    });
+  });
+});
+
 describe('ContactDetail details card (D47)', () => {
   it('shows an established contact as text, with no boxes to type in', () => {
     renderDetail();
@@ -323,18 +351,16 @@ describe('ContactDetail details card (D47)', () => {
   });
 
   it('says so when nothing is recorded', () => {
-    useStore
-      .getState()
-      .apply((w) =>
-        updateContact(w, 'c1', {
-          company: '',
-          department: '',
-          role: '',
-          email: '',
-          phone: '',
-          tags: [],
-        }),
-      );
+    useStore.getState().apply((w) =>
+      updateContact(w, 'c1', {
+        company: '',
+        department: '',
+        role: '',
+        email: '',
+        phone: '',
+        tags: [],
+      }),
+    );
     renderDetail();
     expect(screen.getByTestId('contact-facts')).toHaveTextContent('Nothing recorded yet');
   });
