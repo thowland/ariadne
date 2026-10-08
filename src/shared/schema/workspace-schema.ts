@@ -149,6 +149,8 @@ export const settingsSchema = z.object({
   badgeMode: z.enum(BADGE_CHOICES).catch('none'),
   theme: z.enum(THEME_CHOICES).catch('system'),
   sidebarDividers: z.array(z.string()).catch([]),
+  sidebarGroupNames: z.record(z.string(), z.string()).catch({}),
+  sidebarCollapsed: z.array(z.string()).catch([]),
 });
 
 export const projectsFileSchema = z.array(projectSchema);
@@ -228,10 +230,22 @@ export function normalizeWorkspace(
   // line floating above nothing (D42). Archived projects keep theirs: the
   // project still exists, and restoring it should bring its group back.
   const dividers = settings.sidebarDividers.filter((id) => projectIds.has(id));
+  // A group's name and fold state belong to its divider (D50); with the
+  // divider gone, so are they.
+  const live = new Set(dividers);
+  const names = Object.entries(settings.sidebarGroupNames).filter(([id]) => live.has(id));
+  const collapsed = settings.sidebarCollapsed.filter((id) => live.has(id));
   const keptSettings: Settings =
-    dividers.length === settings.sidebarDividers.length
+    dividers.length === settings.sidebarDividers.length &&
+    names.length === Object.keys(settings.sidebarGroupNames).length &&
+    collapsed.length === settings.sidebarCollapsed.length
       ? settings
-      : { ...settings, sidebarDividers: dividers };
+      : {
+          ...settings,
+          sidebarDividers: dividers,
+          sidebarGroupNames: Object.fromEntries(names),
+          sidebarCollapsed: collapsed,
+        };
 
   const keptFiles = files.filter((f) => projectIds.has(f.projectId));
   if (keptFiles.length !== files.length) {

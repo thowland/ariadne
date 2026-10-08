@@ -272,6 +272,14 @@ export interface Settings {
    * `normalizeWorkspace` drops ids whose project is gone.
    */
   sidebarDividers: string[];
+  /**
+   * A name for each sidebar group (D50), keyed like `sidebarDividers` by the
+   * project the divider sits above, so a name travels with its divider. A
+   * divider with no entry shows the generic label. Optional-additive.
+   */
+  sidebarGroupNames: Record<string, string>;
+  /** Divider anchors whose group is folded shut in the sidebar (D50). */
+  sidebarCollapsed: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -287,6 +295,8 @@ export const DEFAULT_SETTINGS: Settings = {
   badgeMode: 'none',
   theme: 'system',
   sidebarDividers: [],
+  sidebarGroupNames: {},
+  sidebarCollapsed: [],
 };
 
 /** The full in-memory domain state. */

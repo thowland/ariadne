@@ -56,10 +56,12 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   project onto the sidebar's archive zone, at which point they leave every active
   surface but stay intact under the sidebar's ARCHIVED section. The sidebar
   project list can be split into groups with **dividers** (decision D42): drag
-  the divider at the foot of the sidebar onto a project and a nameless line
-  appears above it; drag a line elsewhere to move it, or off the list to remove
-  it. A divider is stored against the project it sits above, so reordering the
-  list keeps the groups intact.
+  the divider at the foot of the sidebar onto a project and a group header
+  appears above it, asking for a name. The header's twisty folds the group
+  away the way the ARCHIVED section does (D50); drag a header elsewhere to move
+  it, or off the list to remove it. A divider, its name and its fold state are
+  stored against the project it sits above, so reordering the list keeps the
+  groups intact.
 - **Dependency map** — a layered SVG graph of each project's task chains. Drop
   one box onto another to declare that the dragged task waits on it (decision
   D37), and right-click a line to remove a dependency. The automatic layering

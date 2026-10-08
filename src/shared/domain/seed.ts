@@ -590,6 +590,11 @@ export function seedWorkspace(today: IsoDate): Workspace {
     tasks,
     files,
     contacts,
-    settings: { ...DEFAULT_SETTINGS, sidebarDividers: ['p3'] },
+    // A named group (D50), so the sidebar shows what a group header looks like.
+    settings: {
+      ...DEFAULT_SETTINGS,
+      sidebarDividers: ['p3'],
+      sidebarGroupNames: { p3: 'Personal' },
+    },
   };
 }

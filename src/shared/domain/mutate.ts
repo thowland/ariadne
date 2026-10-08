@@ -893,16 +893,74 @@ export function moveSidebarDivider(
   const without = from === null ? current : current.filter((id) => id !== from);
   if (without.includes(toProjectId)) {
     // Moving a divider onto a slot that already has one leaves one line, not
-    // two — but it still removes the one that was dragged.
+    // two — but it still removes the one that was dragged, and the group
+    // already there keeps its own name.
     if (without.length === current.length) return unchanged(ws);
-    return updateSettings(ws, { sidebarDividers: without });
+    return updateSettings(ws, { sidebarDividers: without, ...forgetGroup(ws, from) });
   }
-  return updateSettings(ws, { sidebarDividers: [...without, toProjectId] });
+  // A moved divider takes its name and fold state with it (D50).
+  let names = ws.settings.sidebarGroupNames;
+  let collapsed = ws.settings.sidebarCollapsed;
+  if (from !== null) {
+    const name = names[from];
+    names = withoutKey(names, from);
+    if (name !== undefined) names = { ...names, [toProjectId]: name };
+    if (collapsed.includes(from)) {
+      collapsed = [...collapsed.filter((id) => id !== from), toProjectId];
+    }
+  }
+  return updateSettings(ws, {
+    sidebarDividers: [...without, toProjectId],
+    sidebarGroupNames: names,
+    sidebarCollapsed: collapsed,
+  });
+}
+
+/** A copy of `record` without `key`. */
+function withoutKey(record: Record<string, string>, key: string): Record<string, string> {
+  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+}
+
+/** The name and fold-state fields with one divider's entries taken out. */
+function forgetGroup(
+  ws: Workspace,
+  anchor: string | null,
+): Pick<Settings, 'sidebarGroupNames' | 'sidebarCollapsed'> {
+  const names = ws.settings.sidebarGroupNames;
+  return {
+    sidebarGroupNames: anchor === null ? names : withoutKey(names, anchor),
+    sidebarCollapsed: ws.settings.sidebarCollapsed.filter((id) => id !== anchor),
+  };
 }
 
 /** Drop a divider outside the project list: the group separator goes away. */
 export function removeSidebarDivider(ws: Workspace, beforeProjectId: string): MutationResult {
   const kept = ws.settings.sidebarDividers.filter((id) => id !== beforeProjectId);
   if (kept.length === ws.settings.sidebarDividers.length) return unchanged(ws);
-  return updateSettings(ws, { sidebarDividers: kept });
+  return updateSettings(ws, { sidebarDividers: kept, ...forgetGroup(ws, beforeProjectId) });
+}
+
+/**
+ * Names the group a divider starts (D50). Blank clears the name back to the
+ * generic label rather than storing an empty string.
+ */
+export function renameSidebarGroup(ws: Workspace, anchor: string, name: string): MutationResult {
+  if (!ws.settings.sidebarDividers.includes(anchor)) return unchanged(ws);
+  const trimmed = name.trim();
+  const names = ws.settings.sidebarGroupNames;
+  if ((names[anchor] ?? '') === trimmed) return unchanged(ws);
+  return updateSettings(ws, {
+    sidebarGroupNames: trimmed === '' ? withoutKey(names, anchor) : { ...names, [anchor]: trimmed },
+  });
+}
+
+/** Folds a sidebar group shut, or opens it again (D50). */
+export function toggleSidebarGroup(ws: Workspace, anchor: string): MutationResult {
+  if (!ws.settings.sidebarDividers.includes(anchor)) return unchanged(ws);
+  const collapsed = ws.settings.sidebarCollapsed;
+  return updateSettings(ws, {
+    sidebarCollapsed: collapsed.includes(anchor)
+      ? collapsed.filter((id) => id !== anchor)
+      : [...collapsed, anchor],
+  });
 }

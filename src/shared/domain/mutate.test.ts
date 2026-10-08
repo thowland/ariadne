@@ -27,10 +27,12 @@ import {
   removeContactFromProject,
   removeDependency,
   removeSidebarDivider,
+  renameSidebarGroup,
   rescheduleTasks,
   replaceWorkspace,
   setContactManager,
   setTaskContacts,
+  toggleSidebarGroup,
   updateContact,
   updateFile,
   updateProject,
@@ -951,5 +953,64 @@ describe('sidebar dividers (D42)', () => {
     expect(r.changed).toEqual(['settings']);
     expect(r.workspace.settings.sidebarDividers).toEqual([]);
     expect(removeSidebarDivider(r.workspace, 'b').workspace).toBe(r.workspace);
+  });
+});
+
+describe('sidebar group names and folding (D50)', () => {
+  const base = moveSidebarDivider(
+    ws({ projects: [project({ id: 'a' }), project({ id: 'b' }), project({ id: 'c' })] }),
+    null,
+    'b',
+  ).workspace;
+
+  it('names a group, and a blank name goes back to the generic label', () => {
+    const named = renameSidebarGroup(base, 'b', '  Home  ').workspace;
+    expect(named.settings.sidebarGroupNames).toEqual({ b: 'Home' });
+    expect(renameSidebarGroup(named, 'b', 'Home').workspace).toBe(named);
+    expect(renameSidebarGroup(named, 'b', ' ').workspace.settings.sidebarGroupNames).toEqual({});
+  });
+
+  it('ignores a name or a fold for a divider that does not exist', () => {
+    expect(renameSidebarGroup(base, 'c', 'Nope').workspace).toBe(base);
+    expect(toggleSidebarGroup(base, 'c').workspace).toBe(base);
+  });
+
+  it('folds and unfolds a group', () => {
+    const shut = toggleSidebarGroup(base, 'b').workspace;
+    expect(shut.settings.sidebarCollapsed).toEqual(['b']);
+    expect(toggleSidebarGroup(shut, 'b').workspace.settings.sidebarCollapsed).toEqual([]);
+  });
+
+  it('carries the name and fold state with a moved divider', () => {
+    let w = renameSidebarGroup(base, 'b', 'Home').workspace;
+    w = toggleSidebarGroup(w, 'b').workspace;
+    const moved = moveSidebarDivider(w, 'b', 'c').workspace;
+    expect(moved.settings.sidebarGroupNames).toEqual({ c: 'Home' });
+    expect(moved.settings.sidebarCollapsed).toEqual(['c']);
+  });
+
+  it('moves an unnamed, open divider without inventing a name', () => {
+    const moved = moveSidebarDivider(base, 'b', 'c').workspace;
+    expect(moved.settings.sidebarGroupNames).toEqual({});
+    expect(moved.settings.sidebarCollapsed).toEqual([]);
+  });
+
+  it('keeps the existing group name when a divider is dropped onto it', () => {
+    let w = moveSidebarDivider(base, null, 'c').workspace;
+    w = renameSidebarGroup(w, 'b', 'Home').workspace;
+    w = renameSidebarGroup(w, 'c', 'Work').workspace;
+    w = toggleSidebarGroup(w, 'c').workspace;
+    const merged = moveSidebarDivider(w, 'c', 'b').workspace;
+    expect(merged.settings.sidebarDividers).toEqual(['b']);
+    expect(merged.settings.sidebarGroupNames).toEqual({ b: 'Home' });
+    expect(merged.settings.sidebarCollapsed).toEqual([]);
+  });
+
+  it('forgets the name and fold state of a removed divider', () => {
+    let w = renameSidebarGroup(base, 'b', 'Home').workspace;
+    w = toggleSidebarGroup(w, 'b').workspace;
+    const gone = removeSidebarDivider(w, 'b').workspace;
+    expect(gone.settings.sidebarGroupNames).toEqual({});
+    expect(gone.settings.sidebarCollapsed).toEqual([]);
   });
 });

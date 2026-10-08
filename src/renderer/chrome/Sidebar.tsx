@@ -6,7 +6,9 @@ import {
   moveSidebarDivider,
   moveTasksToProject,
   removeSidebarDivider,
+  renameSidebarGroup,
   rescheduleTasks,
+  toggleSidebarGroup,
   updateProject,
 } from '@shared/domain/mutate';
 import type { Project } from '@shared/types';
@@ -55,6 +57,8 @@ export function Sidebar(): React.JSX.Element {
   // one is being pulled off the palette.
   const [dividerDrag, setDividerDrag] = useState<{ from: string | null } | null>(null);
   const [dividerOverId, setDividerOverId] = useState<string | null>(null);
+  // The group whose name is being typed (D50), with the draft so far.
+  const [renaming, setRenaming] = useState<{ anchor: string; value: string } | null>(null);
   /**
    * Whether the divider drag ended on a slot in the project list. A drag that
    * finishes anywhere else — the calendar, the desktop, the middle of the
@@ -173,32 +177,149 @@ export function Sidebar(): React.JSX.Element {
   const dropDivider = (projectId: string): void => {
     if (dividerDrag === null) return;
     dividerLanded.current = true;
-    apply((ws) => moveSidebarDivider(ws, dividerDrag.from, projectId));
+    const fresh = dividerDrag.from === null;
+    const result = apply((ws) => moveSidebarDivider(ws, dividerDrag.from, projectId));
     setDividerDrag(null);
     setDividerOverId(null);
+    // A new group is named on the spot; leaving the box blank keeps the
+    // generic label, so naming is an offer rather than a step.
+    if (fresh && result !== null && result.changed.length > 0) {
+      setRenaming({ anchor: projectId, value: '' });
+    }
   };
 
-  /** The line itself: a square grab handle and a rule, no name (D42). */
-  const renderDivider = (projectId: string): React.JSX.Element => (
-    <div
-      key={`divider-${projectId}`}
-      className={`sidebar-divider${dividerDrag?.from === projectId ? ' dragging' : ''}`}
-      data-testid={`sidebar-divider-${projectId}`}
-      draggable
-      role="separator"
-      aria-label="Group divider (drag to move, or off the list to remove)"
-      onDragStart={(e) => {
-        setDividerDrag({ from: projectId });
-        dividerLanded.current = false;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData(DIVIDER_DND_TYPE, projectId);
-      }}
-      onDragEnd={endDividerDrag}
-    >
-      <span className="sidebar-divider-grip" aria-hidden="true" />
-      <span className="sidebar-divider-rule" aria-hidden="true" />
-    </div>
-  );
+  const groupNames = workspace?.settings.sidebarGroupNames ?? {};
+  const collapsedGroups = new Set(workspace?.settings.sidebarCollapsed ?? []);
+
+  // Which group each active project falls in: the nearest divider above it,
+  // or none for the projects above the first divider (D50).
+  const groupOf = new Map<string, string | null>();
+  const groupStats = new Map<string, { count: number; overdue: number }>();
+  {
+    let anchor: string | null = null;
+    for (const p of activeProjects) {
+      if (dividers.has(p.id)) anchor = p.id;
+      groupOf.set(p.id, anchor);
+      if (anchor === null) continue;
+      const stats = groupStats.get(anchor) ?? { count: 0, overdue: 0 };
+      stats.count += 1;
+      stats.overdue += tasks.filter((t) => t.projectId === p.id && isOverdue(t, today)).length;
+      groupStats.set(anchor, stats);
+    }
+  }
+
+  const commitRename = (): void => {
+    if (renaming === null) return;
+    const { anchor, value } = renaming;
+    setRenaming(null);
+    apply((ws) => renameSidebarGroup(ws, anchor, value));
+  };
+
+  /** Right-click on a group header: shortcuts for what the header itself offers. */
+  const groupMenu = (anchor: string): ContextMenuItem[] => [
+    {
+      label: collapsedGroups.has(anchor) ? 'Expand group' : 'Collapse group',
+      onSelect: () => {
+        apply((ws) => toggleSidebarGroup(ws, anchor));
+      },
+    },
+    {
+      label: 'Rename group…',
+      onSelect: () => {
+        setRenaming({ anchor, value: groupNames[anchor] ?? '' });
+      },
+    },
+    {
+      label: 'Remove divider',
+      separatorBefore: true,
+      onSelect: () => {
+        apply((ws) => removeSidebarDivider(ws, anchor));
+        showToast('Divider removed');
+      },
+    },
+  ];
+
+  /**
+   * A group header (D50, extending D42's nameless line): a grab handle, the
+   * group's name with a twisty that folds the projects under it away — the
+   * same arrangement as the ARCHIVED heading — and a pencil to rename it.
+   * Dragging the header moves or removes the divider exactly as before.
+   */
+  const renderDivider = (projectId: string): React.JSX.Element => {
+    const name = groupNames[projectId] ?? '';
+    const collapsed = collapsedGroups.has(projectId);
+    const stats = groupStats.get(projectId) ?? { count: 0, overdue: 0 };
+    const editing = renaming?.anchor === projectId;
+    return (
+      <div
+        key={`divider-${projectId}`}
+        className={`sidebar-divider sidebar-group${dividerDrag?.from === projectId ? ' dragging' : ''}`}
+        data-testid={`sidebar-divider-${projectId}`}
+        draggable={!editing}
+        role="separator"
+        aria-label="Group divider (drag to move, or off the list to remove)"
+        onDragStart={(e) => {
+          setDividerDrag({ from: projectId });
+          dividerLanded.current = false;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(DIVIDER_DND_TYPE, projectId);
+        }}
+        onDragEnd={endDividerDrag}
+        onContextMenu={menuHandler(openContextMenu, name || 'Group', () => groupMenu(projectId))}
+      >
+        <span className="sidebar-divider-grip" aria-hidden="true" />
+        {editing ? (
+          <input
+            className="sidebar-group-input"
+            value={renaming.value}
+            placeholder="Group name"
+            aria-label="Group name"
+            maxLength={40}
+            autoFocus
+            onChange={(e) => {
+              setRenaming({ anchor: projectId, value: e.target.value });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') setRenaming(null);
+            }}
+            onBlur={commitRename}
+          />
+        ) : (
+          <button
+            className="label sidebar-group-toggle"
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Show this group' : 'Fold this group away'}
+            onClick={() => {
+              apply((ws) => toggleSidebarGroup(ws, projectId));
+            }}
+          >
+            <span className="sidebar-group-name">{name || 'Group'}</span> ({stats.count}){' '}
+            {collapsed ? '▸' : '▾'}
+          </button>
+        )}
+        {/* Folded away, a group still says when something in it is late. */}
+        {collapsed && stats.overdue > 0 && !editing && (
+          <span className="nav-count overdue" title="Overdue tasks in this group">
+            {stats.overdue}
+          </span>
+        )}
+        <span className="sidebar-divider-rule" aria-hidden="true" />
+        {!editing && (
+          <button
+            className="sidebar-group-rename"
+            aria-label={`Rename group ${name || 'Group'}`}
+            title="Rename group"
+            onClick={() => {
+              setRenaming({ anchor: projectId, value: name });
+            }}
+          >
+            ✎
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const archiveDragged = (): void => {
     if (dragId !== null) {
@@ -249,6 +370,15 @@ export function Sidebar(): React.JSX.Element {
       </div>
       <nav className="nav-list" aria-label="Projects">
         {activeProjects.map((p) => {
+          const group = groupOf.get(p.id) ?? null;
+          // A folded group shows only its header, which is the divider itself.
+          // Same fragment key either way, so folding keeps the header mounted
+          // and the twisty keeps keyboard focus.
+          if (group !== null && collapsedGroups.has(group)) {
+            return group === p.id ? (
+              <React.Fragment key={p.id}>{renderDivider(p.id)}</React.Fragment>
+            ) : null;
+          }
           const projectTasks = tasks.filter((t) => t.projectId === p.id);
           const open = projectTasks.filter(isOpen).length;
           const overdue = projectTasks.filter((t) => isOverdue(t, today)).length;

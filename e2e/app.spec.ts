@@ -1267,7 +1267,7 @@ test('dark mode: chosen in Settings, applied everywhere, remembered (D38)', asyn
   await second.close();
 });
 
-test('sidebar dividers: drag one in to group projects, drag it out to remove it (D42)', async () => {
+test('sidebar dividers: drag one in, name it, fold it, drag it out (D42, D50)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);
   const win = await app.firstWindow();
@@ -1285,13 +1285,24 @@ test('sidebar dividers: drag one in to group projects, drag it out to remove it 
   const added = win.getByTestId('sidebar-divider-p5');
   await expect(added).toBeVisible();
 
-  // The line renders directly above the project it groups, and carries no name.
+  // The header renders directly above the project it groups, and asks for a
+  // name straight away (D50).
   const dividerBox = (await added.boundingBox())!;
   const projectBox = (await projectNav
     .getByRole('button', { name: /Hiring: Senior Engineer/ })
     .boundingBox())!;
   expect(dividerBox.y).toBeLessThan(projectBox.y);
-  await expect(added).toHaveText('');
+  await expect(win.getByLabel('Group name')).toBeFocused();
+  await win.getByLabel('Group name').fill('Team');
+  await win.getByLabel('Group name').press('Enter');
+  await expect(added.getByRole('button', { name: /^Team \(2\)/ })).toBeVisible();
+
+  // The twisty folds the group away, and the fold survives the restart below.
+  await added.getByRole('button', { name: /^Team/ }).click();
+  await expect(projectNav.getByRole('button', { name: /Hiring: Senior Engineer/ })).toHaveCount(0);
+  await added.getByRole('button', { name: /^Team/ }).click();
+  await seeded.getByRole('button', { name: /^Personal/ }).click();
+  await expect(projectNav.getByRole('button', { name: /2025 Taxes/ })).toHaveCount(0);
 
   // Dropped outside the project list, a divider goes away.
   await added.dragTo(win.getByTestId('home-headline'));
@@ -1305,6 +1316,9 @@ test('sidebar dividers: drag one in to group projects, drag it out to remove it 
   await expect(win2.getByTestId('home-headline')).toBeVisible();
   await expect(win2.getByTestId('sidebar-divider-p3')).toBeVisible();
   await expect(win2.getByTestId('sidebar-divider-p5')).toHaveCount(0);
+  await expect(
+    win2.getByTestId('sidebar-divider-p3').getByRole('button', { name: /^Personal/ }),
+  ).toHaveAttribute('aria-expanded', 'false');
   await second.close();
 });
 
