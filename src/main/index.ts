@@ -7,6 +7,7 @@ import { app, BrowserWindow, Menu, net, protocol, shell } from 'electron';
 
 import { registerIpc } from './ipc';
 import { buildAppMenuTemplate } from './menu';
+import { QuickAddTray } from './quick-add-tray';
 import { BackupService } from './services/backup-service';
 import { BlobService } from './services/blob-service';
 import { ConfigService, DEFAULT_WINDOW_BOUNDS } from './services/config-service';
@@ -27,6 +28,7 @@ let logger: LoggerService | null = null;
 let debugLog: DebugLogService | null = null;
 let quitting = false;
 let mainWindow: BrowserWindow | null = null;
+let quickAdd: QuickAddTray | null = null;
 
 // Single-user desktop app: a second launch focuses the existing window.
 if (!app.requestSingleInstanceLock()) {
@@ -56,7 +58,9 @@ const isMac = process.platform === 'darwin';
  */
 function installAppMenu(): void {
   const send = (command: MenuCommand): void => {
-    const target = BrowserWindow.getFocusedWindow() ?? mainWindow;
+    // The main window, even while the menu-bar flyout (D51) has focus: the
+    // flyout handles no menu commands, so sending them there would drop them.
+    const target = mainWindow ?? BrowserWindow.getFocusedWindow();
     target?.webContents.send(IPC.menuCommand, command);
   };
   const template = buildAppMenuTemplate({
@@ -106,6 +110,9 @@ function createWindow(config: ConfigService): void {
   });
   win.on('closed', () => {
     mainWindow = null;
+    // The flyout is a window too: left alive it would keep the app running
+    // with nothing to file tasks into, and window-all-closed would never fire.
+    quickAdd?.destroy();
   });
 
   // The renderer never opens windows; external links go through the OS, and
@@ -115,11 +122,53 @@ function createWindow(config: ConfigService): void {
     return { action: 'deny' };
   });
 
+  loadRenderer(win);
+}
+
+/** Loads the renderer bundle; `hash` picks the menu-bar flyout's page (D51). */
+function loadRenderer(win: BrowserWindow, hash?: string): void {
   if (process.env.ELECTRON_RENDERER_URL) {
-    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
+    void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}${hash !== undefined ? `#${hash}` : ''}`);
   } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'));
+    void win.loadFile(
+      join(__dirname, '../renderer/index.html'),
+      hash !== undefined ? { hash } : {},
+    );
   }
+}
+
+/** The small frameless window the menu-bar icon opens (D51). */
+function createFlyoutWindow(size: { width: number; height: number }): BrowserWindow {
+  const win = new BrowserWindow({
+    ...size,
+    show: false,
+    frame: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    title: 'Quick add',
+    backgroundColor: '#f6f6f4',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // Follow the user across Spaces, so the flyout opens on the desktop they are
+  // looking at. skipTransformProcessType is load-bearing: without it, macOS
+  // Electron turns the whole app into a menu-bar-only accessory process, and
+  // the dock icon disappears until relaunch. That also rules out
+  // visibleOnFullScreen, which needs the transform, so the flyout does not
+  // open over a full-screen app.
+  if (isMac) win.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
+  loadRenderer(win, 'quick-add');
+  return win;
 }
 
 process.on('uncaughtException', (err) => {
@@ -153,7 +202,24 @@ void app.whenReady().then(() => {
     }
     mainWindow?.webContents.send(IPC.saveStatus, status);
   });
-  registerIpc(storage, backups, blobs, config, dataDir, debug);
+  quickAdd = new QuickAddTray({
+    isMac,
+    createFlyout: createFlyoutWindow,
+    mainWindow: () => mainWindow,
+    lastProjectId: () => config.load().lastQuickAddProjectId ?? null,
+    rememberProject: (projectId) => {
+      try {
+        config.save({ ...config.load(), lastQuickAddProjectId: projectId });
+      } catch (err) {
+        logger?.error(`quick-add config save failed: ${err instanceof Error ? err.message : '?'}`);
+      }
+    },
+    showMainWindow: () => {
+      mainWindow?.show();
+      mainWindow?.focus();
+    },
+  });
+  registerIpc(storage, backups, blobs, config, dataDir, debug, quickAdd);
 
   // Daily backup: at startup (before any edits this session) and re-checked
   // hourly so a machine that never restarts still gets one per day.

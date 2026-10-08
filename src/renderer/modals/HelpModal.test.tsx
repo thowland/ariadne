@@ -65,6 +65,12 @@ describe('HelpModal', () => {
     expect(body('start')).toHaveTextContent('dark');
     // Contacts CSV keeps its matching rule where a user will look for it.
     expect(body('contacts')).toHaveTextContent('never clears');
+    // v2.7: the menu-bar quick add, the vCard export, Edit on contact details,
+    // and folding sidebar groups.
+    expect(body('start')).toHaveTextContent('Settings → Menu bar');
+    expect(body('contacts')).toHaveTextContent('Export vCard');
+    expect(body('contacts')).toHaveTextContent('Edit on the Details card');
+    expect(body('tasks')).toHaveTextContent('fold the group');
     // The Claude bridge is read-only, and the help says so out loud.
     expect(body('claude')).toHaveTextContent('read-only');
   });

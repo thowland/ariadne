@@ -1,3 +1,5 @@
+import { isOverdue } from '@shared/domain/derive';
+import { updateTask } from '@shared/domain/mutate';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -485,5 +487,120 @@ describe('Sidebar — group dividers (D42)', () => {
     fireEvent.dragStart(screen.getByTestId('sidebar-divider-p3'), { dataTransfer });
     fireEvent.drop(screen.getByRole('button', { name: /2025 Taxes/ }), { dataTransfer });
     expect((useStore.getState().workspace?.projects ?? []).map((p) => p.id)).toEqual(before);
+  });
+});
+
+describe('Sidebar — named, folding groups (D50)', () => {
+  function ws() {
+    const w = useStore.getState().workspace;
+    if (w === null) throw new Error('no workspace');
+    return w;
+  }
+
+  function settings() {
+    const w = useStore.getState().workspace;
+    if (w === null) throw new Error('no workspace');
+    return w.settings;
+  }
+
+  it('heads the seeded group with its name and how many projects it holds', () => {
+    render(<Sidebar />);
+    const toggle = within(screen.getByTestId('sidebar-divider-p3')).getByRole('button', {
+      name: /Personal \(\d+\)/,
+    });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('folds the projects under a group away, and back', async () => {
+    render(<Sidebar />);
+    const toggle = within(screen.getByTestId('sidebar-divider-p3')).getByRole('button', {
+      name: /^Personal/,
+    });
+    await userEvent.click(toggle);
+    expect(settings().sidebarCollapsed).toEqual(['p3']);
+    expect(screen.queryByRole('button', { name: /Refinish boat table/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /2025 Taxes/ })).not.toBeInTheDocument();
+    // Projects above the first divider belong to no group and stay put.
+    expect(screen.getByRole('button', { name: /Q3 Platform Migration/ })).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(settings().sidebarCollapsed).toEqual([]);
+    expect(screen.getByRole('button', { name: /2025 Taxes/ })).toBeInTheDocument();
+  });
+
+  it('still shows how much is overdue in a folded group', async () => {
+    // One task in the group made certainly late, so the badge has to appear.
+    const target = ws().tasks.find((t) => t.projectId === 'p4')!;
+    useStore
+      .getState()
+      .apply((w, ctx) => updateTask(w, target.id, { status: 'Todo', dueDate: '2026-01-02' }, ctx));
+    const groupIds = new Set(['p3', 'p4', 'p5', 'p6']);
+    const late = ws().tasks.filter(
+      (t) => groupIds.has(t.projectId) && isOverdue(t, useStore.getState().today),
+    ).length;
+    render(<Sidebar />);
+    const header = screen.getByTestId('sidebar-divider-p3');
+    expect(within(header).queryByTitle('Overdue tasks in this group')).not.toBeInTheDocument();
+    await userEvent.click(within(header).getByRole('button', { name: /^Personal/ }));
+    expect(within(header).getByTitle('Overdue tasks in this group')).toHaveTextContent(
+      String(late),
+    );
+  });
+
+  it('renames a group from its pencil; Escape abandons the edit', async () => {
+    render(<Sidebar />);
+    await userEvent.click(screen.getByRole('button', { name: 'Rename group Personal' }));
+    const input = screen.getByLabelText('Group name');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Home{Enter}');
+    expect(settings().sidebarGroupNames).toEqual({ p3: 'Home' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rename group Home' }));
+    await userEvent.type(screen.getByLabelText('Group name'), 'zzz{Escape}');
+    expect(settings().sidebarGroupNames).toEqual({ p3: 'Home' });
+  });
+
+  it('asks for a name as soon as a new divider lands', async () => {
+    render(<Sidebar />);
+    const store = new Map<string, string>([[DIVIDER_DND_TYPE, 'new']]);
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      types: [...store.keys()],
+      setData: (k: string, v: string) => store.set(k, v),
+      getData: (k: string) => store.get(k) ?? '',
+    };
+    fireEvent.dragStart(screen.getByTestId('divider-source'), { dataTransfer });
+    fireEvent.drop(screen.getByRole('button', { name: /Hiring: Senior Engineer/ }), {
+      dataTransfer,
+    });
+    const input = screen.getByLabelText('Group name');
+    expect(input).toHaveFocus();
+    await userEvent.type(input, 'Team');
+    // Leaving the box commits, the same as Enter.
+    fireEvent.blur(input);
+    expect(settings().sidebarGroupNames).toEqual({ p3: 'Personal', p5: 'Team' });
+  });
+
+  it('offers fold, rename and remove on right-click', async () => {
+    render(
+      <>
+        <Sidebar />
+        <ContextMenu />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByTestId('sidebar-divider-p3'));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Collapse group' }));
+    expect(settings().sidebarCollapsed).toEqual(['p3']);
+
+    fireEvent.contextMenu(screen.getByTestId('sidebar-divider-p3'));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename group…' }));
+    expect(screen.getByLabelText('Group name')).toHaveValue('Personal');
+    fireEvent.keyDown(screen.getByLabelText('Group name'), { key: 'Escape' });
+
+    fireEvent.contextMenu(screen.getByTestId('sidebar-divider-p3'));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove divider' }));
+    expect(settings().sidebarDividers).toEqual([]);
+    expect(settings().sidebarGroupNames).toEqual({});
   });
 });

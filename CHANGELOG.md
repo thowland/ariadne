@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.7.0 — 2026-10-08
+
+- **Add a task from the menu bar.** Turn on **Settings → Menu bar** and the
+  Ariadne spiral appears in the macOS menu bar (the system tray on Windows and
+  Linux). Click it and a small box opens: choose a project, type the task the
+  way you would in a project's quick-add — `@` a person, `#` a tag, "friday"
+  for a due date — and press Enter. It opens on the project you used last and
+  stays open so you can add several in a row; Escape or a click elsewhere puts
+  it away. It is off until you turn it on.
+- **Sidebar groups have names, and fold away.** A divider is now a heading
+  you can name — you are asked as soon as you drop one — with a twisty that
+  folds the projects under it out of sight, the way the Archived list does. A
+  folded group still shows its overdue count. Rename a group with the pencil
+  beside its heading; moving and removing work as before.
+- **Click a tag to see what carries it.** On the Tags screen, clicking a tag
+  in the list opens every project, task and person with that tag right
+  underneath it, each one a link. The cloud of tags at the top still searches.
+- **Contact details read as text.** Someone's company, role, email and phone
+  now show as plain text instead of a column of boxes. Press **Edit** on the
+  Details card to change them and **Done** when you are finished; a new
+  contact opens with the form ready. The email and phone buttons work either
+  way.
+- **Export a contact as a vCard.** **Export vCard** on a contact's page saves
+  a `.vcf` card that iOS, macOS Contacts and Outlook can import, with their
+  name, company, role, email, phone, notes and tags.
+- In-app help covers all five.
+
 ## 2.6.0 — 2026-09-29
 
 - **Project links are links.** A project's Links card now shows each link as

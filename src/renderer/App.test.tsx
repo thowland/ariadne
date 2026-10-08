@@ -53,6 +53,48 @@ describe('App shell — dock badge (D28)', () => {
   });
 });
 
+describe('App menu-bar quick-add (D51)', () => {
+  it('keeps the icon off until the setting is on, then sends the flyout its context', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    expect(window.ariadne.configureQuickAdd).toHaveBeenLastCalledWith(false, null);
+
+    act(() => {
+      useStore.getState().apply((ws) => updateSettings(ws, { menuBarQuickAdd: true }));
+    });
+    await waitFor(() => {
+      const last = vi.mocked(window.ariadne.configureQuickAdd).mock.calls.at(-1);
+      expect(last?.[0]).toBe(true);
+      expect(last?.[1]?.projects.map((p) => p.id)).toContain('p1');
+    });
+    const sends = vi.mocked(window.ariadne.configureQuickAdd).mock.calls.length;
+    // A note edit changes nothing the flyout shows, so nothing is resent.
+    act(() => {
+      useStore.getState().apply((ws, ctx) => updateTask(ws, 't3', { notes: 'x' }, ctx));
+    });
+    expect(vi.mocked(window.ariadne.configureQuickAdd).mock.calls.length).toBe(sends);
+  });
+
+  it('creates a task the flyout sends', async () => {
+    render(<App />);
+    await screen.findByTestId('home-headline');
+    const receive = vi.mocked(window.ariadne.onQuickAddCommit).mock.calls[0]?.[0];
+    expect(receive).toBeDefined();
+    act(() => {
+      receive!({
+        projectId: 'p1',
+        title: 'From the menu bar',
+        dueDate: null,
+        tags: [],
+        people: [],
+      });
+    });
+    expect(useStore.getState().workspace?.tasks.some((t) => t.title === 'From the menu bar')).toBe(
+      true,
+    );
+  });
+});
+
 describe('App shell', () => {
   it('loads the workspace into the Command Center', async () => {
     render(<App />);

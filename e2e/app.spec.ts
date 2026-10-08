@@ -1033,7 +1033,10 @@ test('contacts: @-mention a person onto a task, see them everywhere, and survive
   await expect(win.getByTestId('contact-headline')).toHaveText('Tom Whitaker');
   await expect(win.getByText('Ask @Tom Whitaker about the second coat')).toBeVisible();
 
-  // Edit a field on the detail page; it must come back after a restart.
+  // Edit a field on the detail page; it must come back after a restart. An
+  // established contact reads as text until Edit opens the form (D47).
+  await expect(win.getByTestId('contact-facts')).toBeVisible();
+  await win.getByRole('button', { name: 'Edit', exact: true }).click();
   await win.getByLabel('Role').fill('Owner, Harborline Marine');
   await first.close();
 
@@ -1264,7 +1267,7 @@ test('dark mode: chosen in Settings, applied everywhere, remembered (D38)', asyn
   await second.close();
 });
 
-test('sidebar dividers: drag one in to group projects, drag it out to remove it (D42)', async () => {
+test('sidebar dividers: drag one in, name it, fold it, drag it out (D42, D50)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
   const app = await launch(dir);
   const win = await app.firstWindow();
@@ -1282,13 +1285,24 @@ test('sidebar dividers: drag one in to group projects, drag it out to remove it 
   const added = win.getByTestId('sidebar-divider-p5');
   await expect(added).toBeVisible();
 
-  // The line renders directly above the project it groups, and carries no name.
+  // The header renders directly above the project it groups, and asks for a
+  // name straight away (D50).
   const dividerBox = (await added.boundingBox())!;
   const projectBox = (await projectNav
     .getByRole('button', { name: /Hiring: Senior Engineer/ })
     .boundingBox())!;
   expect(dividerBox.y).toBeLessThan(projectBox.y);
-  await expect(added).toHaveText('');
+  await expect(win.getByLabel('Group name')).toBeFocused();
+  await win.getByLabel('Group name').fill('Team');
+  await win.getByLabel('Group name').press('Enter');
+  await expect(added.getByRole('button', { name: /^Team \(2\)/ })).toBeVisible();
+
+  // The twisty folds the group away, and the fold survives the restart below.
+  await added.getByRole('button', { name: /^Team/ }).click();
+  await expect(projectNav.getByRole('button', { name: /Hiring: Senior Engineer/ })).toHaveCount(0);
+  await added.getByRole('button', { name: /^Team/ }).click();
+  await seeded.getByRole('button', { name: /^Personal/ }).click();
+  await expect(projectNav.getByRole('button', { name: /2025 Taxes/ })).toHaveCount(0);
 
   // Dropped outside the project list, a divider goes away.
   await added.dragTo(win.getByTestId('home-headline'));
@@ -1302,6 +1316,9 @@ test('sidebar dividers: drag one in to group projects, drag it out to remove it 
   await expect(win2.getByTestId('home-headline')).toBeVisible();
   await expect(win2.getByTestId('sidebar-divider-p3')).toBeVisible();
   await expect(win2.getByTestId('sidebar-divider-p5')).toHaveCount(0);
+  await expect(
+    win2.getByTestId('sidebar-divider-p3').getByRole('button', { name: /^Personal/ }),
+  ).toHaveAttribute('aria-expanded', 'false');
   await second.close();
 });
 
@@ -1360,5 +1377,59 @@ test('tags: # picks a tag, which then comes out of the title (D40)', async () =>
   await quick.fill('Order more #kayak straps');
   await quick.press('Enter');
   await expect(win.locator('.trow-title', { hasText: 'Order more #kayak straps' })).toBeVisible();
+  await app.close();
+});
+
+test('menu-bar quick add: the flyout files a task into the chosen project (D51)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  // Off by default: nothing but the main window.
+  expect(app.windows()).toHaveLength(1);
+
+  await win.getByRole('button', { name: 'Settings' }).click();
+  const flyoutOpened = app.waitForEvent('window');
+  await win.getByLabel('Show quick add in the menu bar').check();
+  // Turning it on builds the flyout up front, hidden, so a click opens it
+  // instantly. The tray icon itself cannot be clicked from Playwright, so the
+  // test drives the flyout's page directly.
+  const flyout = await flyoutOpened;
+  await expect(flyout.getByTestId('quick-add-flyout')).toBeAttached();
+  // The flyout must not cost Ariadne its dock icon. Making a window follow
+  // every Space can silently turn the whole app into a menu-bar-only process
+  // on macOS; there is no dock anywhere else, so the check is Mac-only.
+  if (process.platform === 'darwin') {
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()
+        .find((w) => w.webContents.getURL().includes('quick-add'))
+        ?.show();
+    });
+    await expect.poll(() => app.evaluate(({ app }) => app.dock?.isVisible())).toBe(true);
+  }
+  await expect(flyout.getByLabel('Project')).toHaveValue('p1');
+
+  await flyout.getByLabel('Project').selectOption({ label: 'Refinish boat table' });
+  await flyout.getByLabel('Add a task').fill('Buy marine varnish tomorrow');
+  await flyout.getByLabel('Add a task').press('Enter');
+  await expect(flyout.getByRole('status')).toContainText(
+    'Added “Buy marine varnish” to Refinish boat table',
+  );
+
+  // The main window created it, in that project, with the date read out.
+  await expect(win.locator('.toast')).toContainText('Added “Buy marine varnish”');
+  await win.getByRole('navigation', { name: 'Projects' }).getByText('Refinish boat table').click();
+  await expect(win.locator('.trow-title', { hasText: 'Buy marine varnish' })).toBeVisible();
+
+  // The project choice is remembered for next time, in config.json.
+  const config = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as {
+    lastQuickAddProjectId?: string;
+  };
+  expect(config.lastQuickAddProjectId).toBe('p3');
+
+  // Turning the setting off takes the flyout (and the icon) away again.
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByLabel('Show quick add in the menu bar').uncheck();
+  await expect.poll(() => app.windows().length).toBe(1);
   await app.close();
 });

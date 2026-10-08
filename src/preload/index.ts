@@ -57,6 +57,28 @@ const api: AriadneApi = {
   revealLogFile: () => ipcRenderer.invoke(IPC.logReveal),
   getLogInfo: () => ipcRenderer.invoke(IPC.logInfo),
   setBadge: (count: number) => ipcRenderer.invoke(IPC.badgeSet, count),
+  configureQuickAdd: (enabled, context) =>
+    ipcRenderer.invoke(IPC.quickAddConfigure, { enabled, context }),
+  onQuickAddCommit: (cb) => {
+    ipcRenderer.on(IPC.quickAddCommit, (_event, draft) => {
+      cb(draft as import('@shared/domain/quick-add').QuickAddDraft);
+    });
+  },
+  getQuickAddContext: () => ipcRenderer.invoke(IPC.quickAddContext),
+  onQuickAddContext: (cb) => {
+    ipcRenderer.on(IPC.quickAddContextPush, (_event, context) => {
+      cb(context as import('@shared/domain/quick-add').QuickAddContext);
+    });
+  },
+  onQuickAddShown: (cb) => {
+    ipcRenderer.on(IPC.quickAddShown, () => {
+      cb();
+    });
+  },
+  submitQuickAdd: (draft) => ipcRenderer.invoke(IPC.quickAddSubmit, draft),
+  hideQuickAdd: () => {
+    ipcRenderer.send(IPC.quickAddHide);
+  },
   fakeToday: process.env.ARIADNE_FAKE_TODAY ?? null,
   insetTitlebar: process.platform === 'darwin',
 };

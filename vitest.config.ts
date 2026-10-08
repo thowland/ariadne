@@ -48,6 +48,11 @@ export default defineConfig({
         // coverage cannot instrument.
         'src/main/index.ts',
         'src/main/ipc.ts',
+        // Tray + flyout window plumbing (D51); its placement maths is the
+        // pure, tested flyout-position.ts, the rest is exercised by E2E.
+        'src/main/quick-add-tray.ts',
+        // Embedded icon bytes, no code.
+        'src/main/tray-icon.ts',
         'src/preload/**',
         // DOM mount point only; exercised by E2E.
         'src/renderer/main.tsx',

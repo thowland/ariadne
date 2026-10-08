@@ -9,8 +9,11 @@ import {
 import { isOpen } from '@shared/domain/derive';
 import { deleteContact, setContactManager, updateContact } from '@shared/domain/mutate';
 import { byProjectListOrder } from '@shared/domain/sort';
+import { toVCard, vCardFileName } from '@shared/domain/vcard';
 import type { Contact } from '@shared/types';
+import { useState } from 'react';
 
+import { getApi } from '../app/api';
 import { useStore } from '../app/store';
 import {
   ContactActionLink,
@@ -67,6 +70,218 @@ function Field({
   );
 }
 
+/** True for a contact nobody has filled in yet — the one "New contact" makes. */
+function isBlank(contact: Contact): boolean {
+  return contact.firstName.trim() === '' && contact.lastName.trim() === '';
+}
+
+/**
+ * The Details card (D47). Somebody you already know is read far more often
+ * than corrected, so their details show as text — the email and phone still
+ * one click from the mail client and the dialer — and the form only appears
+ * behind Edit, the same arrangement as a project's Links card. A brand-new,
+ * blank contact opens straight into the form, since filling it in is the only
+ * thing to do with it.
+ *
+ * Whether the form is open is decided once, when the card mounts (the parent
+ * keys it by contact id). Deciding it on every render would snap the form shut
+ * the moment the first letter of a new contact's name was typed.
+ */
+function DetailsCard({
+  contact,
+  name,
+  patch,
+}: {
+  contact: Contact;
+  name: string;
+  patch: (fields: Partial<Omit<Contact, 'id'>>) => void;
+}): React.JSX.Element {
+  const [editing, setEditing] = useState(() => isBlank(contact));
+  const setQuery = useStore((s) => s.setQuery);
+  // A contact with no name yet is one you are still filling in, so the
+  // placeholders stay to show what each box wants.
+  const guide = isBlank(contact);
+  const facts = (
+    [
+      ['Company', contact.company],
+      ['Department', contact.department],
+      ['Role', contact.role],
+    ] as const
+  ).filter(([, value]) => value.trim() !== '');
+  const nothing =
+    facts.length === 0 &&
+    contact.email.trim() === '' &&
+    contact.phone.trim() === '' &&
+    contact.tags.length === 0;
+
+  return (
+    <Card
+      title="Details"
+      headRight={
+        <button
+          className="lib-btn"
+          onClick={() => {
+            setEditing((e) => !e);
+          }}
+        >
+          {editing ? 'Done' : 'Edit'}
+        </button>
+      }
+    >
+      {editing ? (
+        <div className="card-pad contact-form">
+          <div className="field-grid">
+            <Field
+              label="First name"
+              value={contact.firstName}
+              placeholder="Dana"
+              guide={guide}
+              onChange={(firstName) => {
+                patch({ firstName });
+              }}
+            />
+            <Field
+              label="Last name"
+              value={contact.lastName}
+              placeholder="Reyes"
+              guide={guide}
+              onChange={(lastName) => {
+                patch({ lastName });
+              }}
+            />
+            <Field
+              label="Company"
+              value={contact.company}
+              placeholder="Northwind Systems"
+              guide={guide}
+              onChange={(company) => {
+                patch({ company });
+              }}
+            />
+            <Field
+              label="Department"
+              value={contact.department}
+              placeholder="Platform Engineering"
+              guide={guide}
+              onChange={(department) => {
+                patch({ department });
+              }}
+            />
+            <Field
+              label="Role"
+              value={contact.role}
+              placeholder="Platform Lead"
+              guide={guide}
+              onChange={(role) => {
+                patch({ role });
+              }}
+            />
+          </div>
+          {/* No copy buttons beside these two — the header already carries
+              them, and a second pair squeezed the fields to nothing. The
+              action icons are narrow enough to sit here, and they do
+              something copying cannot: hand the address to the OS. */}
+          <div className="contact-form-row">
+            <Field
+              label="Email"
+              type="email"
+              value={contact.email}
+              placeholder="dana@example.com"
+              guide={guide}
+              onChange={(email) => {
+                patch({ email });
+              }}
+            />
+            <ContactActionLink kind="email" value={contact.email} who={name} />
+          </div>
+          <div className="contact-form-row">
+            <Field
+              label="Phone"
+              type="tel"
+              value={contact.phone}
+              placeholder="(555) 010-0000"
+              guide={guide}
+              onChange={(phone) => {
+                patch({ phone });
+              }}
+            />
+            <ContactActionLink kind="phone" value={contact.phone} who={name} />
+          </div>
+          <div>
+            <div className="field-label">COLOUR</div>
+            <ContactColorPicker
+              contact={contact}
+              onChange={(color) => {
+                patch({ color });
+              }}
+            />
+          </div>
+          <div>
+            <div className="field-label">TAGS</div>
+            <TagEditor
+              tags={contact.tags}
+              onChange={(tags) => {
+                patch({ tags });
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="card-pad contact-facts" data-testid="contact-facts">
+          {facts.map(([label, value]) => (
+            <div key={label} className="contact-fact">
+              <div className="field-label">{label.toUpperCase()}</div>
+              <div className="contact-fact-value">{value}</div>
+            </div>
+          ))}
+          {contact.email.trim() !== '' && (
+            <div className="contact-fact">
+              <div className="field-label">EMAIL</div>
+              <div className="contact-fact-row">
+                <span className="contact-fact-value">{contact.email}</span>
+                <ContactActionLink kind="email" value={contact.email} who={name} />
+              </div>
+            </div>
+          )}
+          {contact.phone.trim() !== '' && (
+            <div className="contact-fact">
+              <div className="field-label">PHONE</div>
+              <div className="contact-fact-row">
+                <span className="contact-fact-value">{contact.phone}</span>
+                <ContactActionLink kind="phone" value={contact.phone} who={name} />
+              </div>
+            </div>
+          )}
+          {contact.tags.length > 0 && (
+            <div className="contact-fact">
+              <div className="field-label">TAGS</div>
+              <div className="tag-editor">
+                {contact.tags.map((tag) => (
+                  <span key={tag} className="tag-chip">
+                    {/* The same search a tag chip runs everywhere else. */}
+                    <button
+                      className="tag-chip-label"
+                      title={`Search for #${tag}`}
+                      onClick={() => {
+                        setQuery(tag);
+                      }}
+                    >
+                      #{tag}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {nothing && (
+            <div className="card-empty">Nothing recorded yet. Press Edit to add details.</div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /**
  * A single contact (D31): their details, editable in place like a project's
  * are, plus everything of theirs that is in flight. The two lists are the
@@ -86,9 +301,6 @@ export function ContactDetail(): React.JSX.Element {
   const tasks = tasksOfContact(workspace, contact.id);
   const projects = projectsOfContact(workspace, contact.id);
   const openCount = tasks.filter(isOpen).length;
-  // A contact with no name yet is one you are still filling in, so the
-  // placeholders stay to show what each box wants.
-  const guide = contact.firstName.trim() === '' && contact.lastName.trim() === '';
   const manager = managerOf(workspace, contact);
   const reports = directReports(workspace, contact.id);
   // Everyone the picker must not offer: themself and their whole subtree, so
@@ -105,6 +317,17 @@ export function ContactDetail(): React.JSX.Element {
 
   const patch = (fields: Partial<Omit<Contact, 'id'>>): void => {
     apply((ws) => updateContact(ws, contact.id, fields));
+  };
+
+  // A .vcf through the ordinary save dialog (D49): the address book on the
+  // other end does the importing.
+  const exportCard = (): void => {
+    void getApi()
+      .downloadFile({ content: toVCard(contact), suggestedName: vCardFileName(contact) })
+      .then((res) => {
+        if (res.error !== undefined) showToast(`Export failed: ${res.error}`);
+        else if (res.savedPath !== null) showToast(`Saved ${name}'s card`);
+      });
   };
 
   const remove = (): void => {
@@ -134,6 +357,13 @@ export function ContactDetail(): React.JSX.Element {
           ← All contacts
         </button>
         <div className="spacer" />
+        <button
+          className="btn ghost"
+          title="Save as a card for iOS, macOS or Outlook"
+          onClick={exportCard}
+        >
+          Export vCard
+        </button>
         <button className="btn danger" onClick={remove}>
           Delete
         </button>
@@ -290,105 +520,7 @@ export function ContactDetail(): React.JSX.Element {
         </div>
 
         <div className="project-side">
-          <Card title="Details">
-            <div className="card-pad contact-form">
-              <div className="field-grid">
-                <Field
-                  label="First name"
-                  value={contact.firstName}
-                  placeholder="Dana"
-                  guide={guide}
-                  onChange={(firstName) => {
-                    patch({ firstName });
-                  }}
-                />
-                <Field
-                  label="Last name"
-                  value={contact.lastName}
-                  placeholder="Reyes"
-                  guide={guide}
-                  onChange={(lastName) => {
-                    patch({ lastName });
-                  }}
-                />
-                <Field
-                  label="Company"
-                  value={contact.company}
-                  placeholder="Northwind Systems"
-                  guide={guide}
-                  onChange={(company) => {
-                    patch({ company });
-                  }}
-                />
-                <Field
-                  label="Department"
-                  value={contact.department}
-                  placeholder="Platform Engineering"
-                  guide={guide}
-                  onChange={(department) => {
-                    patch({ department });
-                  }}
-                />
-                <Field
-                  label="Role"
-                  value={contact.role}
-                  placeholder="Platform Lead"
-                  guide={guide}
-                  onChange={(role) => {
-                    patch({ role });
-                  }}
-                />
-              </div>
-              {/* No copy buttons beside these two — the header already carries
-                  them, and a second pair squeezed the fields to nothing. The
-                  action icons are narrow enough to sit here, and they do
-                  something copying cannot: hand the address to the OS. */}
-              <div className="contact-form-row">
-                <Field
-                  label="Email"
-                  type="email"
-                  value={contact.email}
-                  placeholder="dana@example.com"
-                  guide={guide}
-                  onChange={(email) => {
-                    patch({ email });
-                  }}
-                />
-                <ContactActionLink kind="email" value={contact.email} who={name} />
-              </div>
-              <div className="contact-form-row">
-                <Field
-                  label="Phone"
-                  type="tel"
-                  value={contact.phone}
-                  placeholder="(555) 010-0000"
-                  guide={guide}
-                  onChange={(phone) => {
-                    patch({ phone });
-                  }}
-                />
-                <ContactActionLink kind="phone" value={contact.phone} who={name} />
-              </div>
-              <div>
-                <div className="field-label">COLOUR</div>
-                <ContactColorPicker
-                  contact={contact}
-                  onChange={(color) => {
-                    patch({ color });
-                  }}
-                />
-              </div>
-              <div>
-                <div className="field-label">TAGS</div>
-                <TagEditor
-                  tags={contact.tags}
-                  onChange={(tags) => {
-                    patch({ tags });
-                  }}
-                />
-              </div>
-            </div>
-          </Card>
+          <DetailsCard key={contact.id} contact={contact} name={name} patch={patch} />
 
           <Card title="Organization">
             <div className="card-pad contact-org" data-testid="contact-org">

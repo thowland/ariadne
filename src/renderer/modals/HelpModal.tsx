@@ -107,8 +107,19 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             </li>
             <li>
               <strong>Tags</strong> — cross-project labels, with a management list for renames.
+              Click a tag in that list to see every project, task and person carrying it.
             </li>
           </ul>
+          <h3>Adding a task from the menu bar</h3>
+          <p>
+            Turn on <strong>Settings → Menu bar</strong> and the Ariadne spiral appears in the menu
+            bar (the system tray on Windows and Linux). Click it for a small quick-add box: choose
+            the project, type the task exactly as you would in a project&apos;s quick-add —{' '}
+            <code>@</code> a person, <code>#</code> a tag, a date in words — and press Enter. The
+            box stays open for the next one, opens on whichever project you used last, and goes away
+            with Escape or a click anywhere else. Ariadne has to be running for the icon to be
+            there.
+          </p>
           <h3>Light and dark</h3>
           <p>
             Ariadne follows your system appearance by default and switches when it does.{' '}
@@ -198,10 +209,13 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
           </p>
           <h3>Grouping the sidebar</h3>
           <p>
-            The foot of the sidebar holds a divider: drag it onto a project and a line appears above
-            that project, splitting the list into groups. Drag a line to another project to move it,
-            or drop it anywhere outside the project list to remove it. A divider follows the project
-            it sits above, so reordering the list keeps the groups intact.
+            The foot of the sidebar holds a divider: drag it onto a project and a group heading
+            appears above that project, ready for you to name it. Click the heading to fold the
+            group&apos;s projects away, the way the Archived list folds, and again to bring them
+            back; a folded group still shows how many of its tasks are overdue. The pencil beside
+            the heading renames it. Drag a heading to another project to move the group, or drop it
+            anywhere outside the project list to remove it. A group follows the project it starts
+            at, so reordering the list keeps the groups intact.
           </p>
           <h3>Archiving</h3>
           <p>
@@ -221,13 +235,21 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             later. The <strong>Contacts</strong> screen lists everyone with what they are carrying;
             sort by open tasks to see who you are leaning on.
           </p>
+          <h3>Reading and editing details</h3>
+          <p>
+            Somebody&apos;s details — company, role, email, phone, tags — show as plain text on
+            their page, with the envelope and handset still one click from your mail client and
+            dialer. Press <strong>Edit</strong> on the Details card to change them, and{' '}
+            <strong>Done</strong> when you are finished. A brand-new contact opens with the form
+            already showing.
+          </p>
           <h3>Avatar colours</h3>
           <p>
             Everyone gets a coloured circle with their initials, picked automatically. To choose one
-            yourself, use the <strong>Colour</strong> row in the contact&apos;s details — the
-            palette, <strong>A</strong> to go back to automatic, or <strong>+</strong> for any
-            colour at all — or just click the big avatar at the top of their page to step through
-            the palette.
+            yourself, press <strong>Edit</strong> on their details and use the{' '}
+            <strong>Colour</strong> row — the palette, <strong>A</strong> to go back to automatic,
+            or <strong>+</strong> for any colour at all — or just click the big avatar at the top of
+            their page to step through the palette.
           </p>
           <h3>Linking people to work</h3>
           <p>
@@ -259,6 +281,12 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             match is <em>updated</em> rather than duplicated, and a blank cell never clears
             something you already have. A <strong>Manager</strong> column of full names rebuilds
             reporting lines. <strong>Export CSV</strong> writes the same shape back out.
+          </p>
+          <p>
+            To put one person into your phone or Outlook, open their page and press{' '}
+            <strong>Export vCard</strong>. That saves a <code>.vcf</code> card with their name,
+            company, role, email, phone, notes and tags, which iOS, macOS Contacts and Outlook all
+            import.
           </p>
         </>
       );

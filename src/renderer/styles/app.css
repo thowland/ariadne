@@ -2373,15 +2373,40 @@ button.link-item:hover .link-item-label {
   display: flex;
   flex-direction: column;
 }
+.tag-manage-item {
+  border-bottom: 1px solid var(--border2);
+}
+.tag-manage-item:last-child {
+  border-bottom: none;
+}
 .tag-manage-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 2px;
-  border-bottom: 1px solid var(--border2);
 }
-.tag-manage-row:last-child {
-  border-bottom: none;
+.tag-manage-chip:hover {
+  color: var(--accent);
+}
+.tag-manage-twisty {
+  font-size: 10px;
+  color: var(--faint);
+}
+/* What one tag is on (D48), opened under its row. */
+.tag-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 12px 14px;
+}
+.tag-items-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tag-items-line {
+  width: 100%;
+  text-align: left;
 }
 .tag-manage-chip {
   font-size: 12.5px;
@@ -3630,6 +3655,7 @@ button.link-item:hover .link-item-label {
 .contact-detail-header {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
 .back-link {
@@ -3682,6 +3708,25 @@ button.link-item:hover .link-item-label {
 }
 .contact-form-row .contact-action {
   margin-bottom: 3px;
+}
+/* Details card, read side (D47): text rather than boxes. */
+.contact-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contact-fact-value {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+.contact-fact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.contact-fact-row .contact-fact-value {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Organization card */
@@ -3893,6 +3938,57 @@ button.link-item:hover .link-item-label {
 .navitem.divider-over {
   box-shadow: inset 0 2px 0 0 var(--accent);
 }
+/* A named group header (D50): the ARCHIVED heading's type, on the divider's
+   grip and rule. */
+.sidebar-group {
+  padding-top: 10px;
+}
+.sidebar-group-toggle {
+  flex: none;
+  max-width: 70%;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  color: var(--faint);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-group-toggle:hover {
+  color: var(--muted);
+}
+.sidebar-group-name {
+  text-transform: uppercase;
+}
+.sidebar-group-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sidebar-group-rename {
+  flex: none;
+  font-size: 11px;
+  color: var(--faint);
+  padding: 0 3px;
+  border-radius: 4px;
+  opacity: 0;
+}
+.sidebar-group:hover .sidebar-group-rename,
+.sidebar-group-rename:focus-visible {
+  opacity: 1;
+}
+.sidebar-group-rename:hover {
+  color: var(--text);
+  background: var(--ink-06);
+}
 .sidebar-divider-palette {
   margin-top: auto;
   padding-top: 12px;
@@ -3902,4 +3998,60 @@ button.link-item:hover .link-item-label {
 }
 .divider-source:hover {
   opacity: 1;
+}
+
+/* ============ Menu-bar quick-add flyout (D51) ============ */
+
+body.qa-window {
+  background: var(--surface);
+  overflow: hidden;
+}
+.qa-flyout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 12px 14px 10px;
+  gap: 10px;
+}
+.qa-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qa-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.qa-project {
+  max-width: 220px;
+}
+.qa-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+/* The composer sits flush with the header here, not inset in a card. */
+.qa-body .quick-add-row {
+  padding: 10px 0 0;
+}
+.qa-body .quick-add-people {
+  padding: 0;
+}
+.qa-empty {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.qa-foot {
+  font-size: 11.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qa-foot.error {
+  color: var(--danger-text);
 }

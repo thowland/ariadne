@@ -36,6 +36,13 @@ export const IPC = {
   logInfo: 'log:info',
   badgeSet: 'badge:set',
   nativeTheme: 'theme:set',
+  quickAddConfigure: 'quickAdd:configure',
+  quickAddContext: 'quickAdd:context',
+  quickAddContextPush: 'quickAdd:contextPush',
+  quickAddShown: 'quickAdd:shown',
+  quickAddSubmit: 'quickAdd:submit',
+  quickAddHide: 'quickAdd:hide',
+  quickAddCommit: 'quickAdd:commit',
 } as const;
 
 /** Debug-log entry categories (D18); the main process drops anything else. */
@@ -247,6 +254,16 @@ export interface AiExtractRequest {
 export type AiExtractResponse =
   { ok: true; tasks: import('./domain/ai-import').ExtractedTask[] } | { ok: false; error: string };
 
+/** What the menu-bar flyout loads with (D51). */
+export interface QuickAddContextResponse {
+  /** Null until the main window has reported its workspace. */
+  context: import('./domain/quick-add').QuickAddContext | null;
+  /** The project the flyout last filed into, from config.json. */
+  lastProjectId: string | null;
+}
+
+export type QuickAddSubmitResponse = { ok: true } | { ok: false; error: string };
+
 export interface AriadneApi {
   loadWorkspace(): Promise<WorkspaceLoadResponse>;
   saveCollections(payload: WorkspaceSavePayload): Promise<WorkspaceSaveResponse>;
@@ -299,6 +316,29 @@ export interface AriadneApi {
    * renderer's CSS.
    */
   setNativeTheme(choice: import('./types').ThemeChoice): Promise<void>;
+  /**
+   * Main window → main (D51): show or remove the menu-bar quick-add icon, and
+   * hand over what the flyout needs to compose a task. Called again whenever
+   * that changes, so the flyout's project list is never stale.
+   */
+  configureQuickAdd(
+    enabled: boolean,
+    context: import('./domain/quick-add').QuickAddContext | null,
+  ): Promise<void>;
+  /** Main window: a task composed in the flyout, to be created here. */
+  onQuickAddCommit(cb: (draft: import('./domain/quick-add').QuickAddDraft) => void): void;
+  /** Flyout: the projects, people and tags to compose with. */
+  getQuickAddContext(): Promise<QuickAddContextResponse>;
+  /** Flyout: fires when the context changes while it is open. */
+  onQuickAddContext(cb: (context: import('./domain/quick-add').QuickAddContext) => void): void;
+  /** Flyout: fires each time the menu-bar icon opens it. */
+  onQuickAddShown(cb: () => void): void;
+  /** Flyout: hand the composed task to the main window. */
+  submitQuickAdd(
+    draft: import('./domain/quick-add').QuickAddDraft,
+  ): Promise<QuickAddSubmitResponse>;
+  /** Flyout: close itself (Escape). */
+  hideQuickAdd(): void;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
   /**

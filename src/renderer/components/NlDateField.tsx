@@ -4,6 +4,7 @@ import {
   findMention,
   maskMentions,
   mentionCandidates,
+  splitTypedName,
 } from '@shared/domain/contacts';
 import type { MentionQuery } from '@shared/domain/contacts';
 import { relativeDueLabel } from '@shared/domain/derive';
@@ -16,7 +17,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useStore } from '../app/store';
 
-import { ContactAvatar, splitTypedName } from './ContactBits';
+import { ContactAvatar } from './ContactBits';
 
 /**
  * A title field that highlights a natural-language date as you type (D29),

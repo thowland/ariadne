@@ -43,6 +43,17 @@ describe('ConfigService', () => {
     expect(svc.resolveDataDir()).toBe(custom.dataDir);
   });
 
+  it('remembers the menu-bar quick-add project, and drops a junk one (D51)', () => {
+    const svc = new ConfigService(dir);
+    svc.save({ dataDir: join(dir, 'd'), lastQuickAddProjectId: 'p3' });
+    expect(svc.load().lastQuickAddProjectId).toBe('p3');
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ dataDir: join(dir, 'd'), lastQuickAddProjectId: 42 }),
+    );
+    expect(svc.load()).toEqual({ dataDir: join(dir, 'd') });
+  });
+
   it('falls back to the default on corrupt or invalid config', () => {
     writeFileSync(join(dir, 'config.json'), '{not json', 'utf8');
     expect(new ConfigService(dir).load().dataDir).toBe(join(dir, 'data'));

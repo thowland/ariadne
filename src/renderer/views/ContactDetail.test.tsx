@@ -1,3 +1,4 @@
+import { updateContact } from '@shared/domain/mutate';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +30,11 @@ function renderDetail() {
   );
 }
 
+/** Opens the Details card's form on an established contact (D47). */
+async function editDetails() {
+  await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+}
+
 describe('ContactDetail', () => {
   it('shows the person, their role, and their open load', () => {
     renderDetail();
@@ -41,6 +47,7 @@ describe('ContactDetail', () => {
 
   it('edits a field in place, saving as you type', async () => {
     renderDetail();
+    await editDetails();
     const phone = screen.getByLabelText('Phone');
     await userEvent.clear(phone);
     await userEvent.type(phone, '555-0000');
@@ -84,6 +91,7 @@ describe('ContactDetail', () => {
 
   it('tags a contact through the shared tag editor', async () => {
     renderDetail();
+    await editDetails();
     await userEvent.type(screen.getByPlaceholderText('+ tag'), 'escalation{Enter}');
     expect(ws().contacts.find((c) => c.id === 'c1')?.tags).toEqual(['vendor', 'escalation']);
   });
@@ -117,6 +125,7 @@ describe('ContactDetail', () => {
 
   it('edits the department (D32)', async () => {
     renderDetail();
+    await editDetails();
     const field = screen.getByLabelText('Department');
     expect(field).toHaveValue('Platform Engineering');
     await userEvent.clear(field);
@@ -253,8 +262,9 @@ describe('ContactDetail', () => {
     expect(ws().contacts.find((c) => c.id === 'c2')?.orgMapHeight).toBeGreaterThan(140);
   });
 
-  it('drops the placeholders once the contact is a real person', () => {
+  it('drops the placeholders once the contact is a real person', async () => {
     renderDetail(); // Dana Reyes
+    await editDetails();
     // A greyed "Northwind Systems" in an empty box reads like a real value.
     expect(screen.getByLabelText('Company')).not.toHaveAttribute('placeholder');
     expect(screen.getByLabelText('Email')).not.toHaveAttribute('placeholder');
@@ -273,11 +283,95 @@ describe('ContactDetail', () => {
   });
 });
 
+describe('ContactDetail vCard export (D49)', () => {
+  it('saves the contact as a .vcf through the save dialog', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'contact', activeContactId: 'c1' });
+    vi.mocked(api.downloadFile).mockResolvedValue({ savedPath: '/tmp/Dana Reyes.vcf' });
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Export vCard' }));
+    const request = vi.mocked(api.downloadFile).mock.calls[0]![0];
+    expect(request.suggestedName).toBe('Dana Reyes.vcf');
+    expect(request.content).toContain('FN:Dana Reyes\r\n');
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe("Saved Dana Reyes's card");
+    });
+  });
+
+  it('says so when the file could not be written', async () => {
+    const api = setupTestApp();
+    loadTestWorkspace();
+    useStore.setState({ view: 'contact', activeContactId: 'c1' });
+    vi.mocked(api.downloadFile).mockResolvedValue({ savedPath: null, error: 'Disk full' });
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: 'Export vCard' }));
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe('Export failed: Disk full');
+    });
+  });
+});
+
+describe('ContactDetail details card (D47)', () => {
+  it('shows an established contact as text, with no boxes to type in', () => {
+    renderDetail();
+    const facts = screen.getByTestId('contact-facts');
+    expect(facts).toHaveTextContent('Northwind Systems');
+    expect(facts).toHaveTextContent('dana.reyes@northwind.example');
+    expect(facts).toHaveTextContent('#vendor');
+    expect(screen.queryByLabelText('Company')).not.toBeInTheDocument();
+    // Acting on the address does not need the form.
+    expect(screen.getByRole('button', { name: 'Email Dana Reyes' })).toBeInTheDocument();
+  });
+
+  it('opens the form behind Edit and closes it again with Done', async () => {
+    renderDetail();
+    await editDetails();
+    expect(screen.getByLabelText('Company')).toHaveValue('Northwind Systems');
+    expect(screen.queryByTestId('contact-facts')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByLabelText('Company')).not.toBeInTheDocument();
+    expect(screen.getByTestId('contact-facts')).toBeInTheDocument();
+  });
+
+  it('searches for a tag clicked on the read side', async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole('button', { name: '#vendor' }));
+    expect(useStore.getState().q).toBe('vendor');
+  });
+
+  it('opens a new contact straight into the form, and keeps it open while you type', () => {
+    const id = useStore.getState().newContact();
+    if (id === null) throw new Error('no contact');
+    useStore.setState({ activeContactId: id });
+    renderDetail();
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Nia' } });
+    // Now named, but the form must not snap shut mid-entry.
+    expect(screen.getByLabelText('Last name')).toBeInTheDocument();
+  });
+
+  it('says so when nothing is recorded', () => {
+    useStore.getState().apply((w) =>
+      updateContact(w, 'c1', {
+        company: '',
+        department: '',
+        role: '',
+        email: '',
+        phone: '',
+        tags: [],
+      }),
+    );
+    renderDetail();
+    expect(screen.getByTestId('contact-facts')).toHaveTextContent('Nothing recorded yet');
+  });
+});
+
 describe('ContactDetail avatar colour (D44)', () => {
   const colorOf = () => ws().contacts.find((c) => c.id === 'c1')?.color;
 
   it('picks a palette colour, and Automatic clears it', async () => {
     renderDetail();
+    await editDetails();
     await userEvent.click(screen.getByRole('radio', { name: 'Colour #c23b2b' }));
     expect(colorOf()).toBe('#c23b2b');
     expect(screen.getByRole('radio', { name: 'Colour #c23b2b' })).toHaveAttribute(
@@ -288,8 +382,9 @@ describe('ContactDetail avatar colour (D44)', () => {
     expect(colorOf()).toBeUndefined();
   });
 
-  it('takes any colour from the OS picker', () => {
+  it('takes any colour from the OS picker', async () => {
     renderDetail();
+    await editDetails();
     fireEvent.change(screen.getByLabelText('Custom colour'), { target: { value: '#F5E6A8' } });
     expect(colorOf()).toBe('#f5e6a8');
   });

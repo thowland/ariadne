@@ -56,10 +56,12 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   project onto the sidebar's archive zone, at which point they leave every active
   surface but stay intact under the sidebar's ARCHIVED section. The sidebar
   project list can be split into groups with **dividers** (decision D42): drag
-  the divider at the foot of the sidebar onto a project and a nameless line
-  appears above it; drag a line elsewhere to move it, or off the list to remove
-  it. A divider is stored against the project it sits above, so reordering the
-  list keeps the groups intact.
+  the divider at the foot of the sidebar onto a project and a group header
+  appears above it, asking for a name. The header's twisty folds the group
+  away the way the ARCHIVED section does (D50); drag a header elsewhere to move
+  it, or off the list to remove it. A divider, its name and its fold state are
+  stored against the project it sits above, so reordering the list keeps the
+  groups intact.
 - **Dependency map** — a layered SVG graph of each project's task chains. Drop
   one box onto another to declare that the dragged task waits on it (decision
   D37), and right-click a line to remove a dependency. The automatic layering
@@ -263,6 +265,8 @@ Three strictly isolated Electron layers:
 │   menu.ts        application-menu template (pure; type-only      │
 │                  electron import, so it is unit-tested)          │
 │   ipc.ts         ipcMain.handle registrations → services (glue)  │
+│   quick-add-tray.ts  menu-bar icon + quick-add flyout window     │
+│                  (D51); it holds no data of its own              │
 │   services/      Config, Storage, Blob, Backup, ImportExport,    │
 │                  Archive (zip), Todoist (+push), Logger,         │
 │                  DebugLog — unit-tested against real temp dirs   │
@@ -315,10 +319,11 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 | `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                                                          |
 | `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                                         |
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                                                      |
-| `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                                               |
+| `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, quick-add (D51), vcard (D49), todoist (push+completion sync), ai-import, csv, seed                 |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                                           |
 | `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                                   |
 | `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |
+| `src/main/quick-add-tray.ts`      | Menu-bar icon and its flyout (D51); the flyout is the renderer bundle at `#quick-add`, and its tasks are created by the main window via `commitQuickAdd`             |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                                                  |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Contacts, ContactDetail, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
 | `src/mcp/`                        | Read-only MCP server (D39): workspace locator, loader, tool projections, hand-rolled stdio protocol                                                                  |
@@ -432,8 +437,8 @@ pinned to ad-hoc (`"identity": "-"` with `hardenedRuntime: false`). That pin is
 deliberate: letting electron-builder auto-discover a keychain certificate is what
 used to hang the build, because `codesign` blocks silently waiting on a keychain
 permission dialog, and a Development certificate buys nothing for distribution
-anyway. `npm overrides` pins `@noble/hashes` to 1.x for electron-builder; keep it
-when updating dependencies.
+anyway. `docs/MAINTENANCE.md` covers the dependency pins and the build traps,
+including why the universal macOS build excludes `@napi-rs/canvas`.
 
 The Windows installer cross-builds on Linux, including on an arm64 VM, but that
 path needs the system NSIS (`sudo apt-get install nsis`) plus two shims wired up
@@ -530,14 +535,17 @@ is in `LICENSE`, and there is no warranty; see sections 15 and 16.
 ## Documentation map
 
 - `docs/TECHNICAL_SPEC.md` — object model, services, architecture, and the
-  decision table D1–D42. Record any deliberate behavior change as a new row
+  numbered decision table (D1 onward, newest last). Record any deliberate behavior change as a new row
   there, because that table is what explains why the code disagrees with the
   prototype.
+- `docs/MAINTENANCE.md` — dependency upkeep: the Node floor, toolchain
+  ceilings, the multi-platform lockfile, and the Electron, pdf.js, packaging
+  and platform traps a version bump can reopen.
 - `docs/DISTRIBUTION_README.md` — the end-user guide that ships in the packages.
 - `docs/CLAUDE_MCP.md` — setting up the read-only MCP server in Claude Code and
   Claude Desktop, what the five tools return, and why there is no write path.
 - `docs/CODE_REVIEW_2026-07-18.md` — a standing best-practices review. The P1
-  robustness items are done and annotated inline; the remaining P2–P4 sections
+  robustness items are done and annotated inline; the remaining P2–P5 sections
   are agreed future work, so read it before starting a refactor in those areas.
 - `docs/IMPLEMENTATION_PLAN.md` — the original nine-sprint delivery plan and its
   exit gates. History now, though the gates still apply to every change.

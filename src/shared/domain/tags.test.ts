@@ -12,6 +12,7 @@ import {
   renameTag,
   stripHashtags,
   suggestTags,
+  taggedWith,
   tagUsage,
 } from './tags';
 
@@ -24,6 +25,31 @@ function wsWithTaskTags() {
   );
   return ws;
 }
+
+describe('taggedWith (D48)', () => {
+  it('finds every item carrying a tag, ignoring case, and agrees with tagUsage', () => {
+    const ws = wsWithTaskTags();
+    const found = taggedWith(ws, 'URGENT');
+    expect(found.tasks.map((t) => t.id)).toEqual([ws.tasks[0]!.id, ws.tasks[1]!.id]);
+    expect(found.projects).toEqual([]);
+    for (const u of tagUsage(ws)) {
+      const items = taggedWith(ws, u.tag);
+      expect([items.projects.length, items.tasks.length, items.contacts.length]).toEqual([
+        u.projects,
+        u.tasks,
+        u.contacts,
+      ]);
+    }
+  });
+
+  it('returns nothing for a tag nobody uses', () => {
+    expect(taggedWith(seedWorkspace(TODAY), 'kayak')).toEqual({
+      projects: [],
+      tasks: [],
+      contacts: [],
+    });
+  });
+});
 
 describe('tagUsage / allKnownTags', () => {
   it('counts distinct usage per collection, case-insensitively', () => {

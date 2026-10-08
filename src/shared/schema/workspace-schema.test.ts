@@ -140,8 +140,30 @@ describe('normalizeWorkspace', () => {
     expect(workspace.settings.sidebarDividers).toEqual(['p3']);
   });
 
+  it('drops group names and folds whose divider is gone (D50)', () => {
+    const { workspace } = normalizeWorkspace(
+      structuredClone(ws.projects),
+      structuredClone(ws.tasks),
+      structuredClone(ws.files),
+      structuredClone(ws.contacts),
+      {
+        ...ws.settings,
+        sidebarDividers: ['p3'],
+        sidebarGroupNames: { p3: 'Home', p4: 'Stale' },
+        sidebarCollapsed: ['p3', 'p4'],
+      },
+    );
+    expect(workspace.settings.sidebarGroupNames).toEqual({ p3: 'Home' });
+    expect(workspace.settings.sidebarCollapsed).toEqual(['p3']);
+  });
+
   it('leaves an intact divider list untouched', () => {
-    const settings = { ...ws.settings, sidebarDividers: ['p2'] };
+    const settings = {
+      ...ws.settings,
+      sidebarDividers: ['p2'],
+      sidebarGroupNames: { p2: 'Work' },
+      sidebarCollapsed: ['p2'],
+    };
     const { workspace } = normalizeWorkspace(
       structuredClone(ws.projects),
       structuredClone(ws.tasks),
@@ -217,6 +239,17 @@ describe('badgeMode (D28)', () => {
   it('falls back to none rather than rejecting an unknown value', () => {
     expect(settingsSchema.parse({ sidebarDividers: 'p1' }).sidebarDividers).toEqual([]);
     expect(settingsSchema.parse({ sidebarDividers: ['p1'] }).sidebarDividers).toEqual(['p1']);
+    // The menu-bar quick-add (D51) starts off, and junk reads as off.
+    expect(settingsSchema.parse({}).menuBarQuickAdd).toBe(false);
+    expect(settingsSchema.parse({ menuBarQuickAdd: 'yes' }).menuBarQuickAdd).toBe(false);
+    expect(settingsSchema.parse({ menuBarQuickAdd: true }).menuBarQuickAdd).toBe(true);
+    // Group names and fold state (D50) load silently from older files.
+    expect(settingsSchema.parse({}).sidebarGroupNames).toEqual({});
+    expect(settingsSchema.parse({}).sidebarCollapsed).toEqual([]);
+    expect(settingsSchema.parse({ sidebarGroupNames: ['x'] }).sidebarGroupNames).toEqual({});
+    expect(settingsSchema.parse({ sidebarGroupNames: { p1: 'Home' } }).sidebarGroupNames).toEqual({
+      p1: 'Home',
+    });
     expect(settingsSchema.parse({ badgeMode: 'flashing' }).badgeMode).toBe('none');
   });
 

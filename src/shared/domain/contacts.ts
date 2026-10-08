@@ -22,6 +22,13 @@ export function contactName(c: Contact): string {
   return 'Unnamed contact';
 }
 
+/** Splits typed text into a first/last name for an on-the-fly create. */
+export function splitTypedName(typed: string): { firstName: string; lastName: string } {
+  const parts = typed.trim().split(/\s+/);
+  const firstName = parts.shift() ?? '';
+  return { firstName, lastName: parts.join(' ') };
+}
+
 /** `Last, First` — the sort key for the contacts screen's name column. */
 export function contactSortName(c: Contact): string {
   const last = c.lastName.trim();

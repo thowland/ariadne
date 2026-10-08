@@ -463,6 +463,32 @@ export function Settings(): React.JSX.Element {
           </div>
         </Card>
 
+        <Card title="Menu bar">
+          <div className="card-pad settings-section">
+            <p className="settings-copy">
+              Put an Ariadne icon in the menu bar that opens a small quick-add box, so a task can go
+              in without switching to the app. Pick the project, type the task — <code>@</code> a
+              person, <code>#</code> a tag, a date in words — and press Enter. It opens on the
+              project you used last.
+            </p>
+            <label className="settings-copy">
+              <input
+                type="checkbox"
+                checked={workspace?.settings.menuBarQuickAdd ?? false}
+                aria-label="Show quick add in the menu bar"
+                onChange={(e) => {
+                  apply((ws2) => updateSettings(ws2, { menuBarQuickAdd: e.target.checked }));
+                }}
+              />{' '}
+              Show quick add in the menu bar
+            </label>
+            <p className="settings-copy muted">
+              On Windows and Linux the icon goes in the system tray. Ariadne has to be running for
+              it to appear; quitting the app removes it.
+            </p>
+          </div>
+        </Card>
+
         <Card title="Appearance">
           <div className="card-pad settings-section">
             <p className="settings-copy">

@@ -1,10 +1,13 @@
 import { badgeCount } from '@shared/domain/derive';
+import { quickAddContext } from '@shared/domain/quick-add';
 import { resolveTheme } from '@shared/domain/theme';
 import { todoistSyncDue } from '@shared/domain/todoist';
+import type { AriadneApi } from '@shared/ipc-contract';
 import { useEffect, useState } from 'react';
 
 import { getApi } from './app/api';
 import { runMenuCommand } from './app/menu-commands';
+import { receiveQuickAdd } from './app/quick-add';
 import { useStore } from './app/store';
 import { Sidebar } from './chrome/Sidebar';
 import { TopBar } from './chrome/TopBar';
@@ -23,6 +26,9 @@ import { Reports } from './views/Reports';
 import { SearchResults } from './views/SearchResults';
 import { Settings } from './views/Settings';
 import { TagsView } from './views/TagsView';
+
+/** The bridge already listening for flyout tasks; see the effect in App. */
+let quickAddListener: AriadneApi | null = null;
 
 function ViewBody(): React.JSX.Element {
   const { view, q } = useStore();
@@ -70,6 +76,28 @@ export function App(): React.JSX.Element {
   // Application-menu commands arrive as pushes from the main process.
   useEffect(() => {
     getApi().onMenuCommand(runMenuCommand);
+  }, []);
+
+  // Menu-bar quick-add (D51): tell the main process whether the icon should
+  // exist, and keep the flyout's projects, people and tags current. Keyed on
+  // the serialised context so an edit to a task note does not resend it.
+  const quickAddOn = workspace?.settings.menuBarQuickAdd === true;
+  const qaContext = workspace !== null && quickAddOn ? quickAddContext(workspace) : null;
+  const qaKey = qaContext === null ? '' : JSON.stringify(qaContext);
+  useEffect(() => {
+    void getApi().configureQuickAdd(quickAddOn, qaContext);
+    // qaKey stands in for qaContext, which is a fresh object every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickAddOn, qaKey]);
+
+  // Tasks composed in the flyout arrive here to be created. Registered once
+  // per page: the bridge cannot unsubscribe, and React's development double
+  // effect would otherwise create every task twice.
+  useEffect(() => {
+    const api = getApi();
+    if (quickAddListener === api) return;
+    quickAddListener = api;
+    api.onQuickAddCommit(receiveQuickAdd);
   }, []);
 
   // Dock badge (D28). Recomputed from the whole workspace whenever it or the

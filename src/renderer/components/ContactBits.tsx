@@ -5,6 +5,7 @@ import {
   contactName,
   mentionCandidates,
   needsDarkInk,
+  splitTypedName,
 } from '@shared/domain/contacts';
 import type { Contact } from '@shared/types';
 import { PROJECT_PALETTE } from '@shared/types';
@@ -240,13 +241,6 @@ export function ContactActionLink({
       )}
     </button>
   );
-}
-
-/** Splits typed text into a first/last name for an on-the-fly create. */
-export function splitTypedName(typed: string): { firstName: string; lastName: string } {
-  const parts = typed.trim().split(/\s+/);
-  const firstName = parts.shift() ?? '';
-  return { firstName, lastName: parts.join(' ') };
 }
 
 /**
