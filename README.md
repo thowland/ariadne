@@ -265,6 +265,8 @@ Three strictly isolated Electron layers:
 │   menu.ts        application-menu template (pure; type-only      │
 │                  electron import, so it is unit-tested)          │
 │   ipc.ts         ipcMain.handle registrations → services (glue)  │
+│   quick-add-tray.ts  menu-bar icon + quick-add flyout window      │
+│                  (D51); it holds no data of its own              │
 │   services/      Config, Storage, Blob, Backup, ImportExport,    │
 │                  Archive (zip), Todoist (+push), Logger,         │
 │                  DebugLog — unit-tested against real temp dirs   │
@@ -317,10 +319,11 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 | `src/shared/schema/`              | zod validation, referential-integrity normalization, import migration, the save write-guard                                                                          |
 | `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                                         |
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                                                      |
-| `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, todoist (push+completion sync), ai-import, csv, seed                                               |
+| `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, quick-add (D51), vcard (D49), todoist (push+completion sync), ai-import, csv, seed                 |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                                           |
 | `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                                   |
 | `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |
+| `src/main/quick-add-tray.ts`      | Menu-bar icon and its flyout (D51); the flyout is the renderer bundle at `#quick-add`, and its tasks are created by the main window via `commitQuickAdd`             |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                                                  |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Contacts, ContactDetail, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
 | `src/mcp/`                        | Read-only MCP server (D39): workspace locator, loader, tool projections, hand-rolled stdio protocol                                                                  |

@@ -239,6 +239,10 @@ describe('badgeMode (D28)', () => {
   it('falls back to none rather than rejecting an unknown value', () => {
     expect(settingsSchema.parse({ sidebarDividers: 'p1' }).sidebarDividers).toEqual([]);
     expect(settingsSchema.parse({ sidebarDividers: ['p1'] }).sidebarDividers).toEqual(['p1']);
+    // The menu-bar quick-add (D51) starts off, and junk reads as off.
+    expect(settingsSchema.parse({}).menuBarQuickAdd).toBe(false);
+    expect(settingsSchema.parse({ menuBarQuickAdd: 'yes' }).menuBarQuickAdd).toBe(false);
+    expect(settingsSchema.parse({ menuBarQuickAdd: true }).menuBarQuickAdd).toBe(true);
     // Group names and fold state (D50) load silently from older files.
     expect(settingsSchema.parse({}).sidebarGroupNames).toEqual({});
     expect(settingsSchema.parse({}).sidebarCollapsed).toEqual([]);

@@ -1379,3 +1379,46 @@ test('tags: # picks a tag, which then comes out of the title (D40)', async () =>
   await expect(win.locator('.trow-title', { hasText: 'Order more #kayak straps' })).toBeVisible();
   await app.close();
 });
+
+test('menu-bar quick add: the flyout files a task into the chosen project (D51)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ariadne-e2e-'));
+  const app = await launch(dir);
+  const win = await app.firstWindow();
+  await expect(win.getByTestId('home-headline')).toBeVisible();
+  // Off by default: nothing but the main window.
+  expect(app.windows()).toHaveLength(1);
+
+  await win.getByRole('button', { name: 'Settings' }).click();
+  const flyoutOpened = app.waitForEvent('window');
+  await win.getByLabel('Show quick add in the menu bar').check();
+  // Turning it on builds the flyout up front, hidden, so a click opens it
+  // instantly. The tray icon itself cannot be clicked from Playwright, so the
+  // test drives the flyout's page directly.
+  const flyout = await flyoutOpened;
+  await expect(flyout.getByTestId('quick-add-flyout')).toBeAttached();
+  await expect(flyout.getByLabel('Project')).toHaveValue('p1');
+
+  await flyout.getByLabel('Project').selectOption({ label: 'Refinish boat table' });
+  await flyout.getByLabel('Add a task').fill('Buy marine varnish tomorrow');
+  await flyout.getByLabel('Add a task').press('Enter');
+  await expect(flyout.getByRole('status')).toContainText(
+    'Added “Buy marine varnish” to Refinish boat table',
+  );
+
+  // The main window created it, in that project, with the date read out.
+  await expect(win.locator('.toast')).toContainText('Added “Buy marine varnish”');
+  await win.getByRole('navigation', { name: 'Projects' }).getByText('Refinish boat table').click();
+  await expect(win.locator('.trow-title', { hasText: 'Buy marine varnish' })).toBeVisible();
+
+  // The project choice is remembered for next time, in config.json.
+  const config = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as {
+    lastQuickAddProjectId?: string;
+  };
+  expect(config.lastQuickAddProjectId).toBe('p3');
+
+  // Turning the setting off takes the flyout (and the icon) away again.
+  await win.getByRole('button', { name: 'Settings' }).click();
+  await win.getByLabel('Show quick add in the menu bar').uncheck();
+  await expect.poll(() => app.windows().length).toBe(1);
+  await app.close();
+});

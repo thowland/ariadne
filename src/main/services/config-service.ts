@@ -35,6 +35,7 @@ const windowBoundsSchema = z
 const appConfigSchema = z.object({
   dataDir: z.string().min(1).catch(''),
   windowBounds: windowBoundsSchema,
+  lastQuickAddProjectId: z.string().min(1).optional().catch(undefined),
 });
 
 /**
@@ -60,6 +61,9 @@ export class ConfigService {
           dataDir: parsed.data.dataDir !== '' ? parsed.data.dataDir : this.defaultDataDir,
           ...(parsed.data.windowBounds !== undefined
             ? { windowBounds: parsed.data.windowBounds }
+            : {}),
+          ...(parsed.data.lastQuickAddProjectId !== undefined
+            ? { lastQuickAddProjectId: parsed.data.lastQuickAddProjectId }
             : {}),
         };
       }

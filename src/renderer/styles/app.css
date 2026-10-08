@@ -2404,6 +2404,10 @@ button.link-item:hover .link-item-label {
   flex-direction: column;
   gap: 2px;
 }
+.tag-items-line {
+  width: 100%;
+  text-align: left;
+}
 .tag-manage-chip {
   font-size: 12.5px;
   font-weight: 600;
@@ -3651,6 +3655,7 @@ button.link-item:hover .link-item-label {
 .contact-detail-header {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-bottom: 12px;
 }
 .back-link {
@@ -3993,4 +3998,60 @@ button.link-item:hover .link-item-label {
 }
 .divider-source:hover {
   opacity: 1;
+}
+
+/* ============ Menu-bar quick-add flyout (D51) ============ */
+
+body.qa-window {
+  background: var(--surface);
+  overflow: hidden;
+}
+.qa-flyout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 12px 14px 10px;
+  gap: 10px;
+}
+.qa-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qa-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.qa-project {
+  max-width: 220px;
+}
+.qa-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+/* The composer sits flush with the header here, not inset in a card. */
+.qa-body .quick-add-row {
+  padding: 10px 0 0;
+}
+.qa-body .quick-add-people {
+  padding: 0;
+}
+.qa-empty {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.qa-foot {
+  font-size: 11.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qa-foot.error {
+  color: var(--danger-text);
 }

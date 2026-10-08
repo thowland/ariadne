@@ -151,6 +151,7 @@ export const settingsSchema = z.object({
   sidebarDividers: z.array(z.string()).catch([]),
   sidebarGroupNames: z.record(z.string(), z.string()).catch({}),
   sidebarCollapsed: z.array(z.string()).catch([]),
+  menuBarQuickAdd: z.boolean().catch(false),
 });
 
 export const projectsFileSchema = z.array(projectSchema);

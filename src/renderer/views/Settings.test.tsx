@@ -380,6 +380,16 @@ describe('Settings — Debug logging', () => {
     expect(ws().settings.debugLogging).toBe(false);
   });
 
+  it('turns the menu-bar quick-add on and off, starting off (D51)', async () => {
+    renderSettings();
+    const toggle = screen.getByLabelText('Show quick add in the menu bar');
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+    expect(ws().settings.menuBarQuickAdd).toBe(true);
+    await userEvent.click(toggle);
+    expect(ws().settings.menuBarQuickAdd).toBe(false);
+  });
+
   it('changes and resets the log folder', async () => {
     vi.mocked(window.ariadne.chooseLogDir).mockResolvedValue({ path: '/var/log/ariadne' });
     renderSettings();

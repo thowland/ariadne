@@ -3,14 +3,21 @@ import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 
 import { todayIso } from '@shared/domain/clock';
+import type { QuickAddContext } from '@shared/domain/quick-add';
 import { seedWorkspace } from '@shared/domain/seed';
 import { DEBUG_LOG_CATEGORIES, IPC, isOpenableExternally } from '@shared/ipc-contract';
-import type { WorkspaceLoadResponse, WorkspaceSavePayload } from '@shared/ipc-contract';
+import type {
+  QuickAddSubmitResponse,
+  WorkspaceLoadResponse,
+  WorkspaceSavePayload,
+} from '@shared/ipc-contract';
 import type { DownloadRequest, DownloadResponse } from '@shared/ipc-contract';
 import type { ReportPdfRequest, ReportPdfResponse } from '@shared/ipc-contract';
+import { parseQuickAddDraft } from '@shared/schema/quick-add-schema';
 import { dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { app } from 'electron';
 
+import type { QuickAddTray } from './quick-add-tray';
 import { AiExtractService } from './services/ai-extract-service';
 import { ArchiveService } from './services/archive-service';
 import type { BackupService } from './services/backup-service';
@@ -33,6 +40,7 @@ export function registerIpc(
   config: ConfigService,
   dataDir: string,
   debugLog: DebugLogService,
+  quickAdd: QuickAddTray,
 ): void {
   const importExport = new ImportExportService(storage, blobs);
   const archives = new ArchiveService(storage, blobs, app.getVersion());
@@ -80,6 +88,31 @@ export function registerIpc(
   });
 
   ipcMain.handle(IPC.logInfo, () => ({ defaultDir: debugLog.defaultLogDir() }));
+
+  // Menu-bar quick-add (D51). The main window reports whether the icon should
+  // exist and what the flyout composes with; the flyout reads that back and
+  // hands a finished draft over, which goes to the main window to create.
+  ipcMain.handle(IPC.quickAddConfigure, (_event, payload: unknown) => {
+    if (typeof payload !== 'object' || payload === null) return;
+    const { enabled, context } = payload as { enabled?: unknown; context?: unknown };
+    const usable =
+      typeof context === 'object' &&
+      context !== null &&
+      Array.isArray((context as { projects?: unknown }).projects)
+        ? (context as QuickAddContext)
+        : null;
+    quickAdd.configure(enabled === true, usable);
+  });
+  ipcMain.handle(IPC.quickAddContext, () => quickAdd.contextResponse());
+  ipcMain.handle(IPC.quickAddSubmit, (_event, payload: unknown): QuickAddSubmitResponse => {
+    const draft = parseQuickAddDraft(payload);
+    if (draft === null) return { ok: false, error: 'That task could not be read.' };
+    debugLog.log('activity', `menu-bar quick add → ${draft.projectId}`);
+    return quickAdd.submit(draft);
+  });
+  ipcMain.on(IPC.quickAddHide, () => {
+    quickAdd.hide();
+  });
 
   /**
    * Dock/taskbar badge (D28). setBadgeCount is supported on macOS and on Linux
