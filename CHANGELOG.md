@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.1 — 2026-10-16
+
+- **Security updates.** Ariadne now runs on Electron 43.8, which closes four
+  holes in how the underlying browser isolates windows and pages from one
+  another. The library that reads `.zip` backups is updated as well, so a
+  damaged or deliberately malformed archive opened with **File → Import
+  Archive…** is refused cleanly instead of being able to exhaust memory or
+  crash the app. Nothing about how the app looks or behaves has changed.
+
 ## 2.7.0 — 2026-10-08
 
 - **Add a task from the menu bar.** Turn on **Settings → Menu bar** and the
