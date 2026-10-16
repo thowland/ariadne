@@ -22,6 +22,16 @@ waiting.
 npm's optional-dependency bug can drop native modules on any `npm install`.
 Prefer `npm ci`, which is what CI and the release builds use.
 
+`patches/` holds a `patch-package` patch to `app-builder-lib` that lets the
+Linux VM cross-build the Windows installer (README, "Windows packaging").
+The patch is tied to an exact version, and `npm ci` fails when the installed
+version differs, so any change that moves `electron-builder` — including an
+in-range move by `npm audit fix` — needs the patch re-cut: make the same two
+edits in `node_modules/app-builder-lib`, run `npx patch-package
+app-builder-lib`, and delete the old file. A local `npm install` does not
+always run `postinstall`, so check with `npm ci` in a fresh clone. v2.7.1's
+first release build failed this way (checked 2026-10-16).
+
 `npm overrides` pins `@noble/hashes@^1`, because electron-builder 26 loads it
 through CommonJS. Keep the pin when touching dependencies.
 
