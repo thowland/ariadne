@@ -1,6 +1,9 @@
 # Changelog
 
-## 2.7.1 — 2026-10-16
+## 2.7.2 — 2026-10-16
+
+Version 2.7.1 was tagged but never released, because its installers failed
+to build; 2.7.2 is the same update.
 
 - **Security updates.** Ariadne now runs on Electron 43.8, which closes four
   holes in how the underlying browser isolates windows and pages from one
