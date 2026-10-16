@@ -7,7 +7,7 @@
 # step runs the installer under wine. We substitute the system NSIS via
 # ELECTRON_BUILDER_NSIS_DIR (see scripts/nsis-linux-arm64/) and switch the
 # uninstaller step to electron-builder's pure-JS extractor via
-# ARIADNE_NSIS_NO_WINE (see patches/app-builder-lib+26.15.3.patch).
+# ARIADNE_NSIS_NO_WINE (see patches/app-builder-lib+26.17.0.patch).
 #
 # The resulting installer is unsigned: Windows SmartScreen will warn on the
 # first run ("More info" -> "Run anyway").

@@ -17,5 +17,5 @@ build work anyway:
   bundle from being downloaded.
 
 The wine-free uninstaller extraction itself comes from
-`patches/app-builder-lib+26.15.3.patch` (applied by `postinstall`), gated
+`patches/app-builder-lib+26.17.0.patch` (applied by `postinstall`), gated
 behind `ARIADNE_NSIS_NO_WINE=true` so it changes nothing elsewhere.
