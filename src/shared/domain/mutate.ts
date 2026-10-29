@@ -1,3 +1,4 @@
+import type { ProjectImport } from '../schema/import-export';
 import type {
   CollectionName,
   Contact,
@@ -842,6 +843,87 @@ export function applyContactImport(
 
   if (created === 0 && updated === 0) return { ...unchanged(ws), created, updated, linked };
   return { workspace: { ...ws, contacts }, changed: ['contacts'], created, updated, linked };
+}
+
+// ---------- single-project import (D52) ----------
+
+/**
+ * Add a project read by `parseProjectImport` as a new project (D52). Every id
+ * in the file is replaced — the project's, each task's and each note's — so
+ * importing the same file twice gives two projects and nothing already in the
+ * workspace can be overwritten. Links that cannot survive are dropped: a
+ * dependency on a task the file did not include (or one that would close a
+ * cycle), a note attached to a missing task, and a person who is not in this
+ * workspace's contacts. The project lands at the foot of the sidebar,
+ * unarchived, with the next palette colour unless the file named its own.
+ */
+export function importProject(ws: Workspace, ctx: MutationCtx, plan: ProjectImport): CreatedResult {
+  const id = ctx.newId();
+  const contactIds = new Set(ws.contacts.map((c) => c.id));
+  const knownContacts = (ids: string[] | undefined): { contactIds?: string[] } => {
+    const kept = (ids ?? []).filter((c) => contactIds.has(c));
+    return kept.length > 0 ? { contactIds: kept } : {};
+  };
+
+  const taskIds = new Map<string, string>();
+  const pairs = plan.tasks.map((src) => {
+    const task: Task = {
+      ...src,
+      id: ctx.newId(),
+      projectId: id,
+      dependsOn: [],
+      completedAt: src.status === 'Done' ? (src.completedAt ?? src.createdAt) : null,
+    };
+    delete task.contactIds;
+    taskIds.set(src.id, task.id);
+    return { src, task: { ...task, ...knownContacts(src.contactIds) } };
+  });
+  const tasks = pairs.map((p) => p.task);
+  // Wire dependencies once every task exists, refusing any that would loop.
+  for (const { src, task } of pairs) {
+    for (const dep of src.dependsOn) {
+      const to = taskIds.get(dep);
+      if (to === undefined || task.dependsOn.includes(to) || wouldCycle(tasks, task.id, to)) {
+        continue;
+      }
+      task.dependsOn.push(to);
+    }
+  }
+
+  const files: FileEntry[] = plan.files.map((f) => ({
+    ...f,
+    id: ctx.newId(),
+    projectId: id,
+    taskId: f.taskId === null ? null : (taskIds.get(f.taskId) ?? null),
+  }));
+
+  const { color, contactIds: projectContacts, depLayout, ...fields } = plan.project;
+  const layout = Object.entries(depLayout ?? {}).flatMap(([taskId, pos]) => {
+    const to = taskIds.get(taskId);
+    return to === undefined ? [] : [[to, pos] as const];
+  });
+  const project: Project = {
+    ...fields,
+    ...knownContacts(projectContacts),
+    ...(layout.length > 0 ? { depLayout: Object.fromEntries(layout) } : {}),
+    id,
+    color: color ?? (PROJECT_PALETTE[ws.projects.length % PROJECT_PALETTE.length] as string),
+    archived: false,
+  };
+
+  const changed: CollectionName[] = ['projects'];
+  if (tasks.length > 0) changed.push('tasks');
+  if (files.length > 0) changed.push('files');
+  return {
+    workspace: {
+      ...ws,
+      projects: [...ws.projects, project],
+      tasks: tasks.length > 0 ? [...ws.tasks, ...tasks] : ws.tasks,
+      files: files.length > 0 ? [...ws.files, ...files] : ws.files,
+    },
+    changed,
+    id,
+  };
 }
 
 // ---------- settings / whole-workspace ----------

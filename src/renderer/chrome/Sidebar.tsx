@@ -18,6 +18,7 @@ import { getApi } from '../app/api';
 import { DIVIDER_DND_TYPE, isDividerDrag, isTaskDrag, TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
 import type { ContextMenuItem, ViewName } from '../app/store';
+import { runProjectJsonImport } from '../app/workspace-io';
 import { menuHandler } from '../components/ContextMenu';
 import { Logo } from '../components/Logo';
 import { Dot } from '../components/primitives';
@@ -68,6 +69,7 @@ export function Sidebar(): React.JSX.Element {
    * does not set it at all.
    */
   const dividerLanded = useRef(false);
+  const projectFileInput = useRef<HTMLInputElement>(null);
   const tasks = workspace?.tasks ?? [];
   const searching = q.trim() !== '';
   const projects = workspace?.projects ?? [];
@@ -364,9 +366,36 @@ export function Sidebar(): React.JSX.Element {
         >
           PROJECTS
         </button>
-        <button className="add-btn" title="New project" onClick={newProject}>
-          +
-        </button>
+        <span className="sidebar-section-actions">
+          {/* D52–D54: one project from a JSON file or an MS Project XML export. */}
+          <button
+            className="add-btn"
+            title="Import Project from Json (or MS Project XML)"
+            aria-label="Import Project from Json"
+            onClick={() => {
+              projectFileInput.current?.click();
+            }}
+          >
+            ⤓
+          </button>
+          <input
+            ref={projectFileInput}
+            type="file"
+            accept=".json,application/json,.xml,application/xml,text/xml"
+            aria-label="Project JSON or XML file"
+            data-testid="project-json-input"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              // Cleared first so picking the same file again still fires.
+              e.target.value = '';
+              if (file !== undefined) void runProjectJsonImport(file);
+            }}
+          />
+          <button className="add-btn" title="New project" onClick={newProject}>
+            +
+          </button>
+        </span>
       </div>
       <nav className="nav-list" aria-label="Projects">
         {activeProjects.map((p) => {

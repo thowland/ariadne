@@ -1,8 +1,8 @@
 import { isOverdue } from '@shared/domain/derive';
 import { updateTask } from '@shared/domain/mutate';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DIVIDER_DND_TYPE, TASK_DND_TYPE } from '../app/dnd';
 import { useStore } from '../app/store';
@@ -100,6 +100,44 @@ describe('TopBar', () => {
     expect(useStore.getState().modal).toEqual({ type: 'aiImport' });
   });
 
+  it('XML Import adds an MS Project XML export as a new project (D54)', async () => {
+    const before = useStore.getState().workspace!.projects.length;
+    render(<TopBar />);
+    const input = screen.getByTestId<HTMLInputElement>('xml-import-input');
+    const clicked = vi.spyOn(input, 'click').mockImplementation(() => undefined);
+    await userEvent.click(screen.getByRole('button', { name: 'XML Import' }));
+    expect(clicked).toHaveBeenCalled();
+    const xml =
+      '<Project><Title>Lab Move</Title><Tasks>' +
+      '<Task><UID>1</UID><Name>Floor plan</Name><OutlineLevel>1</OutlineLevel></Task>' +
+      '</Tasks></Project>';
+    await userEvent.upload(input, new File([xml], 'plan.xml', { type: 'text/xml' }));
+    await waitFor(() => {
+      expect(useStore.getState().workspace!.projects).toHaveLength(before + 1);
+    });
+    const added = useStore.getState().workspace!.projects.at(-1)!;
+    expect(added.name).toBe('Lab Move');
+    expect(useStore.getState().activeProjectId).toBe(added.id);
+    expect(useStore.getState().toast).toBe('Imported Lab Move with 1 task');
+  });
+
+  it('XML Import offers only XML files and explains one that is not MS Project', async () => {
+    const before = useStore.getState().workspace;
+    render(<TopBar />);
+    const input = screen.getByTestId<HTMLInputElement>('xml-import-input');
+    expect(input.getAttribute('accept')).toBe('.xml,application/xml,text/xml');
+    await userEvent.upload(
+      input,
+      new File(['<html><body/></html>'], 'page.xml', { type: 'text/xml' }),
+    );
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe(
+        'Not a Microsoft Project XML file (no <Project> with <Tasks>)',
+      );
+    });
+    expect(useStore.getState().workspace).toBe(before);
+  });
+
   it('New project creates a project and opens it', async () => {
     const before = useStore.getState().workspace!.projects.length;
     render(<TopBar />);
@@ -124,6 +162,50 @@ describe('Sidebar PROJECTS heading', () => {
     render(<Sidebar />);
     await userEvent.click(screen.getByRole('button', { name: '+' }));
     expect(useStore.getState().workspace!.projects).toHaveLength(before + 1);
+  });
+});
+
+describe('Sidebar — Import Project from Json (D52)', () => {
+  const pick = async (contents: string): Promise<void> => {
+    render(<Sidebar />);
+    const input = screen.getByTestId<HTMLInputElement>('project-json-input');
+    // The button opens the hidden picker; the picker does the rest.
+    const clicked = vi.spyOn(input, 'click').mockImplementation(() => undefined);
+    await userEvent.click(screen.getByRole('button', { name: 'Import Project from Json' }));
+    expect(clicked).toHaveBeenCalled();
+    await userEvent.upload(
+      input,
+      new File([contents], 'project.json', { type: 'application/json' }),
+    );
+  };
+
+  it('adds the project from the file, opens it, and says what it brought in', async () => {
+    const before = useStore.getState().workspace!.projects.length;
+    await pick(JSON.stringify({ name: 'Garden', tasks: [{ title: 'Seeds' }, { title: 'Soil' }] }));
+    await waitFor(() => {
+      expect(useStore.getState().workspace!.projects).toHaveLength(before + 1);
+    });
+    const added = useStore.getState().workspace!.projects.at(-1)!;
+    expect(added.name).toBe('Garden');
+    expect(useStore.getState().activeProjectId).toBe(added.id);
+    expect(useStore.getState().toast).toBe('Imported Garden with 2 tasks');
+    expect(screen.getByRole('button', { name: /^Garden/ })).toBeInTheDocument();
+  });
+
+  it('leaves the workspace alone and explains when the file is not a project', async () => {
+    const before = useStore.getState().workspace;
+    await pick('not json');
+    await waitFor(() => {
+      expect(useStore.getState().toast).toBe('Invalid JSON — import failed');
+    });
+    expect(useStore.getState().workspace).toBe(before);
+  });
+
+  it('offers JSON and MS Project XML files in the picker', () => {
+    render(<Sidebar />);
+    const accept = screen.getByTestId('project-json-input').getAttribute('accept') ?? '';
+    expect(accept).toContain('.json');
+    expect(accept).toContain('.xml');
   });
 });
 
