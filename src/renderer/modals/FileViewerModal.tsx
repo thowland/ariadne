@@ -28,7 +28,7 @@ function CsvTable({ fileId }: { fileId: string }): React.JSX.Element {
 
   useEffect(() => {
     let alive = true;
-    fetch(blobUrl(fileId))
+    fetch(blobUrl(fileId, getApi().blobBaseUrl))
       .then(async (r) => {
         if (!r.ok) throw new Error('not found');
         return r.text();
@@ -76,7 +76,7 @@ function TextPreview({ fileId }: { fileId: string }): React.JSX.Element {
 
   useEffect(() => {
     let alive = true;
-    fetch(blobUrl(fileId))
+    fetch(blobUrl(fileId, getApi().blobBaseUrl))
       .then(async (r) => {
         if (!r.ok) throw new Error('not found');
         return r.text();
@@ -181,13 +181,13 @@ export function FileViewerModal({ fileId }: { fileId: string }): React.JSX.Eleme
   } else if (isImage) {
     body = (
       <div className="img-wrap">
-        <img src={blobUrl(file.id)} alt={file.name} />
+        <img src={blobUrl(file.id, getApi().blobBaseUrl)} alt={file.name} />
       </div>
     );
   } else if (isPdf) {
     body = (
       <PdfViewer
-        source={{ url: blobUrl(file.id) }}
+        source={{ url: blobUrl(file.id, getApi().blobBaseUrl) }}
         label={file.name}
         fallback={
           <Placeholder file={file} message="This PDF could not be read — download to view it." />

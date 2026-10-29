@@ -2,6 +2,16 @@
 
 ## 2.8.0 — unreleased
 
+- **Ariadne in a browser.** Ariadne can now run as a web app: `npm run
+web:serve` starts a small server and you open it at
+  http://127.0.0.1:4318. Your projects live in a data folder on that
+  machine, the same way they do for the desktop app, so you can point it at
+  your existing data. File uploads, previews, JSON and archive export and
+  import, backups, Todoist and the Claude import all work. Saving a file or
+  an export becomes a download, and a report's PDF export opens the
+  browser's print dialog. The menu-bar quick add and the dock badge stay on
+  the desktop.
+
 - **Import one project from a JSON file.** A new button, **⤓ Import Project
   from Json**, sits beside the **+** next to the PROJECTS heading. Pick a
   `.json` file and its project — tasks, notes, links, tags, and the

@@ -52,3 +52,9 @@ Thumbs.db
 
 # Local agent/tool settings — machine-specific, never shared
 .claude/settings.local.json
+ariadne-web.tgz
+node-v*.tar.xz
+node-v*.tar.xz
+node-v*.tar.xz
+node-v*.tar.xz
+node-v*.tar.xz

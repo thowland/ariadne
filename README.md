@@ -224,6 +224,137 @@ npm run dev     # launch the app with hot reload
 On a headless machine, anything that opens a window needs a display server:
 prefix the command with `xvfb-run -a`.
 
+## Running as a web app
+
+Ariadne also runs in a browser, served by a small Node server that keeps the
+workspace in a data folder on its machine, exactly as the desktop app does
+(D55). The React app is the same; it talks to the server over HTTP instead of
+to Electron over IPC.
+
+```sh
+npm run web:serve   # build the app and the server, then start it
+npm run web:build   # build only: out/server/server.mjs and out/web/
+npm run web:start   # start an existing build (node out/server/server.mjs)
+npm run web:dev     # Vite with hot reload; run web:start alongside it for /api
+```
+
+Then open http://127.0.0.1:4318. The server is a single file with no
+`node_modules`, so `out/server` and `out/web` are all a machine needs besides
+Node itself. It reads its settings from the environment:
+
+| Variable                | Default                     | Meaning                                                |
+| ----------------------- | --------------------------- | ------------------------------------------------------ |
+| `ARIADNE_DATA_DIR`      | `~/.ariadne-web/data`       | Where the workspace, files and backups live            |
+| `PORT`                  | `4318`                      | Port to listen on                                      |
+| `HOST`                  | `127.0.0.1`                 | Interface to listen on; this machine only by default   |
+| `ARIADNE_ALLOW_REMOTE`  | unset                       | Must be `1` to listen beyond loopback (see below)      |
+| `ARIADNE_ALLOWED_HOSTS` | unset                       | Extra host names browsers may use, comma-separated     |
+| `ARIADNE_WEB_ROOT`      | `out/web` beside the server | The built web app                                      |
+| `ARIADNE_FAKE_TODAY`    | unset                       | Pin "today" for demos and tests, as in the desktop app |
+
+To use your existing desktop data, point `ARIADNE_DATA_DIR` at the desktop
+app's data folder (Settings shows it) while the desktop app is closed. Never
+run both against the same folder at once.
+
+There is no sign-in. The server refuses a non-loopback `HOST` unless
+`ARIADNE_ALLOW_REMOTE=1`, and that should only be set behind a reverse proxy
+that authenticates every request and terminates HTTPS. It also answers only
+the host names it knows — loopback, `HOST`, and `ARIADNE_ALLOWED_HOSTS` — and
+says "Unknown host" to anything else, which is what stops DNS rebinding; a
+browser address that gets that reply needs its name added. Every
+state-changing request must carry an `x-ariadne` header, which a page on
+another origin cannot send.
+
+The server is built for one person at a time. Each tab holds the whole
+workspace and saves whole collections back, so two people editing at once
+overwrite each other, and everyone shares one set of settings — including any
+Todoist token or Claude key stored there.
+
+In the browser, file pickers and downloads replace the desktop dialogs, and a
+report's PDF export opens the browser's print dialog ("Save as PDF"). The
+menu-bar quick add, dock badge, native menus and choosing folders from
+Settings are desktop-only. Ariadne works over plain HTTP, but browsers keep
+the clipboard for secure pages, so the copy buttons (a report's text, a
+contact's email or phone, the About box) only work at `localhost` or over
+HTTPS.
+
+**Logs.** What the server prints — the start-up line, crashes — goes to its
+terminal, or to the journal when it runs as a service
+(`journalctl --user -u ariadne`). The detailed debug log, written once debug
+logging is turned on in Settings, is `~/.ariadne-web/logs/ariadne-debug.log`,
+rotated at 5 MB. A data folder copied from the desktop can carry a log folder
+that does not exist on the server; then nothing is written until
+`"debugLogDir"` in its `settings.json` is set back to `null`.
+
+### Deploying to a Linux server
+
+The server needs Node 24 and nothing else, and none of it needs root apart from
+opening a firewall port. Build on your own machine:
+
+```sh
+npm run web:build
+COPYFILE_DISABLE=1 tar czf ~/ariadne-web.tgz -C out server web
+scp ~/ariadne-web.tgz you@server:/tmp/
+```
+
+On the server, put Node in your home directory (the `linux-x64` or
+`linux-arm64` `.tar.xz` from https://nodejs.org/dist/latest-v24.x/, to match
+`uname -m`), then unpack the app beside a settings file:
+
+```sh
+mkdir -p ~/.local/node ~/ariadne/app ~/ariadne/data
+tar -xJf /tmp/node-v24.*-linux-x64.tar.xz -C ~/.local/node --strip-components=1
+tar -xzf /tmp/ariadne-web.tgz -C ~/ariadne/app
+
+cat > ~/ariadne/ariadne.env <<ENV
+ARIADNE_DATA_DIR=$HOME/ariadne/data
+HOST=0.0.0.0
+PORT=8082
+ARIADNE_ALLOW_REMOTE=1
+ARIADNE_ALLOWED_HOSTS=$(hostname -s),$(hostname -f)
+ENV
+```
+
+Choose a port the network actually lets through: company networks often
+accept a connection on any port and then drop it, so a port scan cannot tell.
+Start a throwaway listener on a few candidates, then fetch each from another
+machine; the ports that answer are the usable ones:
+
+```sh
+~/.local/node/bin/node -e 'for (const p of process.argv.slice(1)) require("http").createServer((q, r) => r.end("ok " + p + "\n")).listen(+p)' 3000 8080 8081 8082 9000
+# elsewhere: for p in 3000 8080 8081 8082 9000; do curl -s --max-time 5 http://server:$p || echo "$p blocked"; done
+```
+
+Run it as a systemd user service, `~/.config/systemd/user/ariadne.service`:
+
+```ini
+[Unit]
+Description=Ariadne web app
+
+[Service]
+EnvironmentFile=%h/ariadne/ariadne.env
+ExecStart=%h/.local/node/bin/node %h/ariadne/app/server/server.mjs
+Restart=on-failure
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
+```
+
+```sh
+systemctl --user daemon-reload && systemctl --user enable --now ariadne
+sudo loginctl enable-linger $USER   # once, by an admin: keep it running after logout
+```
+
+On `SIGTERM` the server writes anything pending and refreshes the day's
+backup, as quitting the desktop app does; daily backups land in
+`~/ariadne/data/backups`. To update, unpack a new `ariadne-web.tgz` over
+`~/ariadne/app` between `systemctl --user stop ariadne` and `start`; the data
+folder and `ariadne.env` are left alone. If `ariadne.env` was edited on
+Windows, `cat -A ~/ariadne/ariadne.env` shows `^M` at the line ends and the
+server refuses its port; `sed -i 's/\r$//' ~/ariadne/ariadne.env` fixes it.
+
 ## Quality pipeline
 
 Every change lands through the same gate. These are requirements rather than
@@ -303,12 +434,19 @@ a window, a filesystem, or a clock, which is what makes an 80% coverage gate
 affordable rather than a tax, and it is why a change to how "blocked" is derived
 touches one file and one test file instead of a view, a service, and three mocks.
 
+The web build (D55) swaps the two lower layers for one. `src/server/` is a plain
+Node HTTP server that constructs the same `main/services/` and answers the
+routes in `src/shared/web-contract.ts`; `src/renderer/app/web-api.ts`
+implements `AriadneApi` over `fetch` and is installed as `window.ariadne` when
+no preload has set one. Nothing above that interface knows which it is
+talking to.
+
 Data flows one way, and every edit saves itself:
 
 ```
 user edit → store.apply(pure mutation from shared/domain/mutate.ts)
           → Zustand data slice updates (renderer is authoritative in memory)
-          → changed collections sent over IPC
+          → changed collections sent over IPC (HTTP in the web build)
           → StorageService debounces (~300ms) and writes atomically
             (write .tmp → rename) to JSON in the data directory
 ```
@@ -334,11 +472,14 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 | `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, quick-add (D51), vcard (D49), todoist (push+completion sync), ai-import, csv, seed                 |
 | `src/shared/domain/msproject.ts`  | Microsoft Project → Ariadne (D53): phases to tags, predecessors to Blocked by; `mspdi.ts` reads Project's XML export (D54)                                           |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                                           |
+| `src/shared/web-contract.ts`      | The web build's HTTP routes and headers, shared by the server and the browser client (D55)                                                                           |
 | `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                                   |
 | `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |
 | `src/main/quick-add-tray.ts`      | Menu-bar icon and its flyout (D51); the flyout is the renderer bundle at `#quick-add`, and its tasks are created by the main window via `commitQuickAdd`             |
 | `src/renderer/app/store.ts`       | `apply(mutation)` pattern + ui state (view, modal back-stack, scope, search, toast)                                                                                  |
+| `src/renderer/app/web-api.ts`     | `AriadneApi` over HTTP for the web build (D55); browser pickers and downloads stand in for dialogs                                                                   |
 | `src/renderer/views/` + `modals/` | CommandCenter, ProjectDetail, Calendar, Reports, Contacts, ContactDetail, FilesLibrary, TagsView, Settings, SearchResults; Task/File/Day/MoveTasks/About/Help modals |
+| `src/server/`                     | Web server (D55): routes over `main/services/`, static files, the Host and `x-ariadne` checks                                                                        |
 | `src/mcp/`                        | Read-only MCP server (D39): workspace locator, loader, tool projections, hand-rolled stdio protocol                                                                  |
 | `e2e/app.spec.ts`                 | Playwright flows: seed, CRUD, persistence-across-restart, library, reports, backups, tags, contacts, debug log                                                       |
 
