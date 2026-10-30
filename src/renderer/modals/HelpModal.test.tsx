@@ -71,6 +71,11 @@ describe('HelpModal', () => {
     expect(body('contacts')).toHaveTextContent('Export vCard');
     expect(body('contacts')).toHaveTextContent('Edit on the Details card');
     expect(body('tasks')).toHaveTextContent('fold the group');
+    // v2.8: one project from a JSON file.
+    expect(body('start')).toHaveTextContent('Import Project from Json');
+    expect(body('data')).toHaveTextContent('Microsoft Project');
+    expect(body('data')).toHaveTextContent('XML Format');
+    expect(body('data')).toHaveTextContent('XML Import at the top right');
     // The Claude bridge is read-only, and the help says so out loud.
     expect(body('claude')).toHaveTextContent('read-only');
   });

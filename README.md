@@ -148,6 +148,18 @@ with `npm run screenshots` (see [Screenshots](#screenshots)).
   file in one file, openable with any zip tool), legacy JSON export and import,
   atomic writes, and recovery from a corrupt file by quarantining it and
   restoring from the newest backup.
+- **Bring in a project** (decisions D52–D54) — **⤓** beside the PROJECTS
+  heading (_Import Project from Json_) and **XML Import** in the top bar add one
+  project from a file, beside the ones you already have. The file can be an
+  Ariadne project or a single-project export, a Microsoft Project plan
+  converted to JSON (MPXJ is the usual tool), or the XML file Project writes
+  with File → Save As → XML Format. Every id is new, so nothing already here is
+  overwritten and importing the same file twice gives two projects. From
+  Microsoft Project, finish dates become due dates, progress becomes status,
+  predecessors become **Blocked by**, milestones are tagged, and summary tasks
+  become tags on the tasks beneath them, so a phase stays easy to filter on.
+  Markdown notes come along; uploaded files, resources, costs and baselines do
+  not.
 - **Native menus and help** — a real application menu (decision D22): the macOS
   app menu carries About, Settings, Services, Hide, and Quit under a
   hidden-inset titlebar, while Windows and Linux put Settings and Quit under
@@ -320,6 +332,7 @@ On disk, at a location shown under **Settings → Data** and changeable there:
 | `src/shared/domain/mutate.ts`     | The complete mutation command surface — every state change goes through here                                                                                         |
 | `src/shared/domain/derive.ts`     | Derived values: blocked, overdue, due windows, progress, relative labels, scope                                                                                      |
 | `src/shared/domain/*.ts`          | reports, calendar, contacts (D31), dep-graph, search, sort, tags, quick-add (D51), vcard (D49), todoist (push+completion sync), ai-import, csv, seed                 |
+| `src/shared/domain/msproject.ts`  | Microsoft Project → Ariadne (D53): phases to tags, predecessors to Blocked by; `mspdi.ts` reads Project's XML export (D54)                                           |
 | `src/shared/ipc-contract.ts`      | Channel names + request/response types + the `AriadneApi` bridge interface                                                                                           |
 | `src/main/services/`              | Filesystem, backups, blobs, import/export, zip archives (D22), Todoist HTTP, Claude extraction, debug log (D18) — `.test.ts` twins                                   |
 | `src/main/menu.ts`                | Application-menu template; data actions become `MenuCommand`s the renderer dispatches (D22)                                                                          |

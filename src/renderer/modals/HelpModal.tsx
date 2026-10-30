@@ -87,7 +87,9 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
           <ul>
             <li>
               <strong>Sidebar</strong> — projects, the scope switch, and archived projects. The
-              PROJECTS heading itself opens an inventory of every project with its counts.
+              PROJECTS heading itself opens an inventory of every project with its counts. Beside
+              it, <strong>+</strong> starts a new project and <strong>⤓</strong> (Import Project
+              from Json) adds one project from a <code>.json</code> file.
             </li>
             <li>
               <strong>Calendar</strong> — month or single-week view of everything with a due date.
@@ -357,6 +359,26 @@ function Body({ section, mod }: { section: HelpSection; mod: string }): React.JS
             to move to a new machine. The older JSON export inlines file bytes as base64, which
             makes it far larger; it remains for compatibility with earlier exports. Importing either
             one replaces the current workspace, so Ariadne asks first.
+          </p>
+          <h3>Importing one project</h3>
+          <p>
+            <strong>⤓</strong> beside the PROJECTS heading —{' '}
+            <strong>Import Project from Json</strong> — adds a single project from a{' '}
+            <code>.json</code> file without touching anything else. The file can hold{' '}
+            <code>{'{ "project": …, "tasks": […] }'}</code>, a project with its own{' '}
+            <code>tasks</code> list, or a JSON export with one project in it. It always arrives as a
+            new project, so importing the same file twice gives you two. Markdown notes come along;
+            uploaded files do not, because a JSON file has no room for them.
+          </p>
+          <p>
+            It also reads Microsoft Project plans: the XML file Project writes with{' '}
+            <strong>File → Save As → XML Format</strong>, or a plan converted to JSON (with MPXJ,
+            for example). For an XML file there is also <strong>XML Import</strong> at the top
+            right, beside <strong>AI import…</strong>. Each real task comes across with its finish
+            date as the due date, its progress as the status, and its predecessors as{' '}
+            <strong>Blocked by</strong>. Summary tasks become tags on the tasks under them, so a
+            phase named &ldquo;Design Phase&rdquo; becomes <code>design-phase</code>. Resources,
+            costs and baselines are left behind.
           </p>
           <h3>Integrations</h3>
           <p>

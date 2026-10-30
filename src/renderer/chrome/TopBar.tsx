@@ -1,8 +1,10 @@
 import { fmtLong } from '@shared/domain/dates';
 import { isOverdue, tasksInScope } from '@shared/domain/derive';
+import { useRef } from 'react';
 
 import { useStore } from '../app/store';
 import type { ViewName } from '../app/store';
+import { runProjectJsonImport } from '../app/workspace-io';
 
 const VIEW_TITLES: Record<ViewName, string> = {
   home: 'Command Center',
@@ -31,6 +33,7 @@ export function TopBar(): React.JSX.Element {
     newProject,
     openAiImport,
   } = useStore();
+  const xmlInput = useRef<HTMLInputElement>(null);
   const searching = q.trim() !== '';
   // Scope 'all' still excludes archived projects' tasks.
   const overdue = tasksInScope(workspace?.tasks ?? [], workspace?.projects ?? [], 'all').filter(
@@ -73,6 +76,31 @@ export function TopBar(): React.JSX.Element {
       <button className="btn ghost" title="Extract tasks from pasted text" onClick={openAiImport}>
         AI import…
       </button>
+      {/* D54: an MS Project XML export, added as a new project. The same import
+          the sidebar's ⤓ runs, with the picker narrowed to XML. */}
+      <button
+        className="btn ghost"
+        title="Import a Microsoft Project XML file as a new project"
+        onClick={() => {
+          xmlInput.current?.click();
+        }}
+      >
+        XML Import
+      </button>
+      <input
+        ref={xmlInput}
+        type="file"
+        accept=".xml,application/xml,text/xml"
+        aria-label="MS Project XML file"
+        data-testid="xml-import-input"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          // Cleared first so picking the same file again still fires.
+          e.target.value = '';
+          if (file !== undefined) void runProjectJsonImport(file);
+        }}
+      />
       <button className="btn ghost" onClick={newProject}>
         + New project
       </button>

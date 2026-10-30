@@ -245,6 +245,11 @@ p {
 .sidebar-section .add-btn:hover {
   background: var(--ink-06);
 }
+.sidebar-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 
 /* ============ Top bar ============ */
 

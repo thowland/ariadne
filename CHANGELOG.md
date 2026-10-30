@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.8.0 — unreleased
+
+- **Import one project from a JSON file.** A new button, **⤓ Import Project
+  from Json**, sits beside the **+** next to the PROJECTS heading. Pick a
+  `.json` file and its project — tasks, notes, links, tags, and the
+  dependencies between its tasks — is added alongside your other projects and
+  opened. Nothing you already have is touched: the import always arrives as a
+  new project, so bringing in the same file twice gives you two. The file can
+  be a `{ "project": …, "tasks": […] }` document, a project with its own
+  `tasks` list, or a JSON export holding a single project. Markdown notes
+  come along; uploaded files do not, because a JSON file carries no room for
+  them, and the message after the import says when something was left out.
+- **Bring in a Microsoft Project plan.** The same button reads the `.xml`
+  file Microsoft Project writes with **File → Save As → XML Format**, and an
+  `.mpp` file that has been converted to JSON (MPXJ is the usual tool). For
+  the XML file there is also an **XML Import** button at the top right, next
+  to **AI import…**. Each task arrives with its finish date as the due date, its progress
+  as the status — 100% is Done, anything started is Doing — its priority, its
+  notes, and its predecessors as **Blocked by**. Summary tasks become tags on
+  the tasks beneath them, so a phase stays easy to filter on, and milestones
+  are tagged `milestone`. Resources, costs and baselines have no place in
+  Ariadne and are left behind.
+- In-app help covers both.
+
 ## 2.7.2 — 2026-10-16
 
 Version 2.7.1 was tagged but never released, because its installers failed
