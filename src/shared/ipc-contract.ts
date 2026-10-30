@@ -122,8 +122,15 @@ export function isOpenableExternally(url: unknown): url is string {
 /** Scheme serving stored blob bytes to the renderer (img/object/fetch). */
 export const BLOB_PROTOCOL = 'ariadne-blob';
 
-export function blobUrl(fileId: string): string {
-  return `${BLOB_PROTOCOL}://${fileId}`;
+/**
+ * Where a stored file's bytes are read from. The desktop app serves them on
+ * its own scheme; the web build (D55) passes the API's `blobBaseUrl`, an HTTP
+ * path on the Ariadne server.
+ */
+export function blobUrl(fileId: string, base?: string): string {
+  return base === undefined
+    ? `${BLOB_PROTOCOL}://${fileId}`
+    : `${base}${encodeURIComponent(fileId)}`;
 }
 
 export interface WorkspaceLoadResponse {
@@ -341,6 +348,8 @@ export interface AriadneApi {
   hideQuickAdd(): void;
   /** E2E date pin (ARIADNE_FAKE_TODAY); null in normal runs. */
   fakeToday: string | null;
+  /** Web build only (D55): the HTTP path stored files are read from. */
+  blobBaseUrl?: string;
   /**
    * True when the window uses the macOS hidden-inset titlebar, so the top bar
    * leaves room for the traffic lights and offers a drag region.

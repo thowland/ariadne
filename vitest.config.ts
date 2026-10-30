@@ -20,7 +20,10 @@ export default defineConfig({
           // `*.node.test.ts` lets a renderer-adjacent test that needs the
           // filesystem — the theme contract reads the stylesheets as text —
           // live beside what it checks without giving the renderer node types.
-          include: ['src/{shared,main,preload,mcp}/**/*.test.ts', 'src/renderer/**/*.node.test.ts'],
+          include: [
+            'src/{shared,main,preload,mcp,server}/**/*.test.ts',
+            'src/renderer/**/*.node.test.ts',
+          ],
           setupFiles: ['vitest.setup.node.ts'],
         },
       },
@@ -47,6 +50,9 @@ export default defineConfig({
         // domain logic; exercised by the Playwright E2E suite, which vitest
         // coverage cannot instrument.
         'src/main/index.ts',
+        // The web server's bootstrap (D55): env, listen, signals. Its routes
+        // and helpers are unit-tested; this file only wires them together.
+        'src/server/main.ts',
         'src/main/ipc.ts',
         // Tray + flyout window plumbing (D51); its placement maths is the
         // pure, tested flyout-position.ts, the rest is exercised by E2E.

@@ -1,3 +1,6 @@
+// Must come first: provides window.ariadne when served by the web server (D55).
+import './app/install-web-api';
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isOpenableExternally, OPENABLE_SCHEMES } from './ipc-contract';
+import { blobUrl, isOpenableExternally, OPENABLE_SCHEMES } from './ipc-contract';
 
 /**
  * The guard on `shell.openExternal`. Worth its own test because the URLs it
@@ -58,5 +58,12 @@ describe('isOpenableExternally', () => {
 
   it('keeps the allowlist small enough to read', () => {
     expect([...OPENABLE_SCHEMES]).toEqual(['http:', 'https:', 'mailto:', 'tel:']);
+  });
+});
+
+describe('blobUrl', () => {
+  it('uses the desktop scheme, or an HTTP base in the web build (D55)', () => {
+    expect(blobUrl('f1')).toBe('ariadne-blob://f1');
+    expect(blobUrl('a b', '/api/blob/')).toBe('/api/blob/a%20b');
   });
 });
